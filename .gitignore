@@ -1,2 +1,6 @@
 __pycache__/
 *.py[cod]
+.gradle/
+**/build/
+local.properties
+artifacts/*.apk
