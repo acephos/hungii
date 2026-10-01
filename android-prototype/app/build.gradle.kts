@@ -1,7 +1,10 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("org.jetbrains.kotlin.kapt")
 }
 android {
     namespace = "com.hungii.prototype"
@@ -10,10 +13,17 @@ android {
         applicationId = "com.hungii.prototype"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.2-prototype"
+        versionCode = 2
+        versionName = "0.3-swiggy"
+        val config = Properties().apply {
+            val source = rootProject.file("local.properties")
+            if (source.exists()) source.inputStream().use { load(it) }
+        }
+        fun quoted(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+        buildConfigField("String", "SUPABASE_URL", quoted(config.getProperty("hungii.supabaseUrl", "")))
+        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", quoted(config.getProperty("hungii.supabasePublishableKey", "")))
     }
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
@@ -28,5 +38,12 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
+    implementation("androidx.room:room-runtime:2.7.1")
+    implementation("androidx.room:room-ktx:2.7.1")
+    kapt("androidx.room:room-compiler:2.7.1")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("androidx.browser:browser:1.8.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

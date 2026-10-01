@@ -1,46 +1,29 @@
-# Hungii Android prototype
+# Hungii Android
 
-Native Kotlin / Jetpack Compose Android review artifact on `prototype/android-lime`.
+Native Kotlin / Compose app using charcoal and electric lime, with check-in, swipe to three finalists, face-down shuffle/reveal, an offline tracker and consented local favorites.
 
-**Design question:** does a focused mobile journey help someone choose their next meal without getting stuck comparing an endless list?
+Version 0.3 removes fictional meal/price/coupon/nutrition fixtures and the stock-photo catalogue. It starts disconnected; meals arrive only from the prepared Swiggy MCP adapter after service setup. Targets are editable defaults; consumed food and spending start at zero. Room retains user-entered totals and favorites across restarts, separated by Hungii account.
 
-The selected visual direction is charcoal with electric lime: condensed display typography, large food photos, a voice-reactive orb, nutrition stat panels, and one primary action per stage. Home handles check-in; Discover handles the shortlist; the lucky draw and reveal fill the screen. The user requested this direction after reviewing the earlier web exploration.
+## Build
 
-## Run
-
-Open this directory in Android Studio, allow it to install the SDK packages, and run the `app` configuration on an emulator or Android device. Minimum Android version: 8.0 (API 26). Build toolchain: JDK 17, Gradle 8.11.1, Android SDK 35. The wrapper verifies the Gradle distribution checksum.
-
-For a command-line build, set `JAVA_HOME` and `ANDROID_HOME` to your installed toolchain and create a gitignored `local.properties` containing `sdk.dir=/absolute/path/to/your/sdk`:
+Open this directory in Android Studio, or use JDK 17, Gradle 8.11.1 and SDK 35:
 
 ```sh
 ./gradlew assembleDebug lintDebug
 ```
 
-The APK is `app/build/outputs/apk/debug/app-debug.apk`. Install with Android Studio, or `adb -s YOUR_DEVICE_SERIAL install -r app/build/outputs/apk/debug/app-debug.apk`. The review copy is at `../artifacts/hungii-android-prototype.apk` and is not committed.
+Minimum Android is 8.0/API 26. APK: `app/build/outputs/apk/debug/app-debug.apk`. Review copy: `../artifacts/hungii-android-prototype.apk`, excluded from git. Follow [service setup](../docs/swiggy-setup.md) before rebuilding a connected APK. Only the Supabase URL and publishable key go into Android's gitignored `local.properties`.
 
-## Try it
+## Behaviour and boundaries
 
-1. Start with the sample day. Type `₹350 left`, `2 meals left`, `something cheesy`, or `I had 2 eggs`. The sliders icon edits targets directly. Each check-in can be undone.
-2. Open Discover. Swipe right to keep a meal or left to pass; buttons provide the same actions. Save a meal with the heart on its photo. Filters change the sample ranking and pool.
-3. Keep three finalists. Tap **Turn over & shuffle**. Cards turn face down, move, and become selectable when the shuffle finishes. Tap one for the reveal. You can revisit the finalists.
-4. Continue to a simulated bill. The cheesy flatbread demonstrates a threshold offer: adding a ₹40 curd side saves ₹20 overall and updates the nutrition ranges.
-5. Confirm a demo meal. This records sample spending and reserves food without increasing consumed nutrition. Log the whole meal or half separately. My day shows intake and remaining reservations, with an action to log saved portions later. Confirming clears the completed shortlist for the next decision.
-6. Saved provides shortcuts to go-to meals for this session.
+Google login uses Supabase Auth; Swiggy connects through its own browser authorization. Provider credentials stay encrypted on the backend. Select an address before searching. Cards preserve returned identifiers and display missing nutrition honestly. Saving a meal asks for retention consent; searching again refreshes availability. Food totals contain only what you enter; an order is not consumption.
 
-## Prototype boundaries
+Review reads the existing Swiggy cart and offer descriptions. It does not add the winner, mutate a cart, simulate discounts or order. Checkout opens Swiggy. Cart writes require verified authenticated item schemas; nutrition requires a sourced, calibrated layer. AI conversation, macro-based matching, history imports and payment orchestration are not implemented.
 
-All meal names, restaurants, nutrition ranges, prices, delivery times and coupons are fictional fixtures. Food photos are illustrative stock images. The nutrition ranges demonstrate estimate uncertainty and do not describe the photographed dishes. The ranking is a local heuristic for interaction review. Hard vegetarian and price filters are respected; taste, protein and speed preferences influence ranking. There are no Swiggy requests, real orders, payments or user accounts.
+Check-in uses a local phrase parser and explicit search input. Voice uses Android speech recognition with typing fallback; there is no spoken AI response. ViewModel holds the UI, Room stores the tracker/favorites, and Keystore encrypts account sessions and pending login data. Portrait layouts and reduced-motion support retain the design exploration.
 
-The check-in parser only understands the sample phrases and a few variations. The orb animates continuously and reacts to the platform speech recognizer's sound level when listening. Microphone permission is requested only when voice is tapped. Recognition depends on an installed Android speech service; typing remains available. There is no AI conversation or spoken assistant response in this build.
-
-State is in memory and resets when the activity is recreated or the app process restarts. This prototype targets portrait phones. System animation settings disable continuous orb/shuffle motion. The implementation is disposable; accepting the visual direction does not select a production stack.
-
-## Review status
-
-Visual direction selected by the user; usability verdict pending user review. Verification details and screenshots are recorded in `../artifacts/android-verification.md`.
-
-The T3 Device panel returned an unavailable Android host and repeated discovery errors after SDK installation. Native verification used a dedicated Android 15 Pixel 7 emulator through ADB. No connected physical phone was changed.
+See [stack decision](../docs/adr/0001-native-android-and-mumbai-backend.md), [MCP contract](../docs/swiggy-integration-contract.md) and [verification](../artifacts/swiggy-verification.md). Earlier screenshots document version 0.2, not a live connection.
 
 ## Assets
 
-Barlow Condensed Bold is from [Google Fonts](https://github.com/google/fonts/tree/main/ofl/barlowcondensed), licensed under the included [SIL Open Font License](BARLOW-OFL.txt). Stock-photo source URLs are listed in [the earlier prototype notes](../prototype/README.md#photo-sources). Material icons are supplied by AndroidX Compose.
+Barlow Condensed Bold is from [Google Fonts](https://github.com/google/fonts/tree/main/ofl/barlowcondensed), under the included [SIL Open Font License](BARLOW-OFL.txt). Food photos load from returned HTTPS URLs; missing photos show a neutral icon. Material icons come from AndroidX Compose.

@@ -1,0 +1,4 @@
+project_id = "hungii"
+
+[functions.hungii-api]
+verify_jwt = false # Callback is public; every API action verifies the caller with Auth.getUser.

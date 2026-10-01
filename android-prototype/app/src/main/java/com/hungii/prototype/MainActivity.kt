@@ -2,6 +2,10 @@ package com.hungii.prototype
 
 import android.Manifest
 import android.content.Intent
+import android.net.Uri
+import androidx.activity.viewModels
+import androidx.browser.customtabs.CustomTabsIntent
+import coil.compose.AsyncImage
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.provider.Settings
@@ -67,6 +71,7 @@ private val Display=FontFamily(Font(R.font.barlow_condensed_bold,FontWeight.Bold
 data class VoiceState(val listening: Boolean=false, val level: Float=0f)
 
 class MainActivity: ComponentActivity() {
+    private val model: HungiiModel by viewModels()
     private val voice=mutableStateOf(VoiceState())
     private var recognizer: SpeechRecognizer?=null
     private var onWords: (String)->Unit={}
@@ -76,14 +81,15 @@ class MainActivity: ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(statusBarStyle=SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),navigationBarStyle=SystemBarStyle.dark(android.graphics.Color.rgb(16,18,17)))
+        intent.data?.let(model::handleCallback)
         setContent {
             MaterialTheme(colorScheme=darkColorScheme(primary=Lime,onPrimary=Charcoal,background=Charcoal,surface=Surface,onSurface=White,onBackground=White,outline=Line)) {
-                val model=remember { DemoModel() }
                 onWords={ model.update(it) }
                 HungiiApp(model,voice.value,::requestVoice)
             }
         }
     }
+    override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); intent.data?.let(model::handleCallback) }
     private fun requestVoice() {
         if(voice.value.listening) { recognizer?.stopListening(); voice.value=VoiceState(); return }
         if(!SpeechRecognizer.isRecognitionAvailable(this)) {
@@ -117,13 +123,13 @@ class MainActivity: ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HungiiApp(model: DemoModel,voice: VoiceState,onVoice: ()->Unit) {
+private fun HungiiApp(model: HungiiModel,voice: VoiceState,onVoice: ()->Unit) {
     var goalsOpen by remember { mutableStateOf(false) }
     var detailMeal by remember { mutableStateOf<Meal?>(null) }
     val haptic=LocalHapticFeedback.current
     val context=LocalContext.current
     val reduceMotion=remember { Settings.Global.getFloat(context.contentResolver,Settings.Global.ANIMATOR_DURATION_SCALE,1f)==0f }
-    val focused=model.screen in listOf(Screen.Finalists,Screen.Draw,Screen.Winner,Screen.Review,Screen.Ordered)
+    val focused=model.screen in listOf(Screen.Finalists,Screen.Draw,Screen.Winner,Screen.Review)
     BackHandler(model.screen!=Screen.Home) { model.goBack() }
     LaunchedEffect(model.shuffling) {
         if(model.shuffling) {
@@ -153,11 +159,14 @@ private fun HungiiApp(model: DemoModel,voice: VoiceState,onVoice: ()->Unit) {
                 Screen.Draw -> DrawScreen(model,reduceMotion)
                 Screen.Winner -> WinnerScreen(model,{detailMeal=it})
                 Screen.Review -> ReviewScreen(model)
-                Screen.Ordered -> OrderedScreen(model)
                 Screen.Saved -> SavedScreen(model)
                 Screen.Day -> DayScreen(model,{goalsOpen=true})
             }
         }
+    }
+    if(model.accountOpen) AccountDialog(model) { model.accountOpen=false }
+    model.pendingSave?.let { meal ->
+        AlertDialog(onDismissRequest={model.pendingSave=null},containerColor=Surface,title={Text("Remember this meal?",color=White)},text={Text("Allow Hungii to keep ${meal.name}, its restaurant and menu details on this device for future searches. You can delete saved meals and withdraw this permission from Saved.",color=Muted)},confirmButton={TextButton(onClick={model.acceptSaving()}){Text("Allow & save",color=Lime)}},dismissButton={TextButton(onClick={model.pendingSave=null}){Text("Cancel",color=Muted)}})
     }
     if(goalsOpen) GoalsDialog(model) { goalsOpen=false }
     detailMeal?.let { meal ->
@@ -167,11 +176,7 @@ private fun HungiiApp(model: DemoModel,voice: VoiceState,onVoice: ()->Unit) {
                 DisplayText(meal.name.uppercase(),34)
                 Text(meal.benefit,color=White,fontSize=15.sp)
                 Text(meal.compromise,color=Coral,fontSize=15.sp)
-                val n=meal.nutrition
-                val cal=Span(model.caloriesLeft.low-n.calories.high,model.caloriesLeft.high-n.calories.low)
-                val protein=Span(model.proteinLeft.low-n.protein.high,model.proteinLeft.high-n.protein.low)
-                Text("After eating: ${cal.label} kcal and ${protein.label}g protein left. After paying: roughly ₹${model.moneyLeft-meal.price.high}–${model.moneyLeft-meal.price.low} left.",color=Muted,lineHeight=23.sp)
-                Text("One portion. Fictional sample nutrition and prices; this stock photo illustrates the meal card. Actual portion-level nutrition and final checkout require separate verification.",color=Muted,fontSize=12.sp,lineHeight=19.sp)
+                Text("${meal.priceLabel} is the menu price. Delivery, taxes and offers can change the final cart bill. Nutrition isn't published for this item in the connected menu.",color=Muted,lineHeight=23.sp)
                 LimeButton("Got it",Icons.Outlined.Check) { detailMeal=null }
             }
         }
@@ -184,18 +189,19 @@ private fun BrandHeader(onDay: ()->Unit) {
         Row(verticalAlignment=Alignment.CenterVertically) {
             Text("hungii",fontSize=29.sp,fontWeight=FontWeight.Black,letterSpacing=(-1.5).sp,color=White)
             Text(".",fontSize=36.sp,fontWeight=FontWeight.Black,color=Lime)
-            Spacer(Modifier.width(10.dp)); Badge("DEMO",Muted,Surface)
+            Spacer(Modifier.width(10.dp)); Badge("HUNGII",Muted,Surface)
         }
         IconButton(onClick=onDay) { Icon(Icons.Outlined.Tune,"Edit your day",tint=White,modifier=Modifier.size(23.dp)) }
     }
 }
 
 @Composable
-private fun HomeScreen(model: DemoModel,voice: VoiceState,onVoice: ()->Unit,onDay: ()->Unit) {
+private fun HomeScreen(model: HungiiModel,voice: VoiceState,onVoice: ()->Unit,onDay: ()->Unit) {
     var message by remember { mutableStateOf("") }
     val compact=androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp<380
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=22.dp),verticalArrangement=Arrangement.spacedBy(if(compact)8.dp else 12.dp)) {
         BrandHeader(onDay)
+        ConnectionStrip(model)
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Bottom) {
             DisplayText("LESS THINKING.\nMORE FUEL.",if(compact)43 else 49)
             Column(horizontalAlignment=Alignment.End,modifier=Modifier.padding(bottom=6.dp)) {
@@ -231,13 +237,13 @@ private fun HomeScreen(model: DemoModel,voice: VoiceState,onVoice: ()->Unit,onDa
             if(model.canUndoInput) Receipt(model.receipt) { model.undoInput() }
             else Text(model.receipt,color=Muted,fontSize=11.sp,lineHeight=18.sp)
         }
-        LimeButton("Find my next meal",Icons.Outlined.ArrowForward) { model.screen=Screen.Discover }
-        Text("Sample day · scripted check-in · optional device voice",color=Muted,fontSize=10.sp,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth().padding(bottom=14.dp))
+        LimeButton("Find my next meal",Icons.Outlined.ArrowForward,enabled=!model.loading) { model.search() }
+        Text("Your targets · local check-in · optional device voice",color=Muted,fontSize=10.sp,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth().padding(bottom=14.dp))
     }
 }
 
 @Composable
-private fun DiscoverScreen(model: DemoModel,onDetails: (Meal)->Unit) {
+private fun DiscoverScreen(model: HungiiModel,onDetails: (Meal)->Unit) {
     val haptic=LocalHapticFeedback.current
     val meal=model.pool.firstOrNull()
     Column(Modifier.fillMaxSize().padding(horizontal=20.dp)) {
@@ -257,6 +263,9 @@ private fun DiscoverScreen(model: DemoModel,onDetails: (Meal)->Unit) {
             SmallChip("Veg only",model.vegOnly) { model.vegOnly=!model.vegOnly }
             SmallChip("Fast",model.fast) { model.fast=!model.fast }
         }
+        OutlinedTextField(model.query,onValueChange={model.query=it},label={Text("Search meals",fontSize=11.sp)},singleLine=true,modifier=Modifier.fillMaxWidth().padding(bottom=8.dp),trailingIcon={IconButton(onClick={model.search()}){Icon(Icons.Outlined.Search,"Search Swiggy",tint=Lime)}})
+        if(model.loading) LinearProgressIndicator(modifier=Modifier.fillMaxWidth(),color=Lime)
+        if(model.connectionMessage.isNotBlank()) Text(model.connectionMessage,color=Coral,fontSize=12.sp,lineHeight=18.sp)
         if(meal!=null) {
             MealProfile(meal,model,Modifier.weight(1f),onDetails,onSwipe={ like ->
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -274,11 +283,15 @@ private fun DiscoverScreen(model: DemoModel,onDetails: (Meal)->Unit) {
             }
         } else {
             Column(Modifier.weight(1f).fillMaxWidth(),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally) {
-                DisplayText("NO MORE IN\nTHIS BATCH.",44)
+                DisplayText(if(!model.connected) "CONNECT.\nTHEN DISCOVER." else "NO MORE IN\nTHIS BATCH.",44)
                 Spacer(Modifier.height(18.dp))
-                Text("Keep the choices you liked, or change the plan. Your filters stay yours.",color=Muted,textAlign=TextAlign.Center,lineHeight=22.sp)
+                Text(if(!model.connected) "Connect your account and choose a delivery address to see Swiggy meals." else "Try a different dish or choose an open restaurant below. Your dietary filters stay yours.",color=Muted,textAlign=TextAlign.Center,lineHeight=22.sp)
                 Spacer(Modifier.height(24.dp))
                 if(model.finalists.isNotEmpty()) LimeButton("See my finalists",Icons.Outlined.ArrowForward) {model.showFinalists()}
+                if(!model.connected||model.addressId==null) LimeButton("Connect Swiggy",Icons.Outlined.Link) {model.accountOpen=true}
+                Column(Modifier.heightIn(max=160.dp).verticalScroll(rememberScrollState())) {
+                    model.restaurants.take(8).forEach {r->TextButton(onClick={model.restaurantMeals(r)}) {Text(r.name+(r.distanceKm?.let {" · $it km"} ?: "")+(r.etaMinutes?.let {" · ~$it min"} ?: ""),color=Lime,maxLines=2)}}
+                }
                 TextButton(onClick={model.passed.clear()}) {Text("Revisit passed meals",color=Lime)}
             }
         }
@@ -286,7 +299,7 @@ private fun DiscoverScreen(model: DemoModel,onDetails: (Meal)->Unit) {
 }
 
 @Composable
-private fun MealProfile(meal: Meal,model: DemoModel,modifier: Modifier,onDetails: (Meal)->Unit,onSwipe: (Boolean)->Unit) {
+private fun MealProfile(meal: Meal,model: HungiiModel,modifier: Modifier,onDetails: (Meal)->Unit,onSwipe: (Boolean)->Unit) {
     var drag by remember(meal.id) { mutableFloatStateOf(0f) }
     val n=meal.nutrition
     Column(modifier.graphicsLayer { translationX=drag;rotationZ=drag/35f }.clip(RoundedCornerShape(26.dp)).background(Surface)
@@ -294,7 +307,7 @@ private fun MealProfile(meal: Meal,model: DemoModel,modifier: Modifier,onDetails
             detectHorizontalDragGestures(onDragEnd={ if(abs(drag)>100.dp.toPx()) onSwipe(drag>0);drag=0f },onDragCancel={drag=0f}) { change, amount -> change.consume(); drag+=amount }
         }) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            Image(painterResource(meal.image),"Illustrative sample food photo",Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+            MealImage(meal,Modifier.fillMaxSize())
             Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent,Color.Black.copy(alpha=.25f)))))
             Row(Modifier.fillMaxWidth().padding(14.dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
                 Badge(meal.badge,Charcoal,Lime)
@@ -303,25 +316,24 @@ private fun MealProfile(meal: Meal,model: DemoModel,modifier: Modifier,onDetails
                 }
             }
             if(abs(drag)>30) Badge(if(drag>0) "KEEP" else "PASS",if(drag>0)Charcoal else White,if(drag>0)Lime else Color.Black.copy(alpha=.7f),Modifier.align(Alignment.Center).graphicsLayer { rotationZ=if(drag>0)-12f else 12f })
-            Text("ILLUSTRATIVE PHOTO",fontSize=8.sp,color=White.copy(alpha=.85f),letterSpacing=1.sp,modifier=Modifier.align(Alignment.BottomEnd).padding(12.dp))
+            Text("SWIGGY MENU PHOTO",fontSize=8.sp,color=White.copy(alpha=.85f),letterSpacing=1.sp,modifier=Modifier.align(Alignment.BottomEnd).padding(12.dp))
         }
         Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(7.dp)) {
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
                 Text(meal.restaurant,color=Muted,fontSize=11.sp,lineHeight=16.sp)
-                Text(if(meal.veg) "● VEG" else "● NON-VEG",color=if(meal.veg)Lime else Coral,fontSize=9.sp,lineHeight=12.sp,fontWeight=FontWeight.Bold)
+                Text(if(meal.veg==true) "● VEG" else if(meal.veg==false) "● NON-VEG" else "DIET UNKNOWN",color=if(meal.veg==true)Lime else Coral,fontSize=9.sp,lineHeight=12.sp,fontWeight=FontWeight.Bold)
             }
             DisplayText(meal.name.uppercase(),28,maxLines=2)
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
-                Row(verticalAlignment=Alignment.Bottom) {DisplayText("₹${meal.price.label}",29);Text("  est. total",color=Muted,fontSize=10.sp,modifier=Modifier.padding(bottom=4.dp))}
-                Row(verticalAlignment=Alignment.CenterVertically) {Icon(Icons.Outlined.Schedule,null,tint=Muted,modifier=Modifier.size(13.dp));Spacer(Modifier.width(4.dp));Text("${meal.minutes.label} min",color=White,fontSize=11.sp)}
+                Row(verticalAlignment=Alignment.Bottom) {DisplayText(meal.priceLabel,if(meal.itemPrice==null)18 else 29);Text("  menu price",color=Muted,fontSize=10.sp,modifier=Modifier.padding(bottom=4.dp))}
+                Row(verticalAlignment=Alignment.CenterVertically) {Icon(Icons.Outlined.Schedule,null,tint=Muted,modifier=Modifier.size(13.dp));Spacer(Modifier.width(4.dp));Text(meal.etaLabel,color=White,fontSize=11.sp)}
             }
             MacroStats(n)
-            Text("SAMPLE ESTIMATES · ONE PORTION",color=Muted,fontSize=8.sp,lineHeight=12.sp,letterSpacing=.8.sp)
-            TradeLine(Icons.Outlined.Add,Lime,if(model.taste in meal.tags) "Matches your ${model.taste} craving." else "${n.protein.label}g protein contribution.")
-            val proteinAfter=Span((model.proteinLeft.low-n.protein.high).coerceAtLeast(0),(model.proteinLeft.high-n.protein.low).coerceAtLeast(0))
-            TradeLine(Icons.Outlined.Remove,Coral,if(model.opportunities==1&&proteinAfter.high>0) "Still ~${proteinAfter.label}g short of your protein target." else if(meal.price.mid>model.mealMoneyGuide) "~₹${(meal.price.mid-model.mealMoneyGuide).toInt()} above your next-meal guide." else meal.compromise,maxLines=1)
+            Text("NUTRITION NOT PUBLISHED · FEES EXTRA",color=Muted,fontSize=8.sp,lineHeight=12.sp,letterSpacing=.8.sp)
+            TradeLine(Icons.Outlined.Add,Lime,if(model.taste in meal.tags) "Your craving appears in the menu description." else meal.distanceKm?.let { "${it} km away · ${meal.etaLabel}" } ?: meal.etaLabel)
+            TradeLine(Icons.Outlined.Remove,Coral,meal.compromise,maxLines=2)
             Row(Modifier.fillMaxWidth().clickable { onDetails(meal) },horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
-                Text("Leaves ~₹${model.moneyLeft-meal.price.high}–${model.moneyLeft-meal.price.low} for later",fontSize=10.sp,lineHeight=14.sp,color=Muted)
+                Text("Final bill checked in Swiggy cart",fontSize=10.sp,lineHeight=14.sp,color=Muted)
                 Icon(Icons.Outlined.ArrowOutward,"Meal trade-off details",tint=Lime,modifier=Modifier.size(16.dp))
             }
         }
@@ -329,7 +341,7 @@ private fun MealProfile(meal: Meal,model: DemoModel,modifier: Modifier,onDetails
 }
 
 @Composable
-private fun FinalistsScreen(model: DemoModel) {
+private fun FinalistsScreen(model: HungiiModel) {
     Column(Modifier.fillMaxSize().padding(horizontal=22.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
         FocusHeader("YOUR FINALISTS") {model.goBack()}
         DisplayText("YOU PICKED\nTHE GOOD ONES.",52)
@@ -337,11 +349,11 @@ private fun FinalistsScreen(model: DemoModel) {
         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(12.dp,Alignment.CenterVertically)) {
             model.finalists.toList().forEachIndexed { i,m ->
                 Row(Modifier.fillMaxWidth().height(100.dp).clip(RoundedCornerShape(20.dp)).background(Surface),verticalAlignment=Alignment.CenterVertically) {
-                    Image(painterResource(m.image),"Illustrative ${m.name}",Modifier.width(105.dp).fillMaxHeight(),contentScale=ContentScale.Crop)
+                    MealImage(m,Modifier.width(105.dp).fillMaxHeight())
                     Column(Modifier.weight(1f).padding(13.dp),verticalArrangement=Arrangement.spacedBy(5.dp)) {
                         Eyebrow("FINALIST 0${i+1}",Lime)
                         Text(m.name,color=White,fontSize=15.sp,lineHeight=18.sp,fontWeight=FontWeight.SemiBold,maxLines=2)
-                        Text("₹${m.price.label} est. · ${m.nutrition.protein.label}g P",color=Muted,fontSize=10.sp,lineHeight=14.sp)
+                        Text("${m.priceLabel} · ${m.etaLabel}",color=Muted,fontSize=10.sp,lineHeight=14.sp)
                     }
                     IconButton(onClick={model.remove(m)},modifier=Modifier.size(36.dp)) {Icon(Icons.Outlined.Close,"Remove ${m.name}",tint=Muted,modifier=Modifier.size(16.dp))}
                 }
@@ -353,7 +365,7 @@ private fun FinalistsScreen(model: DemoModel) {
 }
 
 @Composable
-private fun DrawScreen(model: DemoModel,reduceMotion: Boolean) {
+private fun DrawScreen(model: HungiiModel,reduceMotion: Boolean) {
     var backsUp by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { backsUp=true }
     val infinite=rememberInfiniteTransition(label="shuffle")
@@ -383,7 +395,7 @@ private fun DrawScreen(model: DemoModel,reduceMotion: Boolean) {
                         .clickable(enabled=model.canPick&&!model.shuffling&&model.pickedIndex==null) {model.pick(i)}
                         .semantics {contentDescription=if(picked) "Revealed ${m.name}" else "Pick card ${i+1}"},contentAlignment=Alignment.Center) {
                         if(turned<90) Column(Modifier.fillMaxSize()) {
-                            Image(painterResource(m.image),null,Modifier.weight(1f).fillMaxWidth(),contentScale=ContentScale.Crop)
+                            MealImage(m,Modifier.weight(1f).fillMaxWidth())
                             Text(m.name,color=White,fontSize=11.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(10.dp),maxLines=3)
                         } else Column(Modifier.fillMaxSize().graphicsLayer {rotationY=180f}.padding(10.dp).border(1.dp,Charcoal.copy(alpha=.25f),RoundedCornerShape(10.dp)),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
                             Text("h.",fontSize=54.sp,fontWeight=FontWeight.Black,letterSpacing=(-3).sp,color=Charcoal)
@@ -402,120 +414,117 @@ private fun DrawScreen(model: DemoModel,reduceMotion: Boolean) {
 }
 
 @Composable
-private fun WinnerScreen(model: DemoModel,onDetails: (Meal)->Unit) {
+private fun WinnerScreen(model: HungiiModel,onDetails: (Meal)->Unit) {
     val meal=model.winner ?: return
     Column(Modifier.fillMaxSize()) {
     Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal=22.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
         FocusHeader("YOUR LUCKY PICK") {model.goBack()}
         Row(verticalAlignment=Alignment.CenterVertically) {Icon(Icons.Outlined.AutoAwesome,null,tint=Lime,modifier=Modifier.size(22.dp));Spacer(Modifier.width(10.dp));DisplayText("IT’S A MEAL MATCH.",40)}
         Box(Modifier.fillMaxWidth().height(245.dp).clip(RoundedCornerShape(26.dp))) {
-            Image(painterResource(meal.image),"Illustrative sample meal photo",Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+            MealImage(meal,Modifier.fillMaxSize())
             Badge(meal.badge,Charcoal,Lime,Modifier.align(Alignment.TopStart).padding(15.dp))
         }
         DisplayText(meal.name.uppercase(),40)
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {Text(meal.restaurant,color=Muted,fontSize=12.sp);Text("${meal.minutes.label} min",color=Muted,fontSize=12.sp)}
+        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {Text(meal.restaurant,color=Muted,fontSize=12.sp);Text(meal.etaLabel,color=Muted,fontSize=12.sp)}
         MacroStats(meal.nutrition)
-        Text("Sample nutrition estimates · one portion",color=Muted,fontSize=10.sp)
+        Text("Nutrition not published · calories and macros unknown",color=Muted,fontSize=10.sp)
         TradeLine(Icons.Outlined.Add,Lime,meal.benefit)
         TradeLine(Icons.Outlined.Remove,Coral,meal.compromise,maxLines=3)
-        Row(Modifier.fillMaxWidth().padding(vertical=8.dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Bottom) {DisplayText("₹${meal.price.label}",37);Text("estimated full checkout",color=Muted,fontSize=11.sp)}
+        Row(Modifier.fillMaxWidth().padding(vertical=8.dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Bottom) {DisplayText(meal.priceLabel,if(meal.itemPrice==null)22 else 37);Text("menu price · fees extra",color=Muted,fontSize=11.sp)}
         TextButton(onClick={onDetails(meal)},modifier=Modifier.fillMaxWidth()) {Text("See what this leaves for later",color=Muted,fontSize=12.sp)}
-        Text("Fictional meal & estimates. The draw never places an order.",color=Muted,fontSize=10.sp,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth().padding(bottom=20.dp))
+        Text("The draw never changes a cart or places an order.",color=Muted,fontSize=10.sp,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth().padding(bottom=20.dp))
     }
     Box(Modifier.fillMaxWidth().background(Charcoal).padding(horizontal=22.dp,vertical=12.dp)) {
-        LimeButton("Let’s have this",Icons.Outlined.ArrowForward) {model.side=false;model.screen=Screen.Review}
+        LimeButton("Let’s have this",Icons.Outlined.ArrowForward) {model.review()}
     }
     }
 }
 
 @Composable
-private fun ReviewScreen(model: DemoModel) {
+private fun ReviewScreen(model: HungiiModel) {
     val meal=model.winner ?: return
-    val total=meal.quote(model.side)
+    val context=LocalContext.current
     Column(Modifier.fillMaxSize()) {
-    Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal=22.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
-        FocusHeader("MEAL REVIEW") {model.goBack()}
-        DisplayText("A GOOD PICK.\nA CLEAR BILL.",50)
-        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Surface).padding(12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
-            Image(painterResource(meal.image),null,Modifier.size(75.dp).clip(RoundedCornerShape(13.dp)),contentScale=ContentScale.Crop)
-            Column {Text(meal.name,color=White,fontSize=16.sp,fontWeight=FontWeight.SemiBold);Spacer(Modifier.height(6.dp));Text("One meal${if(model.side)" + curd side" else ""}",color=Muted,fontSize=12.sp)}
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal=22.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
+            FocusHeader("MEAL REVIEW") {model.goBack()}
+            DisplayText("YOUR PICK.\nYOUR LIVE CART.",48)
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Surface).padding(12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+                MealImage(meal,Modifier.size(75.dp).clip(RoundedCornerShape(13.dp)))
+                Column {Text(meal.name,color=White,fontSize=16.sp,fontWeight=FontWeight.SemiBold);Text(meal.priceLabel+" menu price",color=Muted,fontSize=12.sp)}
+            }
+            MacroStats(meal.nutrition)
+            Text("Nutrition is unavailable for this item. Log your own known intake in My day.",color=Muted,fontSize=12.sp,lineHeight=19.sp)
+            Text("Choosing this meal has not changed your Swiggy cart or placed an order. Complete your basket and checkout in Swiggy.",color=Muted,lineHeight=22.sp)
+            if(model.loading) CircularProgressIndicator(color=Lime)
+            if(model.connectionMessage.isNotBlank()) Text(model.connectionMessage,color=Coral,fontSize=13.sp)
+            model.cart?.let {cart ->
+                val matching=cart.optString("restaurantId")==meal.restaurantId
+                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Surface).padding(20.dp),verticalArrangement=Arrangement.spacedBy(13.dp)) {
+                    Eyebrow("YOUR EXISTING SWIGGY CART",Muted)
+                    Text(cart.optString("restaurant").takeIf {it!="null"} ?: "Empty cart",color=White)
+                    val items=cart.optJSONArray("items")
+                    if(items==null||items.length()==0) Text("Add your chosen meal in Swiggy.",color=Muted)
+                    else for(i in 0 until items.length()) {val item=items.getJSONObject(i);Text("${item.optInt("quantity")} × ${item.optString("name")}",color=Muted,fontSize=12.sp)}
+                    if(!matching&&items!=null&&items.length()>0) Text("This cart belongs to a different restaurant from your pick.",color=Coral,fontSize=12.sp)
+                    if(!cart.isNull("payable")) {
+                        BillLine("Food",rupees(cart.optDouble("itemTotal")))
+                        BillLine("Delivery",rupees(cart.optDouble("deliveryCharge")))
+                        BillLine("Taxes & charges",rupees(cart.optDouble("taxes")))
+                        if(!cart.isNull("appliedCoupon")) BillLine("Applied: ${cart.optString("appliedCoupon")}","−"+rupees(cart.optDouble("couponDiscount")),Lime)
+                        HorizontalDivider(color=Line)
+                        BillLine("Current cart payable",rupees(cart.getDouble("payable")),Lime)
+                    } else Text("Live total is unavailable until the connection is verified.",color=Muted,fontSize=12.sp)
+                }
+            }
+            model.coupons?.optJSONArray("sections")?.let {sections ->
+                for(i in 0 until sections.length()) {
+                    val section=sections.getJSONObject(i);val offers=section.optJSONArray("coupons") ?: continue
+                    for(j in 0 until minOf(offers.length(),5)) {
+                        val offer=offers.getJSONObject(j)
+                        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Surface).padding(14.dp),verticalArrangement=Arrangement.spacedBy(5.dp)) {
+                            Text(offer.optString("title","Offer"),color=Lime,fontWeight=FontWeight.Bold)
+                            Text(offer.optString("description").ifBlank {offer.optString("subtitle")},color=Muted,fontSize=12.sp,lineHeight=18.sp)
+                            Text("Eligibility depends on your current cart and payment method. This offer has not been applied.",color=Muted,fontSize=10.sp,lineHeight=16.sp)
+                        }
+                    }
+                }
+            }
+            TextButton(onClick={model.review()}) {Text("Refresh cart & offers",color=Lime)}
+            Spacer(Modifier.height(12.dp))
         }
-        MacroStats(meal.nutrients(model.side))
-        Text("Sample nutrition estimates · one portion",color=Muted,fontSize=10.sp)
-        if(meal.sideDeal) Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Lime.copy(alpha=.09f)).clickable {model.side=!model.side}.padding(12.dp),verticalAlignment=Alignment.Top) {
-            Checkbox(checked=model.side,onCheckedChange={model.side=it},colors=CheckboxDefaults.colors(checkedColor=Lime,checkmarkColor=Charcoal),modifier=Modifier.size(32.dp))
-            Column(Modifier.padding(start=9.dp)) {Text("MORE FOOD. SMALLER BILL.",fontFamily=Display,fontSize=21.sp,color=Lime);Text("A ₹40 curd side unlocks the sample ₹100 offer. Save ₹20 overall. Its nutrition is included above.",color=Muted,fontSize=12.sp,lineHeight=19.sp)}
+        Box(Modifier.fillMaxWidth().background(Charcoal).padding(22.dp)) {
+            LimeButton("Continue in Swiggy",Icons.Outlined.OpenInNew) {context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://www.swiggy.com/")))}
         }
-        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(Surface).padding(20.dp),verticalArrangement=Arrangement.spacedBy(15.dp)) {
-            Eyebrow("SIMULATED CHECKOUT",Muted)
-            BillLine("Food${if(model.side)" + side" else ""}","₹${meal.menuPrice+if(model.side)40 else 0}")
-            BillLine("Delivery & other charges","₹${meal.charges}")
-            BillLine("Sample coupon","−₹${if(model.side&&meal.sideDeal)100 else meal.discount}",Lime)
-            HorizontalDivider(color=Line)
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {Text("Sample total",color=White,fontWeight=FontWeight.SemiBold);DisplayText("₹$total",39,Lime)}
-        }
-        Text("₹${model.moneyLeft-total} would remain for today. Food is reserved when confirmed, and logged only when eaten.",color=Muted,lineHeight=22.sp,fontSize=13.sp)
-        if(total>model.moneyLeft) Text("This bill exceeds your remaining allowance. Revisit your finalists or edit your day.",color=Coral,fontSize=12.sp)
-        Text("No real cart, offer, payment or order is connected.",color=Muted,fontSize=10.sp,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth().padding(bottom=24.dp))
-    }
-    Column(Modifier.fillMaxWidth().background(Charcoal).padding(horizontal=22.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-        BillLine("Sample total","₹$total",Lime)
-        LimeButton("Confirm demo meal",Icons.Outlined.Check,enabled=total<=model.moneyLeft) {model.confirm()}
-    }
     }
 }
 
 @Composable
-private fun OrderedScreen(model: DemoModel) {
-    val order=model.orders.lastOrNull() ?: return
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=22.dp),verticalArrangement=Arrangement.spacedBy(19.dp)) {
-        FocusHeader("YOUR MEAL") {model.screen=Screen.Home}
-        Box(Modifier.fillMaxWidth().height(140.dp),contentAlignment=Alignment.Center) {Box(Modifier.size(88.dp).background(Lime,CircleShape),contentAlignment=Alignment.Center) {Icon(Icons.Outlined.Check,null,tint=Charcoal,modifier=Modifier.size(42.dp))}}
-        DisplayText(if(order.eaten>=1) "FUEL LOGGED.\nDAY UPDATED." else "ONE LESS THING\nTO THINK ABOUT.",52)
-        Text(order.meal.name,color=White,fontSize=20.sp,fontWeight=FontWeight.Bold)
-        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)) {MetricTile("SPENT","₹${order.cost}","Already recorded",White,Modifier.weight(1f));MetricTile("FOOD LOGGED","${(order.eaten*100).toInt()}%",if(order.eaten<1)"Rest is reserved" else "Intake updated",Lime,Modifier.weight(1f))}
-        Text(if(order.eaten==0f) "Sample spending is recorded. Your meal hasn’t been counted as eaten yet." else if(order.eaten<1) "Half logged. The remaining half is set aside, and stays out of consumed totals." else "Calories and macros reflect the portion you ate. Your next decision starts from here.",color=Muted,lineHeight=24.sp)
-        if(order.eaten<1) {
-            LimeButton(if(order.eaten==0f) "I ate the whole meal" else "Log the remaining half",Icons.Outlined.Restaurant) {model.eat(1f-order.eaten)}
-            if(order.eaten==0f) OutlineButton("I ate half · save the rest") {model.eat(.5f)}
-        }
-        if(model.receipt.isNotEmpty()) Text(model.receipt,color=Muted,fontSize=12.sp)
-        OutlineButton("Back to my day") {model.screen=Screen.Home}
-        TextButton(onClick={model.nextMeal()},modifier=Modifier.fillMaxWidth()) {Text("Plan my next meal →",color=Lime)}
-        Spacer(Modifier.height(20.dp))
-    }
-}
-
-@Composable
-private fun SavedScreen(model: DemoModel) {
+private fun SavedScreen(model: HungiiModel) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=22.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
         BrandHeader {model.screen=Screen.Day}
         DisplayText("YOUR USUALS.\nYOUR SHORTCUT.",50)
-        Text("Familiar meals, saved for this prototype session.",color=Muted,fontSize=13.sp,lineHeight=22.sp)
-        demoMeals.filter {it.id in model.saved}.forEach {meal ->
+        Text("Saved on this device with your permission. Search again to check today's availability and price.",color=Muted,fontSize=13.sp,lineHeight=22.sp)
+        model.savedMeals.toList().forEach {meal ->
             Row(Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(22.dp)).background(Surface),verticalAlignment=Alignment.CenterVertically) {
-                Image(painterResource(meal.image),"Illustrative sample meal photo",Modifier.width(115.dp).fillMaxHeight(),contentScale=ContentScale.Crop)
+                MealImage(meal,Modifier.width(115.dp).fillMaxHeight())
                 Column(Modifier.weight(1f).padding(13.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
                     Text(meal.name,color=White,fontWeight=FontWeight.Bold,fontSize=15.sp,lineHeight=19.sp,maxLines=2)
-                    Text("₹${meal.price.label} est. · ${meal.nutrition.protein.label}g protein",color=Muted,fontSize=10.sp,lineHeight=14.sp,maxLines=2)
+                    Text(meal.restaurant,color=Muted,fontSize=10.sp,lineHeight=14.sp,maxLines=2)
                     Row(verticalAlignment=Alignment.CenterVertically) {
-                        TextButton(onClick={
-                            if(meal !in model.finalists&&model.finalists.size<3&&(!model.vegOnly||meal.veg)&&meal.price.low<=model.moneyLeft&&(!model.budgetOnly||meal.price.high<=250)) {model.like(meal);if(model.finalists.size<3)model.screen=Screen.Discover}
-                            else model.receipt="This saved meal doesn’t fit the current pool, or your finalist slots are full."
-                        },contentPadding=PaddingValues(0.dp)) {Text("Shortlist →",color=Lime,fontSize=12.sp)}
+                        TextButton(onClick={model.query=meal.name;model.search()},contentPadding=PaddingValues(0.dp)) {Text("Find again →",color=Lime,fontSize=12.sp)}
                         IconButton(onClick={model.toggleSaved(meal)},modifier=Modifier.size(35.dp)) {Icon(Icons.Outlined.Favorite,"Unsave ${meal.name}",tint=Lime,modifier=Modifier.size(17.dp))}
                     }
                 }
             }
         }
-        if(model.saved.isEmpty()) Text("Tap the heart on a meal to make it a go-to.",color=Muted)
-        if(model.receipt.isNotEmpty()) Text(model.receipt,color=Muted,fontSize=12.sp)
+        if(model.saved.isEmpty()) Text("Tap the heart on a live meal to make it a go-to.",color=Muted)
+        if(model.savedConsent) TextButton(onClick={model.forgetSaved()}) {Text("Delete saved meals & withdraw saving permission",color=Coral,fontSize=12.sp)}
         Spacer(Modifier.height(15.dp))
     }
 }
 
 @Composable
-private fun DayScreen(model: DemoModel,onEdit: ()->Unit) {
+private fun DayScreen(model: HungiiModel,onEdit: ()->Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=22.dp),verticalArrangement=Arrangement.spacedBy(18.dp)) {
         BrandHeader(onEdit)
         DisplayText("YOUR DAY.\nNO FIXED SCHEDULE.",47)
@@ -534,16 +543,8 @@ private fun DayScreen(model: DemoModel,onEdit: ()->Unit) {
             }
         }
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)) {MetricTile("ALLOWANCE LEFT","₹${model.moneyLeft}","₹${model.spent} spent / ₹${model.allowance}",Lime,Modifier.weight(1f));MetricTile("RESERVED FOOD",model.reservedCalories.label,"kcal not yet eaten",White,Modifier.weight(1f))}
-        model.orders.forEachIndexed { index,order ->
-            if(order.eaten<1f) Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Surface).padding(16.dp),verticalArrangement=Arrangement.spacedBy(7.dp)) {
-                Eyebrow("SAVED FOR LATER",Lime)
-                Text(order.meal.name,color=White,fontSize=15.sp,lineHeight=20.sp,fontWeight=FontWeight.SemiBold)
-                Text("${((1f-order.eaten)*100).toInt()}% left · ${order.meal.nutrients(order.side).calories.portion(1f-order.eaten).label} kcal reserved",color=Muted,fontSize=12.sp,lineHeight=18.sp)
-                TextButton(onClick={model.eatAt(index,1f-order.eaten)}) {Text("I ate the rest",color=Lime)}
-            }
-        }
         OutlineButton("Edit my targets & allowance") {onEdit()}
-        Text("Prototype food log. Estimates stay estimates; ordering does not mean eating.",color=Muted,fontSize=11.sp,lineHeight=19.sp,modifier=Modifier.padding(bottom=20.dp))
+        Text("Your food log. Orders are not automatically counted as eaten. Nutrition totals contain only what you entered.",color=Muted,fontSize=11.sp,lineHeight=19.sp,modifier=Modifier.padding(bottom=20.dp))
     }
 }
 
@@ -573,7 +574,7 @@ private fun Orb(modifier: Modifier,level: Float,listening: Boolean) {
 }
 
 @Composable
-private fun BottomTabs(model: DemoModel) {
+private fun BottomTabs(model: HungiiModel) {
     Row(Modifier.fillMaxWidth().background(Charcoal).navigationBarsPadding().padding(horizontal=24.dp,vertical=9.dp).height(49.dp),horizontalArrangement=Arrangement.SpaceBetween) {
         listOf(Triple(Screen.Home,"Home",Icons.Outlined.Home),Triple(Screen.Discover,"Discover",Icons.Outlined.Style),Triple(Screen.Saved,"Saved",Icons.Outlined.FavoriteBorder),Triple(Screen.Day,"My day",Icons.Outlined.BarChart)).forEach { (screen,label,icon) ->
             val active=model.screen==screen
@@ -586,9 +587,9 @@ private fun BottomTabs(model: DemoModel) {
 }
 
 @Composable
-private fun MacroStats(n: Nutrition) {
+private fun MacroStats(n: Nutrition?) {
     Row(Modifier.fillMaxWidth().border(1.dp,Line,RoundedCornerShape(14.dp)).padding(horizontal=12.dp,vertical=12.dp),horizontalArrangement=Arrangement.SpaceBetween) {
-        listOf(Triple(n.calories.label,"KCAL",White),Triple(n.protein.label,"PROTEIN · G",Lime),Triple(n.carbs.label,"CARBS · G",Cyan),Triple(n.fat.label,"FAT · G",Coral)).forEach { (value,label,color) ->
+        listOf(Triple((n?.calories?.label ?: "—"),"KCAL",White),Triple((n?.protein?.label ?: "—"),"PROTEIN · G",Lime),Triple((n?.carbs?.label ?: "—"),"CARBS · G",Cyan),Triple((n?.fat?.label ?: "—"),"FAT · G",Coral)).forEach { (value,label,color) ->
             Column {DisplayText(value,25,color);Text(label,color=Muted,fontSize=7.sp,lineHeight=10.sp,letterSpacing=.4.sp)}
         }
     }
@@ -599,7 +600,7 @@ private fun MetricTile(label: String,value: String,note: String,color: Color,mod
 }
 @Composable
 private fun FocusHeader(label: String,onBack: ()->Unit) {
-    Row(Modifier.fillMaxWidth().height(62.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {IconButton(onClick=onBack,modifier=Modifier.size(40.dp).border(1.dp,Line,CircleShape)) {Icon(Icons.Outlined.ArrowBack,"Back",tint=White,modifier=Modifier.size(20.dp))};Eyebrow(label,Muted);Spacer(Modifier.weight(1f));Badge("DEMO",Muted,Surface)}
+    Row(Modifier.fillMaxWidth().height(62.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {IconButton(onClick=onBack,modifier=Modifier.size(40.dp).border(1.dp,Line,CircleShape)) {Icon(Icons.Outlined.ArrowBack,"Back",tint=White,modifier=Modifier.size(20.dp))};Eyebrow(label,Muted);Spacer(Modifier.weight(1f));Badge("HUNGII",Muted,Surface)}
 }
 @Composable
 private fun DisplayText(text: String,size: Int,color: Color=White,maxLines: Int=Int.MAX_VALUE) {Text(text,color=color,fontFamily=Display,fontSize=size.sp,lineHeight=(size*.97f).sp,fontWeight=FontWeight.Bold,letterSpacing=(-.4).sp,maxLines=maxLines,overflow=TextOverflow.Ellipsis)}
@@ -623,17 +624,82 @@ private fun BillLine(label: String,value: String,color: Color=White) {Row(Modifi
 private fun Receipt(text: String,onUndo: ()->Unit) {Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp)).background(Raised).padding(12.dp),verticalAlignment=Alignment.CenterVertically) {Text(text,color=Muted,fontSize=11.sp,lineHeight=17.sp,modifier=Modifier.weight(1f));TextButton(onClick=onUndo) {Text("Undo",color=Lime,fontSize=11.sp)}}}
 
 @Composable
-private fun GoalsDialog(model: DemoModel,onClose: ()->Unit) {
+private fun GoalsDialog(model: HungiiModel,onClose: ()->Unit) {
     var cal by remember {mutableStateOf(model.calorieGoal.toString())};var protein by remember {mutableStateOf(model.proteinGoal.toString())}
     var carbs by remember {mutableStateOf(model.carbGoal.toString())};var fat by remember {mutableStateOf(model.fatGoal.toString())}
     var allowance by remember {mutableStateOf(model.allowance.toString())};var opportunities by remember {mutableStateOf(model.opportunities.toString())}
-    val valid=listOf(cal,protein,carbs,fat,allowance).all { (it.toIntOrNull()?:0)>0 } && (opportunities.toIntOrNull()?:-1) in 0..8
+    var eatenCal by remember {mutableStateOf(model.intake.calories.low.toString())};var eatenP by remember {mutableStateOf(model.intake.protein.low.toString())}
+    var eatenC by remember {mutableStateOf(model.intake.carbs.low.toString())};var eatenF by remember {mutableStateOf(model.intake.fat.low.toString())}
+    var spent by remember {mutableStateOf(model.spent.toString())}
+    val valid=listOf(cal,protein,carbs,fat,allowance).all { (it.toIntOrNull()?:0)>0 } && (opportunities.toIntOrNull()?:-1) in 0..8 && listOf(eatenCal,eatenP,eatenC,eatenF,spent).all { (it.toIntOrNull()?:-1)>=0 }
     AlertDialog(onDismissRequest=onClose,containerColor=Surface,title={DisplayText("YOUR DAY. YOUR RULES.",31)},text={
         Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-            listOf(Triple("Daily calories",cal,{v:String->cal=v}),Triple("Protein goal (g)",protein,{v:String->protein=v}),Triple("Carbs goal (g)",carbs,{v:String->carbs=v}),Triple("Fat goal (g)",fat,{v:String->fat=v}),Triple("Food allowance (₹)",allowance,{v:String->allowance=v}),Triple("Opportunities left",opportunities,{v:String->opportunities=v})).forEach { (label,value,update) ->
+            listOf(Triple("Daily calories",cal,{v:String->cal=v}),Triple("Protein goal (g)",protein,{v:String->protein=v}),Triple("Carbs goal (g)",carbs,{v:String->carbs=v}),Triple("Fat goal (g)",fat,{v:String->fat=v}),Triple("Food allowance (₹)",allowance,{v:String->allowance=v}),Triple("Opportunities left",opportunities,{v:String->opportunities=v}),Triple("Calories eaten today",eatenCal,{v:String->eatenCal=v}),Triple("Protein eaten (g)",eatenP,{v:String->eatenP=v}),Triple("Carbs eaten (g)",eatenC,{v:String->eatenC=v}),Triple("Fat eaten (g)",eatenF,{v:String->eatenF=v}),Triple("Money spent today (₹)",spent,{v:String->spent=v})).forEach { (label,value,update) ->
                 OutlinedTextField(value,onValueChange={v->update(v.filter {it.isDigit()})},label={Text(label,fontSize=12.sp)},singleLine=true,modifier=Modifier.fillMaxWidth(),keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(keyboardType=androidx.compose.ui.text.input.KeyboardType.Number))
             }
-            Text("Food already eaten and money already spent stay recorded.",color=Muted,fontSize=11.sp,lineHeight=18.sp)
+            Text("Enter your actual daily totals. Swiggy orders do not automatically become consumed nutrition.",color=Muted,fontSize=11.sp,lineHeight=18.sp)
         }
-    },confirmButton={TextButton(enabled=valid,onClick={model.invalidateCheckInUndo();model.calorieGoal=cal.toInt();model.proteinGoal=protein.toInt();model.carbGoal=carbs.toInt();model.fatGoal=fat.toInt();model.allowance=allowance.toInt();model.opportunities=opportunities.toInt();onClose()}) {Text("Update my day",color=if(valid)Lime else Muted)}},dismissButton={TextButton(onClick=onClose) {Text("Cancel",color=Muted)}})
+    },confirmButton={TextButton(enabled=valid,onClick={model.invalidateCheckInUndo();model.calorieGoal=cal.toInt();model.proteinGoal=protein.toInt();model.carbGoal=carbs.toInt();model.fatGoal=fat.toInt();model.allowance=allowance.toInt();model.opportunities=opportunities.toInt();model.spent=spent.toInt();model.intake=Nutrition(Span(eatenCal.toInt(),eatenCal.toInt()),Span(eatenP.toInt(),eatenP.toInt()),Span(eatenC.toInt(),eatenC.toInt()),Span(eatenF.toInt(),eatenF.toInt()));onClose()}) {Text("Update my day",color=if(valid)Lime else Muted)}},dismissButton={TextButton(onClick=onClose) {Text("Cancel",color=Muted)}})
+}
+
+
+private fun rupees(value: Double) = if(value==value.toInt().toDouble()) "₹${value.toInt()}" else "₹"+"%.2f".format(java.util.Locale.ROOT,value)
+
+@Composable
+private fun MealImage(meal: Meal,modifier: Modifier=Modifier) {
+    Box(modifier.background(Raised),contentAlignment=Alignment.Center) {
+        Icon(Icons.Outlined.Restaurant,null,tint=Muted,modifier=Modifier.size(36.dp))
+        if(meal.imageUrl!=null) AsyncImage(model=meal.imageUrl,contentDescription=meal.name,modifier=Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+    }
+}
+
+@Composable
+private fun ConnectionStrip(model: HungiiModel) {
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface).clickable {model.accountOpen=true}.padding(12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
+        Text(if(model.connected) "SWIGGY · ${model.environment.uppercase()}" else "CONNECT SWIGGY",color=if(model.connected)Lime else Muted,fontSize=10.sp,fontWeight=FontWeight.Bold)
+        Text(if(model.connected&&model.addressId!=null) "Change address →" else "Accounts →",color=Lime,fontSize=10.sp)
+    }
+}
+
+@Composable
+private fun AccountDialog(model: HungiiModel,onClose: ()->Unit) {
+    val context=LocalContext.current
+    var consent by remember {mutableStateOf(false)}
+    fun browse(url: String) {try {CustomTabsIntent.Builder().build().launchUrl(context,Uri.parse(url))} catch(_: Exception) {model.connectionMessage="No browser is available. Install a browser to connect."}}
+    AlertDialog(onDismissRequest=onClose,containerColor=Surface,title={DisplayText("YOUR ACCOUNTS.",34)},text={
+        Column(Modifier.heightIn(max=460.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+            Text("Hungii saves your tracker. Swiggy supplies meals for the delivery address you choose.",color=Muted,fontSize=13.sp,lineHeight=20.sp)
+            if(!model.configured) Text("The live connection is not available in this build yet. You can keep using your offline tracker while account setup is completed.",color=Coral,fontSize=13.sp,lineHeight=20.sp)
+            if(!model.signedIn) LimeButton("Sign in with Google",Icons.Outlined.Login,enabled=model.configured&&!model.loading) {
+                try {browse(model.signInUrl())} catch(e: ApiFailure) {model.connectionMessage=e.message}
+            } else {
+                Text("Signed in to Hungii",color=Lime,fontSize=13.sp)
+                if(!model.connected) {
+                    Row(verticalAlignment=Alignment.Top) {
+                        Checkbox(consent,onCheckedChange={consent=it},colors=CheckboxDefaults.colors(checkedColor=Lime,checkmarkColor=Charcoal))
+                        Text("Allow Hungii to securely keep my Swiggy connection until I disconnect. Expired sessions need reconnection.",color=Muted,fontSize=12.sp,lineHeight=18.sp,modifier=Modifier.padding(top=10.dp))
+                    }
+                    LimeButton("Connect Swiggy",Icons.Outlined.Link,enabled=consent&&!model.loading) {model.connect(::browse)}
+                } else {
+                    Text("Swiggy connected · ${model.environment}",color=Lime,fontSize=12.sp)
+                    TextButton(onClick={model.addressList()}) {Text("Choose delivery address",color=Lime)}
+                    model.addresses.forEach {address ->
+                        OutlinedButton(onClick={model.selectAddress(address)},modifier=Modifier.fillMaxWidth()) {
+                            Column {Text(address.label,color=White,fontWeight=FontWeight.Bold);Text(address.addressLine,color=Muted,fontSize=12.sp,lineHeight=18.sp,maxLines=3)}
+                        }
+                    }
+                    Row {
+                        if(model.addressPage>1) TextButton(onClick={model.addressList(model.addressPage-1)}) {Text("Previous",color=Lime)}
+                        if(model.moreAddresses) TextButton(onClick={model.addressList(model.addressPage+1)}) {Text("More addresses",color=Lime)}
+                    }
+                    TextButton(onClick={model.disconnect()}) {Text("Disconnect Swiggy",color=Coral)}
+                }
+                TextButton(onClick={model.refresh()}) {Text("Refresh connection",color=Lime)}
+                TextButton(onClick={model.syncTracker()}) {Text("Sync my tracker",color=Lime)}
+                TextButton(onClick={model.signOut()}) {Text("Sign out of Hungii",color=Muted)}
+            }
+            if(model.loading) LinearProgressIndicator(modifier=Modifier.fillMaxWidth(),color=Lime)
+            if(model.connectionMessage.isNotBlank()) Text(model.connectionMessage,color=Coral,fontSize=12.sp,lineHeight=18.sp)
+        }
+    },confirmButton={TextButton(onClick=onClose) {Text("Done",color=Lime)}})
 }

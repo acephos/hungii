@@ -4,3 +4,9 @@ __pycache__/
 **/build/
 local.properties
 artifacts/*.apk
+.env
+.env.*
+!.env.example
+supabase/.temp/
+supabase/.branches/
+node_modules/

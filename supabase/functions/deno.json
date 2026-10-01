@@ -1,0 +1,13 @@
+{
+  "imports": {
+    "@modelcontextprotocol/sdk/client/index.js": "npm:@modelcontextprotocol/sdk@1.31.0/client/index.js",
+    "@modelcontextprotocol/sdk/client/streamableHttp.js": "npm:@modelcontextprotocol/sdk@1.31.0/client/streamableHttp.js",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.117.2",
+    "ajv": "npm:ajv@8.17.1"
+  },
+  "compilerOptions": { "strict": true },
+  "tasks": {
+    "check": "deno check hungii-api/index.ts",
+    "test": "deno test _shared/"
+  }
+}

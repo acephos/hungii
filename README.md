@@ -10,7 +10,9 @@ The current prototype is a native Kotlin / Jetpack Compose Android app with char
 
 Build and run instructions: [android-prototype/README.md](android-prototype/README.md). Requires Android 8.0 or newer. The downloadable build is generated at `artifacts/hungii-android-prototype.apk`.
 
-Meals, nutrition ranges, prices and offers are fictional sample data. The prototype does not connect to Swiggy or place orders. Check-ins use a local phrase parser; optional speech recognition uses the device's speech service. State lasts for the current app session.
+Version 0.3 removes the sample catalogue and prepares a Swiggy Food MCP integration backed by Supabase Auth/Postgres in Mumbai. The APK starts disconnected until external service setup is completed. Room retains user-entered tracking and consented local favorites. Missing nutrition stays unknown, and checkout currently opens Swiggy rather than modifying a cart or placing an order.
+
+Follow [service setup](docs/swiggy-setup.md). The [stack decision](docs/adr/0001-native-android-and-mumbai-backend.md) and [verified MCP contract](docs/swiggy-integration-contract.md) record the implementation boundaries. Supabase and Swiggy access have not been provisioned in this workspace.
 
 ## Earlier web exploration
 
