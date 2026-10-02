@@ -92,11 +92,7 @@ class HungiiApi(private val secure: SecureSession) {
         if(BuildConfig.LOCAL_DEMO) return withContext(Dispatchers.IO) {
             val demoSession=secure.read("demoSession")?:random().also {secure.put("demoSession",it)}
             val request=Request.Builder().url(BuildConfig.DEMO_API_URL).header("X-Hungii-Demo-Session",demoSession).post(args.toString().toRequestBody("application/json".toMediaType())).build()
-            http.newCall(request).execute().use { response ->
-                val data=JSONObject(response.body?.string() ?: "{}")
-                if(!response.isSuccessful) throw ApiFailure(data.optJSONObject("error")?.optString("code") ?: "HUNGII_DEMO",data.optJSONObject("error")?.optString("message") ?: "Start the local demo server.")
-                data
-            }
+            SimulatorTransport(http).execute(request)
         }
         return request("/functions/v1/hungii-api?forceFunctionRegion=ap-south-1",args,accessToken())
     }

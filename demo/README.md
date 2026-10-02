@@ -20,6 +20,14 @@ HUNGII_DEMO_BIND=YOUR_TAILSCALE_IPV4 npx --yes deno@2.9.6 run --config supabase/
 
 Set `hungii.demoApiUrl=http://YOUR_TAILSCALE_IPV4:8788/api` in gitignored `android-prototype/local.properties` before building `assembleDemoDebug`. The default is `http://10.0.2.2:8788/api` for an emulator. The gateway permits loopback/Tailscale binding; do not expose its unauthenticated demo API to the public internet. The founder preview uses the configured repository variable `HUNGII_DEMO_API_URL`. The computer must stay on and run both services.
 
+### Phone cannot connect
+
+1. Open Tailscale on the phone and switch it to **Connected**, using the same tailnet as the computer. Ordinary Wi-Fi/mobile internet alone does not reach this private simulator.
+2. Keep the computer awake with the gateway running. Open `http://YOUR_TAILSCALE_IPV4:8788/health` on the phone; it should return `status: ready`.
+3. Return to Hungii → Accounts → **Refresh connection** (or **Reconnect simulator**). The synthetic address is selected automatically. Close Accounts and tap **Find my next meal** on Home.
+
+Version 0.7.2 reports unreachable simulator connections with the destination and these recovery instructions. Synthetic sessions do not require a Swiggy login or token-retention consent. The cloud Assistant still has a separate opt-in.
+
 ## Cloud Assistant
 
 No model runs locally. Create a Groq Free account/key, remain on Free, then:
@@ -58,3 +66,5 @@ npx --yes deno@2.9.6 test --config supabase/functions/deno.json --allow-env supa
 ```
 
 CI uses synthetic data and no Groq key. The suite covers successful/failed/expired/cancelled payments, cart revisions, coupon savings, invalid items, MCP protocol sessions, device isolation and the live-write gate.
+
+Android CI also runs `:app:testRealDebugUnitTest :app:testDemoDebugUnitTest`. The HTTP-boundary regression closes a real test server before a request and verifies a recoverable connection error; companion cases check successful responses and preserved gateway errors.

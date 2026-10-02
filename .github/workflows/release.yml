@@ -80,7 +80,7 @@ jobs:
           npx --yes deno@2.9.6 test --config supabase/functions/deno.json --allow-env supabase/functions/_shared/ demo/simulator_test.ts
       - name: Build and lint signed previews
         working-directory: android-prototype
-        run: ./gradlew --no-daemon -PhungiiVersionName="${RELEASE_TAG#v}" :app:assembleRealDebug :app:assembleDemoDebug :app:lintRealDebug :app:lintDemoDebug
+        run: ./gradlew --no-daemon -PhungiiVersionName="${RELEASE_TAG#v}" :app:testRealDebugUnitTest :app:testDemoDebugUnitTest :app:assembleRealDebug :app:assembleDemoDebug :app:lintRealDebug :app:lintDemoDebug
       - name: Package and verify APKs
         env:
           EXPECTED_PREVIEW_CERT: ${{ vars.HUNGII_PREVIEW_CERT_SHA256 }}

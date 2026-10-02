@@ -688,11 +688,13 @@ internal fun AccountDialog(model: HungiiModel,onClose: ()->Unit) {
                 TextButton(onClick={model.privacyAction="delete_cloud_tracker"}) {Text("Erase cloud profile & tracker",color=Coral)}
                 }
                 if(!model.connected) {
-                    Row(verticalAlignment=Alignment.Top) {
+                    if(BuildConfig.LOCAL_DEMO) {
+                        Text("Connect Tailscale on your phone and keep the simulator running on your computer, then reconnect here.",color=Muted,fontSize=12.sp,lineHeight=18.sp)
+                    } else Row(verticalAlignment=Alignment.Top) {
                         Checkbox(consent,onCheckedChange={consent=it},colors=CheckboxDefaults.colors(checkedColor=Lime,checkmarkColor=Charcoal))
                         Text("Allow Hungii to encrypt and retain my Swiggy token, chosen address identifier and Food session for up to five days, to perform my requested meal searches. Disconnect to erase them. Notice ${model.privacyVersion}.",color=Muted,fontSize=12.sp,lineHeight=18.sp,modifier=Modifier.padding(top=10.dp))
                     }
-                    LimeButton(if(BuildConfig.LOCAL_DEMO) "Start synthetic MCP demo" else "Connect Swiggy",Icons.Outlined.Link,enabled=consent&&!model.loading) {model.connect(::browse)}
+                    LimeButton(if(BuildConfig.LOCAL_DEMO) "Reconnect simulator" else "Connect Swiggy",Icons.Outlined.Link,enabled=(BuildConfig.LOCAL_DEMO||consent)&&!model.loading) {model.connect(::browse)}
                     if(!BuildConfig.LOCAL_DEMO) TextButton(onClick={model.privacyAction="disconnect"}) {Text("Erase previous connection before reconnecting",color=Muted,fontSize=11.sp)}
                 } else {
                     Text(if(BuildConfig.LOCAL_DEMO) "Local demo connected" else "Swiggy connected · ${model.environment}",color=Lime,fontSize=12.sp)
@@ -710,7 +712,7 @@ internal fun AccountDialog(model: HungiiModel,onClose: ()->Unit) {
                 }
                 TextButton(onClick={model.refresh()}) {Text("Refresh connection",color=Lime)}
                 if(!BuildConfig.LOCAL_DEMO) TextButton(onClick={model.privacyAction="delete_account"}) {Text("Delete Hungii account",color=Coral)}
-                TextButton(onClick={model.signOut(::browse)}) {Text("Sign out of Hungii",color=Muted)}
+                if(!BuildConfig.LOCAL_DEMO) TextButton(onClick={model.signOut(::browse)}) {Text("Sign out of Hungii",color=Muted)}
             }
             TextButton(onClick={model.privacyAction="erase_local"}) {Text("Erase device tracker & saved meals",color=Coral)}
             if(model.loading) LinearProgressIndicator(modifier=Modifier.fillMaxWidth(),color=Lime)
