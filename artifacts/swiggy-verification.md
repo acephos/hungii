@@ -1,4 +1,17 @@
-# Hungii 0.3 integration preparation
+# Hungii 0.4 readiness verification
+
+Verified 2 October 2026. The free Mumbai project is deployed; see the [current control matrix and evidence](../docs/approval-readiness.md). Both `assembleRealDebug` / `assembleDemoDebug` and both corresponding lint tasks pass. The deployed function is version 4. Final unauthenticated API and invalid callback checks return 401 and 400 respectively, both with `x-sb-edge-region: ap-south-1`. Four applied migration versions are recorded in the standard Supabase CLI history table.
+
+Current packages, version `0.4-readiness`, version code 3:
+
+- `artifacts/hungii-android-prototype.apk`, SHA-256 `74346887178252bb582fc6b3ccd8636218ff7cbc65d0b126f040955a9bcca561`.
+- `artifacts/hungii-android-demo.apk`, SHA-256 `a8653d87cbf1884c2882f7dfc618e92c294a4173027b1b90bd56dac77ce72f40`. Its synthetic backend uses the Android emulator's `10.0.2.2`; it is not configured for physical-phone discovery.
+
+Native evidence: [encrypted tracker survived reopen](hungii-encrypted-tracker-restart.png), [confirmed device erasure](hungii-device-erasure.png), [synthetic discovery](hungii-live-path-demo.png), [read-only review](hungii-read-only-review.png). [Public synthetic review video](https://qvqnzsqrxejdlvnbqwcs.supabase.co/storage/v1/object/public/hungii-public-review/hungii-approval-demo.mp4).
+
+Google app OAuth and real Swiggy staging remain pending. The production build does not substitute synthetic provider responses. The following is historical 0.3 evidence; its package checksum and unprovisioned status no longer describe the current build.
+
+## Historical 0.3 integration preparation
 
 Verified locally on 2 October 2026. This build starts disconnected: Supabase and approved Swiggy Builders access are not available in this workspace. No live meal discovery, OAuth or checkout success is claimed.
 

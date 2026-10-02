@@ -6,8 +6,11 @@ import android.net.Uri
 import androidx.activity.viewModels
 import androidx.browser.customtabs.CustomTabsIntent
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.request.CachePolicy
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.Build
 import android.provider.Settings
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -92,15 +95,16 @@ class MainActivity: ComponentActivity() {
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); intent.data?.let(model::handleCallback) }
     private fun requestVoice() {
         if(voice.value.listening) { recognizer?.stopListening(); voice.value=VoiceState(); return }
-        if(!SpeechRecognizer.isRecognitionAvailable(this)) {
-            Toast.makeText(this,"Speech service unavailable on this device. Type your check-in.",Toast.LENGTH_LONG).show(); return
+        if(Build.VERSION.SDK_INT<31 || !SpeechRecognizer.isOnDeviceRecognitionAvailable(this)) {
+            Toast.makeText(this,"On-device voice unavailable. Type your check-in; audio stays on your phone.",Toast.LENGTH_LONG).show(); return
         }
         if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)==PackageManager.PERMISSION_GRANTED) listen()
         else microphonePermission.launch(Manifest.permission.RECORD_AUDIO)
     }
     private fun listen() {
+        if(Build.VERSION.SDK_INT<31 || !SpeechRecognizer.isOnDeviceRecognitionAvailable(this)) return
         recognizer?.destroy()
-        recognizer=SpeechRecognizer.createSpeechRecognizer(this).apply {
+        recognizer=SpeechRecognizer.createOnDeviceSpeechRecognizer(this).apply {
             setRecognitionListener(object: RecognitionListener {
                 override fun onReadyForSpeech(params: Bundle?) { voice.value=VoiceState(true) }
                 override fun onBeginningOfSpeech() { voice.value=VoiceState(true) }
@@ -151,7 +155,9 @@ private fun HungiiApp(model: HungiiModel,voice: VoiceState,onVoice: ()->Unit) {
         contentWindowInsets=WindowInsets.safeDrawing,
         bottomBar={ if(!focused) BottomTabs(model) }
     ) { insets ->
-        Box(Modifier.fillMaxSize().padding(insets).imePadding()) {
+        Column(Modifier.fillMaxSize().padding(insets).imePadding()) {
+            if(BuildConfig.LOCAL_DEMO) Text("LOCAL DEMO · Synthetic meals · No Swiggy connection",color=Lime,fontSize=10.sp,modifier=Modifier.fillMaxWidth().background(Surface).padding(8.dp),textAlign=TextAlign.Center)
+            Box(Modifier.weight(1f)) {
             when(model.screen) {
                 Screen.Home -> HomeScreen(model,voice,onVoice,{goalsOpen=true})
                 Screen.Discover -> DiscoverScreen(model,{detailMeal=it})
@@ -162,11 +168,17 @@ private fun HungiiApp(model: HungiiModel,voice: VoiceState,onVoice: ()->Unit) {
                 Screen.Saved -> SavedScreen(model)
                 Screen.Day -> DayScreen(model,{goalsOpen=true})
             }
+            }
         }
     }
     if(model.accountOpen) AccountDialog(model) { model.accountOpen=false }
     model.pendingSave?.let { meal ->
-        AlertDialog(onDismissRequest={model.pendingSave=null},containerColor=Surface,title={Text("Remember this meal?",color=White)},text={Text("Allow Hungii to keep ${meal.name}, its restaurant and menu details on this device for future searches. You can delete saved meals and withdraw this permission from Saved.",color=Muted)},confirmButton={TextButton(onClick={model.acceptSaving()}){Text("Allow & save",color=Lime)}},dismissButton={TextButton(onClick={model.pendingSave=null}){Text("Cancel",color=Muted)}})
+        AlertDialog(onDismissRequest={model.pendingSave=null},containerColor=Surface,title={Text("Remember this meal?",color=White)},text={Text("Allow Hungii to keep ${meal.name}, its name, restaurant and menu identifiers encrypted on this device for up to 30 days. Prices and photos are not saved. Delete saved meals and withdraw permission from Saved. Notice ${model.privacyVersion}.",color=Muted)},confirmButton={TextButton(onClick={model.acceptSaving()}){Text("Allow & save",color=Lime)}},dismissButton={TextButton(onClick={model.pendingSave=null}){Text("Cancel",color=Muted)}})
+    }
+    model.privacyAction?.let {action ->
+        val title=when(action){"state_save"->"Sync your tracker?";"disconnect"->"Disconnect Swiggy?";"delete_account"->"Delete your Hungii account?";"delete_cloud_tracker"->"Erase your cloud tracker?";else->"Erase data on this device?"}
+        val explanation=when(action){"state_save"->"Send your entered tracker totals to Hungii's Mumbai database, encrypted for your account. They expire after 90 days without an update. You can erase the cloud copy from Accounts. Notice ${model.privacyVersion}.";"disconnect"->"Erase Hungii's Swiggy connection and saved meals. Hungii also asks Swiggy to revoke access; remote success is reported separately.";"delete_account"->"Permanently erase your Hungii account, cloud tracker, Swiggy connection and this account's device data. This cannot be undone.";"delete_cloud_tracker"->"Erase your synced tracker. Your device tracker stays available.";else->"Erase your entered totals and saved meals on this device. Your cloud data is managed separately."}
+        AlertDialog(onDismissRequest={model.privacyAction=null},containerColor=Surface,title={Text(title,color=White)},text={Text(explanation,color=Muted)},confirmButton={TextButton(onClick={when(action){"state_save"->{model.privacyAction=null;model.syncTracker()};"disconnect"->{model.privacyAction=null;model.disconnect()};else->model.performPrivacyAction()}}){Text(if(action=="state_save")"Allow & sync" else "Confirm",color=if(action=="state_save")Lime else Coral)}},dismissButton={TextButton(onClick={model.privacyAction=null}){Text("Cancel",color=Muted)}})
     }
     if(goalsOpen) GoalsDialog(model) { goalsOpen=false }
     detailMeal?.let { meal ->
@@ -258,7 +270,7 @@ private fun DiscoverScreen(model: HungiiModel,onDetails: (Meal)->Unit) {
         }
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(bottom=12.dp),horizontalArrangement=Arrangement.spacedBy(7.dp)) {
             SmallChip("Spicy",model.taste=="spicy") { model.taste=if(model.taste=="spicy") "any" else "spicy" }
-            SmallChip("High protein",model.highProtein) { model.highProtein=!model.highProtein }
+            SmallChip("Health menus",model.highProtein) { model.highProtein=!model.highProtein }
             SmallChip("Under ₹250",model.budgetOnly) { model.budgetOnly=!model.budgetOnly }
             SmallChip("Veg only",model.vegOnly) { model.vegOnly=!model.vegOnly }
             SmallChip("Fast",model.fast) { model.fast=!model.fast }
@@ -316,9 +328,10 @@ private fun MealProfile(meal: Meal,model: HungiiModel,modifier: Modifier,onDetai
                 }
             }
             if(abs(drag)>30) Badge(if(drag>0) "KEEP" else "PASS",if(drag>0)Charcoal else White,if(drag>0)Lime else Color.Black.copy(alpha=.7f),Modifier.align(Alignment.Center).graphicsLayer { rotationZ=if(drag>0)-12f else 12f })
-            Text("SWIGGY MENU PHOTO",fontSize=8.sp,color=White.copy(alpha=.85f),letterSpacing=1.sp,modifier=Modifier.align(Alignment.BottomEnd).padding(12.dp))
+            Text(if(BuildConfig.LOCAL_DEMO) "SYNTHETIC DEMO" else "SWIGGY MENU PHOTO",fontSize=8.sp,color=White.copy(alpha=.85f),letterSpacing=1.sp,modifier=Modifier.align(Alignment.BottomEnd).padding(12.dp))
         }
         Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(7.dp)) {
+            Text(meal.badge,color=Lime,fontSize=9.sp,lineHeight=12.sp)
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
                 Text(meal.restaurant,color=Muted,fontSize=11.sp,lineHeight=16.sp)
                 Text(if(meal.veg==true) "● VEG" else if(meal.veg==false) "● NON-VEG" else "DIET UNKNOWN",color=if(meal.veg==true)Lime else Coral,fontSize=9.sp,lineHeight=12.sp,fontWeight=FontWeight.Bold)
@@ -493,7 +506,7 @@ private fun ReviewScreen(model: HungiiModel) {
             Spacer(Modifier.height(12.dp))
         }
         Box(Modifier.fillMaxWidth().background(Charcoal).padding(22.dp)) {
-            LimeButton("Continue in Swiggy",Icons.Outlined.OpenInNew) {context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://www.swiggy.com/")))}
+            LimeButton(if(BuildConfig.LOCAL_DEMO) "Demo · checkout unavailable" else "Continue in Swiggy",Icons.Outlined.OpenInNew,enabled=!BuildConfig.LOCAL_DEMO) {context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://www.swiggy.com/")))}
         }
     }
 }
@@ -649,14 +662,14 @@ private fun rupees(value: Double) = if(value==value.toInt().toDouble()) "₹${va
 private fun MealImage(meal: Meal,modifier: Modifier=Modifier) {
     Box(modifier.background(Raised),contentAlignment=Alignment.Center) {
         Icon(Icons.Outlined.Restaurant,null,tint=Muted,modifier=Modifier.size(36.dp))
-        if(meal.imageUrl!=null) AsyncImage(model=meal.imageUrl,contentDescription=meal.name,modifier=Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+        if(meal.imageUrl!=null) AsyncImage(model=ImageRequest.Builder(LocalContext.current).data(meal.imageUrl).diskCachePolicy(CachePolicy.DISABLED).memoryCachePolicy(CachePolicy.DISABLED).build(),contentDescription=meal.name,modifier=Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
     }
 }
 
 @Composable
 private fun ConnectionStrip(model: HungiiModel) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface).clickable {model.accountOpen=true}.padding(12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
-        Text(if(model.connected) "SWIGGY · ${model.environment.uppercase()}" else "CONNECT SWIGGY",color=if(model.connected)Lime else Muted,fontSize=10.sp,fontWeight=FontWeight.Bold)
+        Text(if(BuildConfig.LOCAL_DEMO) "SYNTHETIC LOCAL MCP" else if(model.connected) "Powered by Swiggy · ${model.environment}" else "CONNECT SWIGGY",color=if(model.connected)Lime else Muted,fontSize=10.sp,fontWeight=FontWeight.Bold)
         Text(if(model.connected&&model.addressId!=null) "Change address →" else "Accounts →",color=Lime,fontSize=10.sp)
     }
 }
@@ -668,20 +681,22 @@ private fun AccountDialog(model: HungiiModel,onClose: ()->Unit) {
     fun browse(url: String) {try {CustomTabsIntent.Builder().build().launchUrl(context,Uri.parse(url))} catch(_: Exception) {model.connectionMessage="No browser is available. Install a browser to connect."}}
     AlertDialog(onDismissRequest=onClose,containerColor=Surface,title={DisplayText("YOUR ACCOUNTS.",34)},text={
         Column(Modifier.heightIn(max=460.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-            Text("Hungii saves your tracker. Swiggy supplies meals for the delivery address you choose.",color=Muted,fontSize=13.sp,lineHeight=20.sp)
+            Text(if(BuildConfig.LOCAL_DEMO) "This local protocol demo uses fictional meals and an address. No Swiggy account, payment or order is involved." else "Your device tracker is encrypted. Cloud sync is optional. Swiggy supplies meals for the address you choose after separate authorization.",color=Muted,fontSize=13.sp,lineHeight=20.sp)
+            Text("PRIVACY · ${model.privacyVersion}\nOn-device voice only, with typed fallback. No audio recording, ads or training on your food data. Cloud totals expire after 90 days without updates; saved meal shortcuts after 30 days. Connection credentials expire within five days. Location and selected address are used for your requested meal search. No order is placed in Hungii.",color=Muted,fontSize=11.sp,lineHeight=18.sp)
             if(!model.configured) Text("The live connection is not available in this build yet. You can keep using your offline tracker while account setup is completed.",color=Coral,fontSize=13.sp,lineHeight=20.sp)
-            if(!model.signedIn) LimeButton("Sign in with Google",Icons.Outlined.Login,enabled=model.configured&&!model.loading) {
+            if(!model.signedIn) LimeButton(if(BuildConfig.SUPABASE_AUTH_READY) "Sign in with Google" else "Google sign-in · setup pending",Icons.Outlined.Login,enabled=model.configured&&BuildConfig.SUPABASE_AUTH_READY&&!model.loading) {
                 try {browse(model.signInUrl())} catch(e: ApiFailure) {model.connectionMessage=e.message}
             } else {
-                Text("Signed in to Hungii",color=Lime,fontSize=13.sp)
+                Text(if(BuildConfig.LOCAL_DEMO) "Local demo session" else "Signed in to Hungii",color=Lime,fontSize=13.sp)
                 if(!model.connected) {
                     Row(verticalAlignment=Alignment.Top) {
                         Checkbox(consent,onCheckedChange={consent=it},colors=CheckboxDefaults.colors(checkedColor=Lime,checkmarkColor=Charcoal))
-                        Text("Allow Hungii to securely keep my Swiggy connection until I disconnect. Expired sessions need reconnection.",color=Muted,fontSize=12.sp,lineHeight=18.sp,modifier=Modifier.padding(top=10.dp))
+                        Text("Allow Hungii to encrypt and retain my Swiggy token, chosen address identifier and Food session for up to five days, to perform my requested meal searches. Disconnect to erase them. Notice ${model.privacyVersion}.",color=Muted,fontSize=12.sp,lineHeight=18.sp,modifier=Modifier.padding(top=10.dp))
                     }
-                    LimeButton("Connect Swiggy",Icons.Outlined.Link,enabled=consent&&!model.loading) {model.connect(::browse)}
+                    LimeButton(if(BuildConfig.LOCAL_DEMO) "Start synthetic MCP demo" else "Connect Swiggy",Icons.Outlined.Link,enabled=consent&&!model.loading) {model.connect(::browse)}
+                    if(!BuildConfig.LOCAL_DEMO) TextButton(onClick={model.privacyAction="disconnect"}) {Text("Erase previous connection before reconnecting",color=Muted,fontSize=11.sp)}
                 } else {
-                    Text("Swiggy connected · ${model.environment}",color=Lime,fontSize=12.sp)
+                    Text(if(BuildConfig.LOCAL_DEMO) "Local demo connected" else "Swiggy connected · ${model.environment}",color=Lime,fontSize=12.sp)
                     TextButton(onClick={model.addressList()}) {Text("Choose delivery address",color=Lime)}
                     model.addresses.forEach {address ->
                         OutlinedButton(onClick={model.selectAddress(address)},modifier=Modifier.fillMaxWidth()) {
@@ -692,12 +707,15 @@ private fun AccountDialog(model: HungiiModel,onClose: ()->Unit) {
                         if(model.addressPage>1) TextButton(onClick={model.addressList(model.addressPage-1)}) {Text("Previous",color=Lime)}
                         if(model.moreAddresses) TextButton(onClick={model.addressList(model.addressPage+1)}) {Text("More addresses",color=Lime)}
                     }
-                    TextButton(onClick={model.disconnect()}) {Text("Disconnect Swiggy",color=Coral)}
+                    TextButton(onClick={model.privacyAction="disconnect"}) {Text(if(BuildConfig.LOCAL_DEMO) "Disconnect demo" else "Disconnect Swiggy",color=Coral)}
                 }
                 TextButton(onClick={model.refresh()}) {Text("Refresh connection",color=Lime)}
-                TextButton(onClick={model.syncTracker()}) {Text("Sync my tracker",color=Lime)}
+                TextButton(onClick={model.privacyAction="state_save"}) {Text("Sync my tracker",color=Lime)}
+                TextButton(onClick={model.privacyAction="delete_cloud_tracker"}) {Text("Erase cloud tracker",color=Coral)}
+                if(!BuildConfig.LOCAL_DEMO) TextButton(onClick={model.privacyAction="delete_account"}) {Text("Delete Hungii account",color=Coral)}
                 TextButton(onClick={model.signOut()}) {Text("Sign out of Hungii",color=Muted)}
             }
+            TextButton(onClick={model.privacyAction="erase_local"}) {Text("Erase device tracker & saved meals",color=Coral)}
             if(model.loading) LinearProgressIndicator(modifier=Modifier.fillMaxWidth(),color=Lime)
             if(model.connectionMessage.isNotBlank()) Text(model.connectionMessage,color=Coral,fontSize=12.sp,lineHeight=18.sp)
         }

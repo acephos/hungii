@@ -10,9 +10,11 @@ The current prototype is a native Kotlin / Jetpack Compose Android app with char
 
 Build and run instructions: [android-prototype/README.md](android-prototype/README.md). Requires Android 8.0 or newer. The downloadable build is generated at `artifacts/hungii-android-prototype.apk`.
 
-Version 0.3 removes the sample catalogue and prepares a Swiggy Food MCP integration backed by Supabase Auth/Postgres in Mumbai. The APK starts disconnected until external service setup is completed. Room retains user-entered tracking and consented local favorites. Missing nutrition stays unknown, and checkout currently opens Swiggy rather than modifying a cart or placing an order.
+Version 0.4 has separate real-service and synthetic local-demo builds. Supabase Free is provisioned in Mumbai, with an authenticated API, backend-only encrypted tracker/credential/session storage, durable MCP session leases and scheduled expiry cleanup. Google user login and Swiggy access remain pending; the real build never substitutes sample meals for provider results.
 
-Follow [service setup](docs/swiggy-setup.md). The [stack decision](docs/adr/0001-native-android-and-mumbai-backend.md) and [verified MCP contract](docs/swiggy-integration-contract.md) record the implementation boundaries. Supabase and Swiggy access have not been provisioned in this workspace.
+The Android tracker and consented meal shortcuts use AES-256-GCM with per-account Keystore keys. Voice uses an available on-device recognizer or typed input. The demo uses our fictional MCP fixtures, is labeled throughout and cannot order.
+
+See [readiness evidence](docs/approval-readiness.md), [service setup](docs/swiggy-setup.md), [stack decision](docs/adr/0001-native-android-and-mumbai-backend.md) and [MCP contract](docs/swiggy-integration-contract.md). Local tests and deployed Supabase checks do not establish Swiggy approval or production certification.
 
 ## Earlier web exploration
 

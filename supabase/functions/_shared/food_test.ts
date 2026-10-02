@@ -38,6 +38,10 @@ Deno.test("MCP envelopes accept structured/text JSON and reject prose or upstrea
     try { payload(response); throw new Error("Expected rejection"); } catch (e) { if (!(e instanceof HungiiError)) throw e; }
   }
 });
+Deno.test("symbolic rate errors return a bounded retry-later status without leaking provider text",()=>{
+  try {payload({structuredContent:{success:false,error:{code:"RATE_LIMITED",message:"private upstream text"}}});throw new Error("Rate error accepted");}
+  catch(error){if(!(error instanceof HungiiError))throw error;equal(error.status,429);equal(error.retryAfter,30);equal(error.message.includes("private"),false);}
+});
 Deno.test("token ciphertext cannot be replayed for another user or used after tampering", async () => {
   const key = base64(crypto.getRandomValues(new Uint8Array(32)));
   const encrypted = await seal("test-token", "user-a:swiggy", key);

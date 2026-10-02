@@ -13,8 +13,8 @@ android {
         applicationId = "com.hungii.prototype"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.3-swiggy"
+        versionCode = 3
+        versionName = "0.4-readiness"
         val config = Properties().apply {
             val source = rootProject.file("local.properties")
             if (source.exists()) source.inputStream().use { load(it) }
@@ -22,6 +22,21 @@ android {
         fun quoted(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
         buildConfigField("String", "SUPABASE_URL", quoted(config.getProperty("hungii.supabaseUrl", "")))
         buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", quoted(config.getProperty("hungii.supabasePublishableKey", "")))
+        buildConfigField("boolean", "SUPABASE_AUTH_READY", (config.getProperty("hungii.supabaseAuthReady", "false") == "true").toString())
+    }
+    flavorDimensions += "services"
+    productFlavors {
+        create("real") {
+            dimension = "services"
+            buildConfigField("boolean", "LOCAL_DEMO", "false")
+            resValue("string", "app_name", "Hungii")
+        }
+        create("demo") {
+            dimension = "services"
+            applicationIdSuffix = ".demo"
+            buildConfigField("boolean", "LOCAL_DEMO", "true")
+            resValue("string", "app_name", "Hungii · Local demo")
+        }
     }
     buildFeatures { compose = true; buildConfig = true }
     compileOptions {

@@ -18,9 +18,9 @@ class ApiFailure(val code: String, override val message: String) : Exception(mes
 
 class HungiiApi(private val secure: SecureSession) {
     private val http = OkHttpClient.Builder().callTimeout(45, TimeUnit.SECONDS).retryOnConnectionFailure(false).build()
-    val configured get() = BuildConfig.SUPABASE_URL.startsWith("https://") && BuildConfig.SUPABASE_PUBLISHABLE_KEY.isNotBlank()
-    val signedIn get() = secure.read("refresh") != null
-    val userId get() = secure.read("user")
+    val configured get() = BuildConfig.LOCAL_DEMO || BuildConfig.SUPABASE_URL.startsWith("https://") && BuildConfig.SUPABASE_PUBLISHABLE_KEY.isNotBlank()
+    val signedIn get() = BuildConfig.LOCAL_DEMO || secure.read("refresh") != null
+    val userId get() = if(BuildConfig.LOCAL_DEMO) "local-demo" else secure.read("user")
     private fun random() = Base64.encodeToString(ByteArray(32).apply { SecureRandom().nextBytes(this) }, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
     private suspend fun request(path: String, body: JSONObject?, token: String? = null): JSONObject = withContext(Dispatchers.IO) {
         if (!configured) throw ApiFailure("HUNGII_SETUP_REQUIRED", "The Swiggy connection is being set up. Your tracker works offline.")
@@ -75,9 +75,21 @@ class HungiiApi(private val secure: SecureSession) {
         }
         return secure.read("access") ?: throw ApiFailure("HUNGII_LOGIN_REQUIRED", "Sign in to Hungii first.")
     }
-    suspend fun action(action: String, args: JSONObject = JSONObject()): JSONObject = request("/functions/v1/hungii-api?forceFunctionRegion=ap-south-1", args.put("action", action), accessToken())
+    suspend fun action(action: String, args: JSONObject = JSONObject()): JSONObject {
+        args.put("action",action)
+        if(BuildConfig.LOCAL_DEMO) return withContext(Dispatchers.IO) {
+            val request=Request.Builder().url("http://10.0.2.2:8788/api").post(args.toString().toRequestBody("application/json".toMediaType())).build()
+            http.newCall(request).execute().use { response ->
+                val data=JSONObject(response.body?.string() ?: "{}")
+                if(!response.isSuccessful) throw ApiFailure(data.optJSONObject("error")?.optString("code") ?: "HUNGII_DEMO",data.optJSONObject("error")?.optString("message") ?: "Start the local demo server.")
+                data
+            }
+        }
+        return request("/functions/v1/hungii-api?forceFunctionRegion=ap-south-1",args,accessToken())
+    }
+    fun clearSession() {secure.eraseAuth()}
     suspend fun signOut() {
-        try { if (signedIn) request("/auth/v1/logout?scope=local", JSONObject(), accessToken()) }
-        finally { listOf("access", "refresh", "user", "expires", "pkce", "loginFlow", "loginStarted").forEach(secure::remove) }
+        try { if (signedIn&&!BuildConfig.LOCAL_DEMO) request("/auth/v1/logout?scope=local", JSONObject(), accessToken()) }
+        finally { clearSession() }
     }
 }

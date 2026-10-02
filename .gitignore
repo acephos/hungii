@@ -10,3 +10,7 @@ artifacts/*.apk
 supabase/.temp/
 supabase/.branches/
 node_modules/
+
+# Locally generated review recordings and device telemetry
+artifacts/*.mp4
+artifacts/*.gesture-telemetry.json

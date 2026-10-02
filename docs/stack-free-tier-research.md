@@ -1,6 +1,6 @@
 # Hungii free-stack research
 
-Checked 2 October 2026 against provider documentation. These research notes informed the [accepted stack decision](adr/0001-native-android-and-mumbai-backend.md); no external services have been deployed. Free quotas are service limits, not a promise that an entire production app stays free.
+Checked 2 October 2026 against provider documentation. These research notes informed the [accepted stack decision](adr/0001-native-android-and-mumbai-backend.md); Supabase Free was subsequently provisioned; see [current readiness evidence](approval-readiness.md). Free quotas are service limits, not a promise that an entire production app stays free.
 
 ## Supabase: credible alternative to Convex
 

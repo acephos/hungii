@@ -1,77 +1,45 @@
-# Connect Hungii to real services
+# Hungii service setup
 
-Selected stack: Kotlin/Compose, Room, Supabase Auth/Postgres in Mumbai, and a TypeScript Food MCP adapter in Mumbai Edge Functions. WorkOS and Convex are not dependencies. The code and disconnected APK are prepared; neither external service has been provisioned or deployed.
+Current project: **hungii-mumbai**, reference `qvqnzsqrxejdlvnbqwcs`, Supabase **Free**, specific Mumbai `ap-south-1`. GitHub dashboard sign-in is complete. [Dashboard](https://supabase.com/dashboard/project/qvqnzsqrxejdlvnbqwcs), [current validation evidence](approval-readiness.md).
 
-The [staging onboarding request](swiggy-staging-email.md) has been sent; approval is pending. The latest [compliance audit](swiggy-application-compliance.md) found a prerequisite for hosted MCP testing: the adapter currently initializes and closes an MCP connection per API action, which conflicts with the current provider's persistent-session guidance. Resolve session topology and rate/block handling with Swiggy before making hosted staging calls. This setup guide is configuration preparation, not a declaration that the adapter is ready to run against the provider. Remaining privacy, deletion, storage and attribution gates apply before real-user production.
+## Already provisioned
 
-## 1. Supabase project
+- Four SQL migrations applied; backend-only RLS tables, encrypted tracker/token/verifier/address/session fields, versioned consent, callback generation fencing and durable session leases.
+- `hungii-api` deployed with public callback support and Auth.getUser on every API action. Actual Mumbai execution header verified. API/root without an account returns login required.
+- `HUNGII_TOKEN_KEY` generated and installed as a server secret. Provisioning credentials are in a private, gitignored `supabase/.env.provisioning`; never paste them into chat, Android, a public repo or the draft.
+- Swiggy session-resumption gate false; price unit unverified. No Swiggy client or auth host set until Builders supplies approved configuration.
+- Cron purge every ten minutes, with successful execution verified; access also purges expiry. Free inactivity pausing constrains scheduled cleanup and availability.
+- Native project URL/publishable key configured in private `android-prototype/local.properties`. `hungii.supabaseAuthReady=false` keeps Google login visibly pending.
 
-Create a project in the specific **South Asia (Mumbai)** region. Record its project reference, HTTPS URL and publishable key. Android only needs the URL and public key; service-role keys and Swiggy tokens stay on the server. [Regions](https://supabase.com/docs/guides/platform/regions), [secrets](https://supabase.com/docs/guides/functions/secrets)
+## Google user login still needs an OAuth client
 
-Connect the Supabase integration to this workspace once the project exists, or use the CLI. Check the project reference before applying the migration:
+Supabase dashboard login via GitHub is independent of Hungii users signing in with Google. In the founder's Google Cloud project, create an OAuth web client and configure the consent screen. Authorized provider redirect: `https://qvqnzsqrxejdlvnbqwcs.supabase.co/auth/v1/callback`. Install the Google client ID/secret in Supabase Auth's Google settings; do not place the client secret in Android or chat. App redirect allowlist is scoped to `hungii://auth-return?flow=*` so the app can validate its random login-flow nonce. Verify real phone/browser PKCE, cancellation and replay before setting `hungii.supabaseAuthReady=true` and rebuilding. Production verified app links, consent-screen verification and distribution need separate validation. [Google provider](https://supabase.com/docs/guides/auth/social-login/auth-google), [redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls).
 
-```sh
-npx supabase login
-npx supabase link --project-ref YOUR_PROJECT_REFERENCE
-npx supabase db push
-```
+## Swiggy staging remains approval-gated
 
-The migration creates an RLS-protected tracker table and server-only connection/OAuth-state tables. Tokens/verifiers use a separate encryption secret, and callback state is consumed once. Whole tool responses are not stored. Database deployment is not yet tested against a real project. [Deployment](https://supabase.com/docs/guides/functions/deploy)
+Request **Food-only seeded staging**. Swiggy supplies reviewed access and test-account instructions; our local synthetic MCP demo is not a Swiggy sandbox. Do not infer production credentials work on staging or fabricate test tokens. [Testing options](swiggy-testing-options.md), [access](https://mcp.swiggy.com/builders/docs/operate/access.md).
 
-## 2. Hungii login
-
-Enable Google in Supabase Auth using a Google OAuth client and the provider's setup guide. Google redirects to Supabase; Supabase returns to Android. Allow `hungii://auth-return` with its random `flow` query parameter in Supabase's redirect allowlist, using documented wildcard support for the changing query. The native app validates its nonce, expiration and PKCE verifier. [Google setup](https://supabase.com/docs/guides/auth/social-login/auth-google), [redirect allowlist](https://supabase.com/docs/guides/auth/redirect-urls), [PKCE](https://supabase.com/docs/guides/auth/sessions/pkce-flow), [REST contract](https://github.com/supabase/auth/blob/master/openapi.yaml)
-
-## 3. Swiggy Builders access
-
-Swiggy documents a staging environment at `mcp-staging.swiggy.com/{server}` with the same interface as production, seeded data and no real orders. The access page says staging credentials are issued during application review. Before receiving access, it recommends building against a local development stub. The reviewed docs do not link an official downloadable stub. The quickstart's broader wording about starting without approval does not establish anonymous access to hosted staging. [Testing options](swiggy-testing-options.md), [access](https://mcp.swiggy.com/builders/docs/operate/access.md), [quickstart](https://mcp.swiggy.com/builders/docs/start/developer/index.md)
-
-Apply with Hungii's use case, Food scope, expected traffic, technical contact and demo. Request staging access and exact allowlisting of this complete callback:
+Proposed hosted exact callback:
 
 ```text
-https://YOUR_PROJECT.supabase.co/functions/v1/hungii-api/callback?forceFunctionRegion=ap-south-1
+https://qvqnzsqrxejdlvnbqwcs.supabase.co/functions/v1/hungii-api/callback?forceFunctionRegion=ap-south-1
 ```
 
-Obtain/register the OAuth client through Swiggy's documented Dynamic Client Registration and approved callback process. The app's custom scheme is only used after the successful server callback; it is not Swiggy's redirect URI. There is no static Swiggy API key, third-party phone/OTP endpoint or shared account token. [Access](https://mcp.swiggy.com/builders/docs/operate/access.md), [authentication](https://mcp.swiggy.com/builders/docs/start/authenticate.md)
+Obtain written confirmation/registration of the full URI, staging OAuth hosts, DCR client, seeded accounts, permissible personalized meal sorting/offer optimization/favorites retention, logical-session reuse across Edge workers and any egress requirements. Configure verified `SWIGGY_AUTH_BASE_URL`, `SWIGGY_FOOD_URL`, `SWIGGY_CLIENT_ID` and callback as server secrets. Swiggy phone/OTP entry happens only in its own browser UI. [Authentication](https://mcp.swiggy.com/builders/docs/start/authenticate.md).
 
-Ask Swiggy to confirm the staging authorization base and Food endpoint. The documented staging Food convention is `https://mcp-staging.swiggy.com/food`; do not guess staging OAuth endpoints. Verify menu/cart money units against approved responses. Obtain authenticated `tools/list` schemas defining `cartItems` members before enabling cart writes. Do not assume coupon IDs are coupon codes. [Verified integration contract](swiggy-integration-contract.md)
+Run staging checks for real tools/list, output shapes, price units, stock races, address pagination, tool/HTTP errors, cooldowns, rejected credentials, callback replay/expiry/cancellation and logout. Only set `SWIGGY_SESSION_RESUME_VERIFIED=true` after cross-worker session persistence and request accounting pass against Swiggy and are accepted by the provider. No paid runtime is enabled as a fallback. See [runtime decision](adr/0002-durable-mumbai-mcp-session.md) and [sources](approval-technical-sources.md).
 
-## 4. Backend configuration
+Native API calls and callback force Mumbai; the handler rejects other execution regions. Do not set `HUNGII_LOCAL_DEVELOPMENT` on hosted functions. Mumbai primary data/runtime checks do not certify every provider/subprocessor/egress path. [Regional invocation](https://supabase.com/docs/guides/functions/regional-invocation).
 
-Copy [supabase/.env.example](../supabase/.env.example) to gitignored `supabase/.env`. Fill approved endpoints, client ID and exact callback. Generate a random 32-byte base64 key locally for `HUNGII_TOKEN_KEY`; never put it into Android configuration or chat. Leave `SWIGGY_PRICE_UNIT=unverified` until staging confirms all relevant units; verified `rupees` or `paise` controls explicit conversion, with no heuristic division by 100.
+Cart writes, coupon application, order placement and payment are disabled. The existing-cart read does not quote a selected winner. Enable no write before authenticated customization/cartItems/price/coupon/payment contracts, explicit user confirmation, final payable and non-idempotent retry safeguards are verified. Nutrition estimates require independently sourced/calibrated portion data; no invented macros. [Integration contract](swiggy-integration-contract.md).
+
+## Local checks
 
 ```sh
-chmod 600 supabase/.env
-npx supabase secrets set --env-file supabase/.env
-npx supabase functions deploy hungii-api
+npx --yes deno check --config supabase/functions/deno.json supabase/functions/hungii-api/index.ts
+npx --yes deno test --config supabase/functions/deno.json --allow-env supabase/functions/_shared/
 ```
 
-Gateway JWT verification is disabled for the public OAuth callback. Every API action separately verifies its bearer session using Supabase Auth. The handler refuses non-Mumbai execution; requests and callback specify `forceFunctionRegion=ap-south-1`. Do not set `HUNGII_LOCAL_DEVELOPMENT` on a deployed function. A Mumbai database alone does not pin functions or establish compliance. [Function authentication](https://supabase.com/docs/guides/functions/auth), [regional invocation](https://supabase.com/docs/guides/functions/regional-invocation)
+The SQL test in `supabase/tests/privacy-and-leases.sql` uses rolled-back synthetic accounts on Hungii's own project. Never run it against a different production database. The `demo` Android flavor reaches a local read-only MCP server; the `real` flavor never substitutes fixtures. [Android build/demo guide](../android-prototype/README.md).
 
-## 5. Android configuration
-
-Add these public values to existing gitignored `android-prototype/local.properties`, preserving `sdk.dir`:
-
-```properties
-hungii.supabaseUrl=https://YOUR_PROJECT.supabase.co
-hungii.supabasePublishableKey=YOUR_PUBLIC_PUBLISHABLE_KEY
-```
-
-Build with JDK 17 and SDK 35:
-
-```sh
-cd android-prototype
-./gradlew assembleDebug lintDebug
-```
-
-Install `app/build/outputs/apk/debug/app-debug.apk`. In Accounts: Google login → consent to secure connection retention → Swiggy browser authorization → return and refresh → explicit address selection. Search meals, shortlist three, shuffle and pick. Review reads the existing live cart and offers without changing them; finish the basket/payment in Swiggy.
-
-## Implemented and pending
-
-Implemented: official MCP streamable HTTP client, per-user encrypted credentials, runtime input-schema checks, address pagination/selection, open-restaurant dish discovery, selected-restaurant menu search, returned menu photos/diet flags/available prices/ETA/distance, current-cart totals and coupon descriptions. A suggested coupon with zero discount is not called applied. Room retains user-entered totals and consented favorites; tracker sync is explicit. Hungii sign-out and Swiggy disconnect are separate.
-
-The adapter is read-only. Cart writes/order placement are disabled until authenticated item schemas are verified. The winner is not added to a basket; checkout hands off to Swiggy. Exact hypothetical basket quotes and automatic coupon threshold optimization are not available in this integration.
-
-Reviewed schemas do not publish calories/macros. These stay unknown, not invented ranges; manual intake entry works. A sourced/calibrated estimate layer, conversational AI, history-derived favorites, payment polling and cross-device tracker conflict resolution remain separate work.
-
-Before live use, verify two-user isolation/RLS, callback replay/expiry/cancellation, expired/revoked tokens, address pagination, optional fields, staging price units, stock changes and 429 handling. Local tests cover normalization/encryption and disconnected Android behaviour; authenticated requests and Google login require the accounts above. Permitted retention and production approval still apply. [Provider requirements](https://mcp.swiggy.com/builders/docs/operate/data-and-compliance.md)
+Before production: complete [external gates](approval-readiness.md#external-gates-before-production), including approved agreements/privacy contact, at least 48 hours green staging, explicit production access, support/alerts/recovery and staged rollout. A staging request can describe prepared controls; it cannot assert production approval.

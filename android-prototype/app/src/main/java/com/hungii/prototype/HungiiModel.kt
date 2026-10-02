@@ -36,7 +36,7 @@ data class Meal(val id: String, val dishId: String, val restaurantId: String, va
     val price get() = Span(itemPrice?.roundToInt() ?: 0,itemPrice?.roundToInt() ?: 0)
     val priceLabel get() = itemPrice?.let { "₹" + if(it == it.toInt().toDouble()) it.toInt().toString() else "%.2f".format(java.util.Locale.ROOT,it) } ?: "Price unavailable"
     val etaLabel get() = etaMinutes?.let { "$it min est." } ?: "ETA unavailable"
-    val badge get() = "SWIGGY MENU"
+    val badge get() = if(BuildConfig.LOCAL_DEMO) "SYNTHETIC DEMO" else "Powered by Swiggy"
     val tags get() = setOf("spicy","cheesy","sweet","bland","light","filling").filter { it in (name+" "+description).lowercase() }.toSet()
     val benefit get() = if(description.isNotBlank()) description else "${restaurant}. ${etaLabel}."
     val compromise get() = "Nutrition is not published here. Fees and coupon eligibility are checked in the cart."
@@ -56,7 +56,7 @@ data class Restaurant(val id: String,val name: String,val etaMinutes: Int?,val d
 
 @OptIn(kotlinx.coroutines.FlowPreview::class)
 class HungiiModel(application: Application) : AndroidViewModel(application) {
-    private val db = HungiiDatabase.open(application)
+    private val db = PrivateTrackerStore(application)
     private val api = HungiiApi(SecureSession(application))
     var screen by mutableStateOf(Screen.Home)
     var calorieGoal by mutableStateOf(2200); var proteinGoal by mutableStateOf(140)
@@ -80,6 +80,10 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
     var environment by mutableStateOf(""); var addressId by mutableStateOf<String?>(null)
     var cart by mutableStateOf<JSONObject?>(null); var coupons by mutableStateOf<JSONObject?>(null)
     var savedConsent by mutableStateOf(false); var pendingSave by mutableStateOf<Meal?>(null)
+    private var savedConsentAt = 0L
+    private var persistenceJob: Job? = null
+    var privacyAction by mutableStateOf<String?>(null)
+    val privacyVersion = "2026-10-02.1"
     private var owner = api.userId ?: "device"
     private var foodDay = LocalDate.now().toString()
     private var ready by mutableStateOf(false)
@@ -96,25 +100,29 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
     }.sortedByDescending {
         (if(taste in it.tags) 28.0 else 0.0) + (if(fast && it.etaMinutes != null) 45.0-it.etaMinutes else 0.0) -
             ((it.itemPrice ?: mealMoneyGuide.toDouble())-mealMoneyGuide).coerceAtLeast(0.0)/7
-    }
+    }.take(8)
 
     init {
-        viewModelScope.launch { loadLocal(); ready=true; if(signedIn) refresh() }
-        viewModelScope.launch {
+        viewModelScope.launch { db.migrate(); loadLocal(); ready=true; if(signedIn) refresh() }
+        startPersistence()
+    }
+    private fun startPersistence() {
+        persistenceJob=viewModelScope.launch {
             snapshotFlow { if(ready) TrackerRecord(owner,snapshot().toString()) else null }.filterNotNull().debounce(600).collect { value ->
-                db.tracker().save(value)
+                db.save(value)
             }
         }
     }
-    private fun snapshot() = tracker().put("savedConsent",savedConsent).put("savedMeals",JSONArray(savedMeals.map { it.json() }))
+    private fun snapshot() = tracker().put("savedConsent",savedConsent).put("savedConsentAt",savedConsentAt).put("privacyVersion",privacyVersion).put("savedMeals",JSONArray(savedMeals.map { it.copy(imageUrl=null,itemPrice=null,etaMinutes=null,distanceKm=null,description="",offerText=null).json() }))
     private fun tracker() = JSONObject().put("day",foodDay).put("calorieGoal",calorieGoal).put("proteinGoal",proteinGoal)
         .put("carbGoal",carbGoal).put("fatGoal",fatGoal).put("allowance",allowance).put("spent",spent).put("opportunities",opportunities).put("intake",intake.json())
     private suspend fun loadLocal() {
-        val stored = db.tracker().get(owner)?.payload ?: return
+        val stored = try {db.get(owner)?.payload} catch(_:Exception) {receipt="Saved data could not be decrypted. You can erase it from Accounts.";null} ?: return
         try {
             val o=JSONObject(stored); calorieGoal=o.getInt("calorieGoal"); proteinGoal=o.getInt("proteinGoal"); carbGoal=o.getInt("carbGoal"); fatGoal=o.getInt("fatGoal"); allowance=o.getInt("allowance")
             if(o.getString("day")==LocalDate.now().toString()) { spent=o.getInt("spent"); opportunities=o.getInt("opportunities"); intake=Nutrition.from(o.getJSONObject("intake")) }
-            savedConsent=o.optBoolean("savedConsent"); savedMeals.clear()
+            savedConsentAt=o.optLong("savedConsentAt")
+            savedConsent=o.optBoolean("savedConsent")&&o.optString("privacyVersion")==privacyVersion&&System.currentTimeMillis()-savedConsentAt<30L*86400*1000; savedMeals.clear()
             if(savedConsent) o.optJSONArray("savedMeals")?.let { a -> for(i in 0 until a.length()) savedMeals.add(Meal.from(a.getJSONObject(i))) }
         } catch (_: Exception) { receipt="The saved tracker could not be loaded. Please check your day." }
     }
@@ -133,7 +141,7 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
     fun handleCallback(uri: Uri) = run {
         if(uri.host=="auth-return") {
             api.callback(uri); signedIn=true
-            ready=false; owner=api.userId ?: "device"; resetTracker(); savedMeals.clear(); savedConsent=false; loadLocal(); ready=true
+            persistenceJob?.cancelAndJoin();ready=false; owner=api.userId ?: "device"; resetTracker(); savedMeals.clear(); savedConsent=false; loadLocal(); ready=true;startPersistence()
         }
         refreshConnection()
     }
@@ -147,7 +155,10 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
         if(connected&&addressId==null) loadAddresses()
     }
     fun refresh() = run { refreshConnection() }
-    fun connect(onUrl: (String)->Unit) = run { onUrl(api.action("connect",JSONObject().put("consent",true)).getString("authorizationUrl")) }
+    fun connect(onUrl: (String)->Unit) = run {
+        val response=api.action("connect",JSONObject().put("consent",true).put("privacyVersion",privacyVersion))
+        if(BuildConfig.LOCAL_DEMO) refreshConnection() else onUrl(response.getString("authorizationUrl"))
+    }
     private suspend fun loadAddresses(page: Int=1) {
         val result=api.action("addresses",JSONObject().put("page",page)); addresses.clear()
         val a=result.getJSONArray("addresses"); for(i in 0 until a.length()) { val o=a.getJSONObject(i); addresses.add(DeliveryAddress(o.getString("id"),o.getString("label"),o.getString("addressLine"))) }
@@ -185,19 +196,36 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
             coupons=api.action("coupons",JSONObject().put("restaurantId",meal.restaurantId))
         }
     }
-    fun disconnect() = run { api.action("disconnect"); connected=false; addressId=null; meals.clear(); finalists.clear(); winner=null; restaurants.clear(); cart=null; coupons=null; addresses.clear() }
+    private fun clearSaved() {savedMeals.clear();savedConsent=false;savedConsentAt=0}
+    private fun clearProviderData() {connected=false;addressId=null;meals.clear();finalists.clear();winner=null;restaurants.clear();cart=null;coupons=null;addresses.clear();drawOrder=emptyList();passed.clear();lastPassed=null;pendingSave=null;clearSaved()}
+    fun disconnect() = run {
+        val result=api.action("disconnect",JSONObject().put("confirm",true))
+        persistenceJob?.cancelAndJoin();ready=false;clearProviderData();db.erase(owner);db.save(TrackerRecord(owner,snapshot().toString()));ready=true;startPersistence()
+        connectionMessage=if(result.optBoolean("revocationConfirmed")) "Disconnected and erased saved Swiggy data." else "Disconnected and erased Hungii's copy. Remote revocation could not be confirmed; check Swiggy account access."
+    }
     fun signOut() = run {
         try { api.signOut() } catch (_: Exception) { connectionMessage="Signed out on this device. The remote sign-out could not be confirmed." }
-        signedIn=false; connected=false; addressId=null; meals.clear(); finalists.clear(); winner=null; restaurants.clear(); addresses.clear(); cart=null; coupons=null
-        ready=false; owner="device"; resetTracker(); savedMeals.clear(); savedConsent=false; loadLocal(); ready=true
+        signedIn=false;clearProviderData()
+        persistenceJob?.cancelAndJoin();ready=false; owner=if(BuildConfig.LOCAL_DEMO) "local-demo" else "device"; resetTracker(); savedMeals.clear(); savedConsent=false; loadLocal(); ready=true;startPersistence()
     }
-    fun syncTracker() = run { api.action("state_save",JSONObject().put("state",tracker())); connectionMessage="Your tracker was synced." }
+    fun syncTracker() = run { api.action("state_save",JSONObject().put("state",tracker()).put("privacyVersion",privacyVersion)); connectionMessage="Your tracker was synced." }
+    fun performPrivacyAction() {
+        val action=privacyAction?:return;privacyAction=null
+        run {
+            if(action=="delete_cloud_tracker") {api.action(action,JSONObject().put("confirm",true));connectionMessage="Cloud tracker erased.";return@run}
+            if(action=="delete_account") api.action(action,JSONObject().put("confirm",true))
+            persistenceJob?.cancelAndJoin();ready=false
+            db.erase(owner);clearProviderData();resetTracker()
+            if(action=="delete_account") {api.clearSession();signedIn=false;owner="device";accountOpen=false}
+            ready=true;startPersistence();connectionMessage="Selected data erased."
+        }
+    }
     fun like(m: Meal) { if(finalists.size<3&&finalists.none {it.id==m.id}) { finalists.add(m); lastPassed=null; if(finalists.size==3) screen=Screen.Finalists } }
     fun pass(m: Meal) { passed.add(m.id); lastPassed=m }
     fun undoSwipe() { lastPassed?.let {passed.remove(it.id); lastPassed=null} ?: if(finalists.isNotEmpty()) {finalists.removeAt(finalists.lastIndex);screen=Screen.Discover} else Unit }
     fun toggleSaved(m: Meal) { if(m.id in saved) savedMeals.removeAll {it.id==m.id} else if(savedConsent) savedMeals.add(m) else pendingSave=m }
-    fun acceptSaving() { savedConsent=true; pendingSave?.let {savedMeals.add(it)}; pendingSave=null }
-    fun forgetSaved() { savedMeals.clear(); savedConsent=false }
+    fun acceptSaving() { savedConsent=true;savedConsentAt=System.currentTimeMillis(); pendingSave?.let {savedMeals.add(it)}; pendingSave=null }
+    fun forgetSaved() = run {persistenceJob?.cancelAndJoin();ready=false;clearSaved();db.erase(owner);db.save(TrackerRecord(owner,snapshot().toString()));ready=true;startPersistence()}
     fun remove(m: Meal) {finalists.remove(m);winner=null;screen=Screen.Discover}
     fun showFinalists() {if(finalists.size==1){winner=finalists[0];screen=Screen.Winner}else if(finalists.isNotEmpty()) screen=Screen.Finalists}
     fun startDraw() {if(finalists.size<2||shuffling)return;drawOrder=finalists.shuffled(SecureRandom());winner=null;pickedIndex=null;canPick=false;shuffling=true;screen=Screen.Draw}

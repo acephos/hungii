@@ -1,4 +1,6 @@
-# Hungii staging application: compliance evidence and release gates
+# Initial Hungii staging application: compliance evidence and release gates
+
+Historical audit before the 0.4 hardening and Supabase provisioning. See [current readiness evidence](approval-readiness.md) for implemented/deployed controls and remaining external gates. The earlier sent request is preserved as history; subsequent correspondence is draft-only.
 
 Reviewed 2 October 2026 against current first-party Swiggy Builders Club Markdown and the prepared Android/Supabase source. This is an engineering audit of provider requirements, not a legal opinion, regulatory certification, production approval, or evidence of authenticated staging success. No application was submitted by this audit and no code was changed.
 
