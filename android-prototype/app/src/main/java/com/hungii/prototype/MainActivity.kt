@@ -133,6 +133,23 @@ private fun HungiiApp(model: HungiiModel,voice: VoiceState,onVoice: ()->Unit) {
     val haptic=LocalHapticFeedback.current
     val context=LocalContext.current
     val reduceMotion=remember { Settings.Global.getFloat(context.contentResolver,Settings.Global.ANIMATOR_DURATION_SCALE,1f)==0f }
+    if(model.initializing || model.accountLoading) {
+        Box(Modifier.fillMaxSize().background(Charcoal),contentAlignment=Alignment.Center) {
+            Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(20.dp)) {
+                CircularProgressIndicator(color=Lime)
+                Text("Restoring your Hungii account…",color=White)
+            }
+        }
+        return
+    }
+    if(!BuildConfig.LOCAL_DEMO && !model.signedIn && !model.offlineMode) {
+        AccountEntry(model)
+        return
+    }
+    if(!BuildConfig.LOCAL_DEMO && model.signedIn && model.cloudSetupPending) {
+        CloudEntry(model)
+        return
+    }
     val focused=model.screen in listOf(Screen.Finalists,Screen.Draw,Screen.Winner,Screen.Review)
     BackHandler(model.screen!=Screen.Home) { model.goBack() }
     LaunchedEffect(model.shuffling) {
@@ -176,8 +193,8 @@ private fun HungiiApp(model: HungiiModel,voice: VoiceState,onVoice: ()->Unit) {
         AlertDialog(onDismissRequest={model.pendingSave=null},containerColor=Surface,title={Text("Remember this meal?",color=White)},text={Text("Allow Hungii to keep ${meal.name}, its name, restaurant and menu identifiers encrypted on this device for up to 30 days. Prices and photos are not saved. Delete saved meals and withdraw permission from Saved. Notice ${model.privacyVersion}.",color=Muted)},confirmButton={TextButton(onClick={model.acceptSaving()}){Text("Allow & save",color=Lime)}},dismissButton={TextButton(onClick={model.pendingSave=null}){Text("Cancel",color=Muted)}})
     }
     model.privacyAction?.let {action ->
-        val title=when(action){"state_save"->"Sync your tracker?";"disconnect"->"Disconnect Swiggy?";"delete_account"->"Delete your Hungii account?";"delete_cloud_tracker"->"Erase your cloud tracker?";else->"Erase data on this device?"}
-        val explanation=when(action){"state_save"->"Send your entered tracker totals to Hungii's Mumbai database, encrypted for your account. They expire after 90 days without an update. You can erase the cloud copy from Accounts. Notice ${model.privacyVersion}.";"disconnect"->"Erase Hungii's Swiggy connection and saved meals. Hungii also asks Swiggy to revoke access; remote success is reported separately.";"delete_account"->"Permanently erase your Hungii account, cloud tracker, Swiggy connection and this account's device data. This cannot be undone.";"delete_cloud_tracker"->"Erase your synced tracker. Your device tracker stays available.";else->"Erase your entered totals and saved meals on this device. Your cloud data is managed separately."}
+        val title=when(action){"state_save"->"Sync profile & preferences?";"disconnect"->"Disconnect Swiggy?";"delete_account"->"Delete your Hungii account?";"delete_cloud_tracker"->"Erase your cloud tracker?";else->"Erase data on this device?"}
+        val explanation=when(action){"state_save"->"Allow automatic sync of your entered profile, goals, food allowance, daily totals and meal filters to your encrypted Hungii account in Mumbai. Restore them on another device after sign-in. Cloud data expires after 90 days without updates. You can stop syncing or erase the cloud copy from Accounts. Notice ${model.privacyVersion}.";"disconnect"->"Erase Hungii's Swiggy connection and saved meals. Hungii also asks Swiggy to revoke access; remote success is reported separately.";"delete_account"->"Erase your cloud tracker, Swiggy connection and this account's device data, then delete your WorkOS login. If provider deletion fails, you can retry. An account hash is kept for 24 hours to prevent requests from restoring erased data. This cannot be undone.";"delete_cloud_tracker"->"Erase your cloud profile, preferences and tracker, and stop syncing this device. Your device copy stays available.";else->"Erase your entered totals and saved meals on this device. Your cloud data is managed separately."}
         AlertDialog(onDismissRequest={model.privacyAction=null},containerColor=Surface,title={Text(title,color=White)},text={Text(explanation,color=Muted)},confirmButton={TextButton(onClick={when(action){"state_save"->{model.privacyAction=null;model.syncTracker()};"disconnect"->{model.privacyAction=null;model.disconnect()};else->model.performPrivacyAction()}}){Text(if(action=="state_save")"Allow & sync" else "Confirm",color=if(action=="state_save")Lime else Coral)}},dismissButton={TextButton(onClick={model.privacyAction=null}){Text("Cancel",color=Muted)}})
     }
     if(goalsOpen) GoalsDialog(model) { goalsOpen=false }
@@ -192,6 +209,47 @@ private fun HungiiApp(model: HungiiModel,voice: VoiceState,onVoice: ()->Unit) {
                 LimeButton("Got it",Icons.Outlined.Check) { detailMeal=null }
             }
         }
+    }
+}
+
+@Composable
+private fun AccountEntry(model:HungiiModel) {
+    val context=LocalContext.current
+    Column(Modifier.fillMaxSize().background(Charcoal).safeDrawingPadding().verticalScroll(rememberScrollState()).padding(28.dp),verticalArrangement=Arrangement.spacedBy(22.dp)) {
+        Spacer(Modifier.height(36.dp))
+        Text("hungii.",color=Lime,fontSize=42.sp,fontWeight=FontWeight.Black)
+        Eyebrow("YOUR ACCOUNT. YOUR FUEL.",Muted)
+        DisplayText("YOUR DAY.\nYOUR FUEL.\nYOUR CHOICE.",54)
+        Text("Keep your goals, food allowance and meal preferences together. Sign in to restore your profile across devices.",color=Muted,fontSize=16.sp,lineHeight=25.sp)
+        Column(Modifier.fillMaxWidth().background(Surface,RoundedCornerShape(20.dp)).padding(18.dp)) {TradeLine(Icons.Outlined.Person,Lime,"Hungii account · your profile and cloud sync");Spacer(Modifier.height(12.dp));TradeLine(Icons.Outlined.Restaurant,Muted,"Connect Swiggy later to discover meals.")}
+        Spacer(Modifier.height(12.dp))
+        LimeButton("Continue with email",Icons.Outlined.Login,enabled=BuildConfig.WORKOS_AUTH_READY&&!model.loading) {
+            try {CustomTabsIntent.Builder().build().launchUrl(context,Uri.parse(model.signInUrl()))} catch(e:ApiFailure){model.connectionMessage=e.message} catch(_:Exception){model.connectionMessage="A browser is needed to sign in."}
+        }
+        Text("New here? The same email flow creates your account. Choose Email sign-in code if a password screen appears.",color=Muted,fontSize=12.sp,lineHeight=19.sp)
+        TextButton(onClick={model.useOffline()}) {Text("Use locally without an account",color=Muted)}
+        if(model.connectionMessage.isNotBlank())Text(model.connectionMessage,color=Coral,fontSize=13.sp)
+        Text("WorkOS handles email sign-in. Cloud sync is your choice after sign-in. No Swiggy login is needed to save your goals.",color=Muted,fontSize=11.sp,lineHeight=18.sp)
+    }
+}
+
+@Composable
+private fun CloudEntry(model:HungiiModel) {
+    Column(Modifier.fillMaxSize().background(Charcoal).safeDrawingPadding().verticalScroll(rememberScrollState()).padding(28.dp),verticalArrangement=Arrangement.spacedBy(22.dp)) {
+        Spacer(Modifier.height(36.dp))
+        Text("hungii.",color=Lime,fontSize=42.sp,fontWeight=FontWeight.Black)
+        Eyebrow("HUNGII ACCOUNT CONNECTED",Lime)
+        DisplayText("YOUR PROFILE.\nYOUR RULES.",51)
+        Text("Allow encrypted cloud sync for your name, nutrition goals, food allowance, entered daily totals and meal filters. Changes save automatically and restore when you sign in on another device.",color=Muted,fontSize=16.sp,lineHeight=25.sp)
+        Text("Stored in Hungii's Mumbai database. Cloud data expires after 90 days without updates. Erase the cloud copy or stop syncing in Accounts. Saved Swiggy meal shortcuts stay on this device. Privacy notice ${model.privacyVersion}.",color=Muted,fontSize=12.sp,lineHeight=20.sp)
+        LimeButton("Allow profile & preference sync",Icons.Outlined.CloudUpload,enabled=!model.loading) {model.syncTracker()}
+        if(model.cloudConflict) {
+            Text(model.cloudSyncMessage,color=Coral,fontSize=13.sp)
+            TextButton(onClick={model.useCloudCopy()}) {Text("Use my cloud profile",color=Lime)}
+            TextButton(onClick={model.keepLocalCopy()}) {Text("Sync this device's profile instead",color=Coral)}
+        }
+        TextButton(onClick={model.keepDeviceOnly()}) {Text("Continue without cloud sync",color=Muted)}
+        if(model.connectionMessage.isNotBlank())Text(model.connectionMessage,color=Coral,fontSize=13.sp)
     }
 }
 
@@ -638,6 +696,7 @@ private fun Receipt(text: String,onUndo: ()->Unit) {Row(Modifier.fillMaxWidth().
 
 @Composable
 private fun GoalsDialog(model: HungiiModel,onClose: ()->Unit) {
+    var name by remember {mutableStateOf(model.displayName)}
     var cal by remember {mutableStateOf(model.calorieGoal.toString())};var protein by remember {mutableStateOf(model.proteinGoal.toString())}
     var carbs by remember {mutableStateOf(model.carbGoal.toString())};var fat by remember {mutableStateOf(model.fatGoal.toString())}
     var allowance by remember {mutableStateOf(model.allowance.toString())};var opportunities by remember {mutableStateOf(model.opportunities.toString())}
@@ -647,12 +706,13 @@ private fun GoalsDialog(model: HungiiModel,onClose: ()->Unit) {
     val valid=listOf(cal,protein,carbs,fat,allowance).all { (it.toIntOrNull()?:0)>0 } && (opportunities.toIntOrNull()?:-1) in 0..8 && listOf(eatenCal,eatenP,eatenC,eatenF,spent).all { (it.toIntOrNull()?:-1)>=0 }
     AlertDialog(onDismissRequest=onClose,containerColor=Surface,title={DisplayText("YOUR DAY. YOUR RULES.",31)},text={
         Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
+            OutlinedTextField(name,onValueChange={name=it.take(60)},label={Text("Your name (optional)")},singleLine=true,modifier=Modifier.fillMaxWidth())
             listOf(Triple("Daily calories",cal,{v:String->cal=v}),Triple("Protein goal (g)",protein,{v:String->protein=v}),Triple("Carbs goal (g)",carbs,{v:String->carbs=v}),Triple("Fat goal (g)",fat,{v:String->fat=v}),Triple("Food allowance (₹)",allowance,{v:String->allowance=v}),Triple("Opportunities left",opportunities,{v:String->opportunities=v}),Triple("Calories eaten today",eatenCal,{v:String->eatenCal=v}),Triple("Protein eaten (g)",eatenP,{v:String->eatenP=v}),Triple("Carbs eaten (g)",eatenC,{v:String->eatenC=v}),Triple("Fat eaten (g)",eatenF,{v:String->eatenF=v}),Triple("Money spent today (₹)",spent,{v:String->spent=v})).forEach { (label,value,update) ->
                 OutlinedTextField(value,onValueChange={v->update(v.filter {it.isDigit()})},label={Text(label,fontSize=12.sp)},singleLine=true,modifier=Modifier.fillMaxWidth(),keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(keyboardType=androidx.compose.ui.text.input.KeyboardType.Number))
             }
             Text("Enter your actual daily totals. Swiggy orders do not automatically become consumed nutrition.",color=Muted,fontSize=11.sp,lineHeight=18.sp)
         }
-    },confirmButton={TextButton(enabled=valid,onClick={model.invalidateCheckInUndo();model.calorieGoal=cal.toInt();model.proteinGoal=protein.toInt();model.carbGoal=carbs.toInt();model.fatGoal=fat.toInt();model.allowance=allowance.toInt();model.opportunities=opportunities.toInt();model.spent=spent.toInt();model.intake=Nutrition(Span(eatenCal.toInt(),eatenCal.toInt()),Span(eatenP.toInt(),eatenP.toInt()),Span(eatenC.toInt(),eatenC.toInt()),Span(eatenF.toInt(),eatenF.toInt()));onClose()}) {Text("Update my day",color=if(valid)Lime else Muted)}},dismissButton={TextButton(onClick=onClose) {Text("Cancel",color=Muted)}})
+    },confirmButton={TextButton(enabled=valid,onClick={model.invalidateCheckInUndo();model.displayName=name;model.calorieGoal=cal.toInt();model.proteinGoal=protein.toInt();model.carbGoal=carbs.toInt();model.fatGoal=fat.toInt();model.allowance=allowance.toInt();model.opportunities=opportunities.toInt();model.spent=spent.toInt();model.intake=Nutrition(Span(eatenCal.toInt(),eatenCal.toInt()),Span(eatenP.toInt(),eatenP.toInt()),Span(eatenC.toInt(),eatenC.toInt()),Span(eatenF.toInt(),eatenF.toInt()));onClose()}) {Text("Update my day",color=if(valid)Lime else Muted)}},dismissButton={TextButton(onClick=onClose) {Text("Cancel",color=Muted)}})
 }
 
 
@@ -682,12 +742,24 @@ private fun AccountDialog(model: HungiiModel,onClose: ()->Unit) {
     AlertDialog(onDismissRequest=onClose,containerColor=Surface,title={DisplayText("YOUR ACCOUNTS.",34)},text={
         Column(Modifier.heightIn(max=460.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
             Text(if(BuildConfig.LOCAL_DEMO) "This local protocol demo uses fictional meals and an address. No Swiggy account, payment or order is involved." else "Your device tracker is encrypted. Cloud sync is optional. Swiggy supplies meals for the address you choose after separate authorization.",color=Muted,fontSize=13.sp,lineHeight=20.sp)
-            Text("PRIVACY · ${model.privacyVersion}\nOn-device voice only, with typed fallback. No audio recording, ads or training on your food data. Cloud totals expire after 90 days without updates; saved meal shortcuts after 30 days. Connection credentials expire within five days. Location and selected address are used for your requested meal search. No order is placed in Hungii.",color=Muted,fontSize=11.sp,lineHeight=18.sp)
+            Text("PRIVACY · ${model.privacyVersion}\nWorkOS handles email sign-in; Supabase hosts your account data in Mumbai. On-device voice only, with typed fallback. No audio recording, ads or training on your food data. Cloud totals expire after 90 days without updates; saved meal shortcuts after 30 days. Connection credentials expire within five days. Location and selected address are used for your requested meal search. No order is placed in Hungii.",color=Muted,fontSize=11.sp,lineHeight=18.sp)
             if(!model.configured) Text("The live connection is not available in this build yet. You can keep using your offline tracker while account setup is completed.",color=Coral,fontSize=13.sp,lineHeight=20.sp)
-            if(!model.signedIn) LimeButton(if(BuildConfig.SUPABASE_AUTH_READY) "Sign in with Google" else "Google sign-in · setup pending",Icons.Outlined.Login,enabled=model.configured&&BuildConfig.SUPABASE_AUTH_READY&&!model.loading) {
+            if(!model.signedIn) LimeButton(if(BuildConfig.WORKOS_AUTH_READY) "Continue with email" else "Email sign-in · setup pending",Icons.Outlined.Login,enabled=model.configured&&BuildConfig.WORKOS_AUTH_READY&&!model.loading) {
                 try {browse(model.signInUrl())} catch(e: ApiFailure) {model.connectionMessage=e.message}
             } else {
                 Text(if(BuildConfig.LOCAL_DEMO) "Local demo session" else "Signed in to Hungii",color=Lime,fontSize=13.sp)
+                if(!BuildConfig.LOCAL_DEMO) {
+                Text("Hungii profile · "+if(model.cloudSyncEnabled) "Cloud sync enabled" else "Device only",color=Lime,fontSize=12.sp)
+                if(model.cloudSyncMessage.isNotBlank())Text(model.cloudSyncMessage,color=Muted,fontSize=12.sp)
+                if(model.cloudConflict) {
+                    TextButton(onClick={model.useCloudCopy()}) {Text("Use cloud profile",color=Lime)}
+                    TextButton(onClick={model.keepLocalCopy()}) {Text("Keep this device's profile",color=Coral)}
+                }
+                if(model.cloudSyncEnabled) TextButton(onClick={model.pauseCloudSync()}) {Text("Stop cloud sync on this device",color=Muted)}
+                TextButton(onClick={model.restoreProfile()}) {Text("Restore cloud profile",color=Lime)}
+                TextButton(onClick={model.privacyAction="state_save"}) {Text(if(model.cloudSyncEnabled) "Sync profile now" else "Enable profile & preference sync",color=Lime)}
+                TextButton(onClick={model.privacyAction="delete_cloud_tracker"}) {Text("Erase cloud profile & tracker",color=Coral)}
+                }
                 if(!model.connected) {
                     Row(verticalAlignment=Alignment.Top) {
                         Checkbox(consent,onCheckedChange={consent=it},colors=CheckboxDefaults.colors(checkedColor=Lime,checkmarkColor=Charcoal))
@@ -710,10 +782,8 @@ private fun AccountDialog(model: HungiiModel,onClose: ()->Unit) {
                     TextButton(onClick={model.privacyAction="disconnect"}) {Text(if(BuildConfig.LOCAL_DEMO) "Disconnect demo" else "Disconnect Swiggy",color=Coral)}
                 }
                 TextButton(onClick={model.refresh()}) {Text("Refresh connection",color=Lime)}
-                TextButton(onClick={model.privacyAction="state_save"}) {Text("Sync my tracker",color=Lime)}
-                TextButton(onClick={model.privacyAction="delete_cloud_tracker"}) {Text("Erase cloud tracker",color=Coral)}
                 if(!BuildConfig.LOCAL_DEMO) TextButton(onClick={model.privacyAction="delete_account"}) {Text("Delete Hungii account",color=Coral)}
-                TextButton(onClick={model.signOut()}) {Text("Sign out of Hungii",color=Muted)}
+                TextButton(onClick={model.signOut(::browse)}) {Text("Sign out of Hungii",color=Muted)}
             }
             TextButton(onClick={model.privacyAction="erase_local"}) {Text("Erase device tracker & saved meals",color=Coral)}
             if(model.loading) LinearProgressIndicator(modifier=Modifier.fillMaxWidth(),color=Lime)

@@ -66,6 +66,21 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
     var taste by mutableStateOf("any"); var highProtein by mutableStateOf(false)
     var vegOnly by mutableStateOf(false); var budgetOnly by mutableStateOf(false); var fast by mutableStateOf(false)
     var query by mutableStateOf("healthy bowls")
+    var displayName by mutableStateOf("")
+    var offlineMode by mutableStateOf(BuildConfig.LOCAL_DEMO)
+    var initializing by mutableStateOf(true)
+    var accountLoading by mutableStateOf(api.signedIn && !BuildConfig.LOCAL_DEMO)
+    var cloudSetupPending by mutableStateOf(false)
+    var cloudSyncEnabled by mutableStateOf(false)
+    var cloudSyncMessage by mutableStateOf("")
+    var cloudConflict by mutableStateOf(false)
+    private var cloudDecisionMade=false
+    private var cloudReady=false
+    private var cloudRevision:String?=null
+    private var lastSyncedState:String?=null
+    private var cloudJob:Job?=null
+    private var syncEpoch=0
+    private lateinit var initializationJob:Job
     val meals = mutableStateListOf<Meal>(); val finalists = mutableStateListOf<Meal>()
     val passed = mutableStateListOf<String>(); val savedMeals = mutableStateListOf<Meal>()
     val saved get() = savedMeals.map { it.id }
@@ -83,7 +98,7 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
     private var savedConsentAt = 0L
     private var persistenceJob: Job? = null
     var privacyAction by mutableStateOf<String?>(null)
-    val privacyVersion = "2026-10-02.1"
+    val privacyVersion = "2026-10-02.3"
     private var owner = api.userId ?: "device"
     private var foodDay = LocalDate.now().toString()
     private var ready by mutableStateOf(false)
@@ -103,28 +118,106 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
     }.take(8)
 
     init {
-        viewModelScope.launch { db.migrate(); loadLocal(); ready=true; if(signedIn) refresh() }
+        initializationJob=viewModelScope.launch {
+            db.migrate(); loadLocal(); ready=true; initializing=false
+            if(signedIn && !BuildConfig.LOCAL_DEMO) refresh()
+        }
         startPersistence()
     }
     private fun startPersistence() {
         persistenceJob=viewModelScope.launch {
             snapshotFlow { if(ready) TrackerRecord(owner,snapshot().toString()) else null }.filterNotNull().debounce(600).collect { value ->
                 db.save(value)
+                if(cloudReady && cloudSyncEnabled && signedIn && cloudState().toString()!=lastSyncedState) scheduleCloudSync()
             }
         }
     }
-    private fun snapshot() = tracker().put("savedConsent",savedConsent).put("savedConsentAt",savedConsentAt).put("privacyVersion",privacyVersion).put("savedMeals",JSONArray(savedMeals.map { it.copy(imageUrl=null,itemPrice=null,etaMinutes=null,distanceKm=null,description="",offerText=null).json() }))
+    private fun preferences()=JSONObject().put("displayName",displayName).put("taste",taste).put("query",query)
+        .put("highProtein",highProtein).put("vegOnly",vegOnly).put("budgetOnly",budgetOnly).put("fast",fast)
+    private fun cloudState()=tracker().put("preferences",preferences())
+    private fun snapshot() = cloudState().put("offlineMode",offlineMode).put("cloudSyncEnabled",cloudSyncEnabled).put("cloudDecisionMade",cloudDecisionMade)
+        .put("cloudRevision",cloudRevision?:JSONObject.NULL).put("lastSyncedState",lastSyncedState?:JSONObject.NULL)
+        .put("savedConsent",savedConsent).put("savedConsentAt",savedConsentAt).put("privacyVersion",privacyVersion).put("savedMeals",JSONArray(savedMeals.map { it.copy(imageUrl=null,itemPrice=null,etaMinutes=null,distanceKm=null,description="",offerText=null).json() }))
     private fun tracker() = JSONObject().put("day",foodDay).put("calorieGoal",calorieGoal).put("proteinGoal",proteinGoal)
         .put("carbGoal",carbGoal).put("fatGoal",fatGoal).put("allowance",allowance).put("spent",spent).put("opportunities",opportunities).put("intake",intake.json())
     private suspend fun loadLocal() {
         val stored = try {db.get(owner)?.payload} catch(_:Exception) {receipt="Saved data could not be decrypted. You can erase it from Accounts.";null} ?: return
         try {
-            val o=JSONObject(stored); calorieGoal=o.getInt("calorieGoal"); proteinGoal=o.getInt("proteinGoal"); carbGoal=o.getInt("carbGoal"); fatGoal=o.getInt("fatGoal"); allowance=o.getInt("allowance")
-            if(o.getString("day")==LocalDate.now().toString()) { spent=o.getInt("spent"); opportunities=o.getInt("opportunities"); intake=Nutrition.from(o.getJSONObject("intake")) }
+            val o=JSONObject(stored); applyState(o)
+            if(!signedIn)offlineMode=o.optBoolean("offlineMode")
+            cloudSyncEnabled=o.optBoolean("cloudSyncEnabled") && o.optString("privacyVersion")==privacyVersion
+            cloudDecisionMade=o.optBoolean("cloudDecisionMade") && o.optString("privacyVersion")==privacyVersion
+            cloudRevision=o.optString("cloudRevision").takeIf {it.isNotBlank()&&it!="null"}
+            lastSyncedState=o.optString("lastSyncedState").takeIf {it.isNotBlank()&&it!="null"}
             savedConsentAt=o.optLong("savedConsentAt")
             savedConsent=o.optBoolean("savedConsent")&&o.optString("privacyVersion")==privacyVersion&&System.currentTimeMillis()-savedConsentAt<30L*86400*1000; savedMeals.clear()
             if(savedConsent) o.optJSONArray("savedMeals")?.let { a -> for(i in 0 until a.length()) savedMeals.add(Meal.from(a.getJSONObject(i))) }
         } catch (_: Exception) { receipt="The saved tracker could not be loaded. Please check your day." }
+    }
+    private fun applyState(o:JSONObject) {
+        calorieGoal=o.getInt("calorieGoal");proteinGoal=o.getInt("proteinGoal");carbGoal=o.getInt("carbGoal");fatGoal=o.getInt("fatGoal");allowance=o.getInt("allowance")
+        if(o.getString("day")==LocalDate.now().toString()) {
+            spent=o.getInt("spent");opportunities=o.getInt("opportunities");intake=Nutrition.from(o.getJSONObject("intake"))
+        } else {spent=0;opportunities=2;intake=Nutrition.zero}
+        foodDay=LocalDate.now().toString()
+        o.optJSONObject("preferences")?.let {v->
+            displayName=v.optString("displayName");taste=v.optString("taste","any");query=v.optString("query","healthy bowls")
+            highProtein=v.optBoolean("highProtein");vegOnly=v.optBoolean("vegOnly");budgetOnly=v.optBoolean("budgetOnly");fast=v.optBoolean("fast")
+        }
+    }
+    private fun resetCloud() {
+        syncEpoch++;cloudJob?.cancel();cloudJob=null;cloudSyncEnabled=false;cloudReady=false;cloudConflict=false
+        cloudRevision=null;lastSyncedState=null;cloudDecisionMade=false;cloudSetupPending=false;cloudSyncMessage=""
+    }
+    private suspend fun restoreCloud(force:Boolean=false) {
+        if(cloudDecisionMade && !cloudSyncEnabled && !force) {
+            cloudReady=false;cloudSetupPending=false;return
+        }
+        val localChanged=cloudSyncEnabled && lastSyncedState!=null && cloudState().toString()!=lastSyncedState
+        val response=api.action("state_get")
+        val revision=response.optString("updatedAt").takeIf {it.isNotBlank()&&it!="null"}
+        val state=response.optJSONObject("state")
+        if(!force && localChanged && revision!=cloudRevision) {
+            cloudReady=false;cloudConflict=true;cloudSyncMessage="This profile changed on another device. Choose a copy in Accounts.";return
+        }
+        if(state!=null && (force || !localChanged)) {
+            applyState(state);lastSyncedState=cloudState().toString()
+            cloudSyncEnabled=cloudSyncEnabled && response.optString("consentVersion")==privacyVersion && state.has("preferences")
+            if(cloudSyncEnabled)cloudDecisionMade=true
+            cloudSyncMessage="Profile restored from your Hungii account."
+        } else if(state==null && cloudRevision!=null) {
+            // Another device's deletion or expiry is not permission to recreate a copy.
+            cloudSyncEnabled=false;cloudSyncMessage="Cloud copy is absent. Allow sync again to create a new copy."
+        }
+        cloudRevision=revision;cloudReady=true;cloudConflict=false
+        cloudSetupPending=!cloudDecisionMade
+        if(cloudSyncEnabled && cloudState().toString()!=lastSyncedState)scheduleCloudSync()
+    }
+    private fun scheduleCloudSync() {
+        cloudJob?.cancel()
+        cloudJob=viewModelScope.launch {
+            delay(1000)
+            while(loading)delay(200)
+            if(cloudReady && cloudSyncEnabled && signedIn) syncTracker()
+        }
+    }
+    fun useOffline() {offlineMode=true;cloudDecisionMade=true;cloudSyncEnabled=false;cloudSetupPending=false}
+    fun keepDeviceOnly() {cloudDecisionMade=true;cloudSetupPending=false;cloudSyncEnabled=false}
+    fun pauseCloudSync() {syncEpoch++;cloudJob?.cancel();cloudSyncEnabled=false;cloudReady=false;cloudDecisionMade=true;cloudSetupPending=false;cloudSyncMessage="Cloud sync is off. Your profile stays on this device."}
+    fun restoreProfile()=run {restoreCloud(force=true);cloudDecisionMade=true;cloudSetupPending=false}
+    fun useCloudCopy()=run {cloudSyncEnabled=true;cloudDecisionMade=true;restoreCloud(force=true)}
+    fun keepLocalCopy()=run {
+        val response=api.action("state_get")
+        cloudRevision=response.optString("updatedAt").takeIf {it.isNotBlank()&&it!="null"}
+        cloudConflict=false;cloudReady=true;pushCloudState()
+    }
+    private suspend fun pushCloudState() {
+        val epoch=syncEpoch
+        val current=cloudState().toString()
+        val response=api.action("state_save",JSONObject().put("state",JSONObject(current)).put("privacyVersion",privacyVersion).put("expectedUpdatedAt",cloudRevision?:JSONObject.NULL))
+        if(epoch!=syncEpoch)return
+        cloudRevision=response.getString("updatedAt");lastSyncedState=current;cloudReady=true;cloudConflict=false
+        cloudSyncEnabled=true;cloudDecisionMade=true;cloudSetupPending=false;cloudSyncMessage="Profile and preferences synced."
     }
     private fun run(block: suspend () -> Unit) {
         if(loading) return
@@ -132,29 +225,40 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
             loading=true; connectionMessage=""
             try { block() } catch(e: ApiFailure) {
                 connectionMessage=e.message
+                if(e.code=="HUNGII_SYNC_CONFLICT") {cloudConflict=true;cloudReady=false;cloudSyncMessage=e.message}
+                if(e.code=="HUNGII_LOGIN_REQUIRED") {
+                    resetCloud();api.clearSession(); signedIn=false; clearProviderData()
+                    persistenceJob?.cancelAndJoin(); ready=false; owner="device"; resetTracker(); loadLocal(); ready=true; startPersistence()
+                }
                 if(e.code=="HUNGII_RECONNECT") { connected=false; addressId=null; meals.clear(); finalists.clear(); winner=null; restaurants.clear(); cart=null; coupons=null }
             } catch (_: Exception) { connectionMessage="Could not complete this request. Try again." }
-            finally { loading=false }
+            finally { loading=false; accountLoading=false }
         }
     }
     fun signInUrl() = api.signInUrl()
     fun handleCallback(uri: Uri) = run {
         if(uri.host=="auth-return") {
-            api.callback(uri); signedIn=true
+            accountLoading=true
+            initializationJob.join()
+            api.callback(uri); signedIn=true;offlineMode=false;resetCloud()
             persistenceJob?.cancelAndJoin();ready=false; owner=api.userId ?: "device"; resetTracker(); savedMeals.clear(); savedConsent=false; loadLocal(); ready=true;startPersistence()
         }
-        refreshConnection()
+        try {if(!BuildConfig.LOCAL_DEMO)restoreCloud();refreshConnection()} finally {accountLoading=false}
     }
     private fun resetTracker() {
         foodDay=LocalDate.now().toString(); calorieGoal=2200; proteinGoal=140; carbGoal=250; fatGoal=70
         allowance=600; spent=0; opportunities=2; intake=Nutrition.zero
+        displayName="";taste="any";query="healthy bowls";highProtein=false;vegOnly=false;budgetOnly=false;fast=false
     }
     suspend fun refreshConnection() {
         val status=api.action("status"); connected=status.getBoolean("connected"); addressId=status.optString("addressId").takeIf { it.isNotBlank()&&it!="null" }; environment=status.optString("environment")
         if(!connected) { meals.clear(); finalists.clear(); restaurants.clear(); winner=null; cart=null; coupons=null }
         if(connected&&addressId==null) loadAddresses()
     }
-    fun refresh() = run { refreshConnection() }
+    fun refresh() = run {
+        accountLoading=true
+        try {if(!BuildConfig.LOCAL_DEMO)restoreCloud();refreshConnection()} finally {accountLoading=false}
+    }
     fun connect(onUrl: (String)->Unit) = run {
         val response=api.action("connect",JSONObject().put("consent",true).put("privacyVersion",privacyVersion))
         if(BuildConfig.LOCAL_DEMO) refreshConnection() else onUrl(response.getString("authorizationUrl"))
@@ -203,20 +307,41 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
         persistenceJob?.cancelAndJoin();ready=false;clearProviderData();db.erase(owner);db.save(TrackerRecord(owner,snapshot().toString()));ready=true;startPersistence()
         connectionMessage=if(result.optBoolean("revocationConfirmed")) "Disconnected and erased saved Swiggy data." else "Disconnected and erased Hungii's copy. Remote revocation could not be confirmed; check Swiggy account access."
     }
-    fun signOut() = run {
-        try { api.signOut() } catch (_: Exception) { connectionMessage="Signed out on this device. The remote sign-out could not be confirmed." }
-        signedIn=false;clearProviderData()
+    fun signOut(onUrl:(String)->Unit) = run {
+        try {api.signOut()?.let(onUrl)} catch (_: Exception) { connectionMessage="Signed out on this device. The remote sign-out could not be confirmed." }
+        signedIn=false;resetCloud();clearProviderData()
         persistenceJob?.cancelAndJoin();ready=false; owner=if(BuildConfig.LOCAL_DEMO) "local-demo" else "device"; resetTracker(); savedMeals.clear(); savedConsent=false; loadLocal(); ready=true;startPersistence()
     }
-    fun syncTracker() = run { api.action("state_save",JSONObject().put("state",tracker()).put("privacyVersion",privacyVersion)); connectionMessage="Your tracker was synced." }
+    fun syncTracker() = run {
+        if(!cloudReady) {
+            val response=api.action("state_get")
+            cloudRevision=response.optString("updatedAt").takeIf {it.isNotBlank()&&it!="null"}
+            val remote=response.optJSONObject("state")
+            if(remote!=null && remote.toString()!=cloudState().toString() && lastSyncedState!=cloudState().toString()) {
+                cloudConflict=true;cloudSyncMessage="Choose whether to use the cloud profile or keep this device's profile.";return@run
+            }
+            cloudReady=true
+        }
+        if(cloudConflict)return@run
+        pushCloudState();connectionMessage="Profile, preferences and tracker synced."
+    }
     fun performPrivacyAction() {
         val action=privacyAction?:return;privacyAction=null
         run {
-            if(action=="delete_cloud_tracker") {api.action(action,JSONObject().put("confirm",true));connectionMessage="Cloud tracker erased.";return@run}
-            if(action=="delete_account") api.action(action,JSONObject().put("confirm",true))
+            if(action=="delete_cloud_tracker") {
+                cloudJob?.cancel();api.action(action,JSONObject().put("confirm",true));resetCloud();cloudDecisionMade=true
+                connectionMessage="Cloud profile, preferences and tracker erased. Device copy remains.";return@run
+            }
+            if(action=="delete_account") {
+                val result=api.action(action,JSONObject().put("confirm",true))
+                if(!result.optBoolean("deleted")) {
+                    persistenceJob?.cancelAndJoin();ready=false;resetCloud();db.erase(owner);clearProviderData();resetTracker();ready=true;startPersistence()
+                    connectionMessage="Hungii's cloud data was erased. Account-provider deletion is pending; retry Delete Hungii account.";return@run
+                }
+            }
             persistenceJob?.cancelAndJoin();ready=false
             db.erase(owner);clearProviderData();resetTracker()
-            if(action=="delete_account") {api.clearSession();signedIn=false;owner="device";accountOpen=false}
+            if(action=="delete_account") {resetCloud();api.clearSession();signedIn=false;owner="device";accountOpen=false}
             ready=true;startPersistence();connectionMessage="Selected data erased."
         }
     }

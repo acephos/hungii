@@ -1,5 +1,6 @@
 {
   "imports": {
+    "jose": "npm:jose@6.2.12",
     "@modelcontextprotocol/sdk/client/index.js": "npm:@modelcontextprotocol/sdk@1.31.0/client/index.js",
     "@modelcontextprotocol/sdk/client/streamableHttp.js": "npm:@modelcontextprotocol/sdk@1.31.0/client/streamableHttp.js",
     "@supabase/supabase-js": "npm:@supabase/supabase-js@2.117.2",

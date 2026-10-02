@@ -3,7 +3,8 @@
   "specifiers": {
     "npm:@modelcontextprotocol/sdk@1.31.0": "1.31.0_zod@4.6.5",
     "npm:@supabase/supabase-js@2.117.2": "2.117.2",
-    "npm:ajv@8.17.1": "8.17.1"
+    "npm:ajv@8.17.1": "8.17.1",
+    "npm:jose@6.2.12": "6.2.12"
   },
   "npm": {
     "@hono/node-server@2.1.3_hono@4.13.12": {
@@ -581,7 +582,8 @@
     "dependencies": [
       "npm:@modelcontextprotocol/sdk@1.31.0",
       "npm:@supabase/supabase-js@2.117.2",
-      "npm:ajv@8.17.1"
+      "npm:ajv@8.17.1",
+      "npm:jose@6.2.12"
     ]
   }
 }

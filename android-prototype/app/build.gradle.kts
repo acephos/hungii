@@ -13,8 +13,8 @@ android {
         applicationId = "com.hungii.prototype"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.4-readiness"
+        versionCode = 5
+        versionName = providers.gradleProperty("hungiiVersionName").getOrElse("0.6-account-sync")
         val config = Properties().apply {
             val source = rootProject.file("local.properties")
             if (source.exists()) source.inputStream().use { load(it) }
@@ -22,7 +22,8 @@ android {
         fun quoted(value: String) = "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
         buildConfigField("String", "SUPABASE_URL", quoted(config.getProperty("hungii.supabaseUrl", "")))
         buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", quoted(config.getProperty("hungii.supabasePublishableKey", "")))
-        buildConfigField("boolean", "SUPABASE_AUTH_READY", (config.getProperty("hungii.supabaseAuthReady", "false") == "true").toString())
+        buildConfigField("String", "WORKOS_CLIENT_ID", quoted(config.getProperty("hungii.workosClientId", "")))
+        buildConfigField("boolean", "WORKOS_AUTH_READY", (config.getProperty("hungii.workosAuthReady", "false") == "true").toString())
     }
     flavorDimensions += "services"
     productFlavors {

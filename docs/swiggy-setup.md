@@ -4,16 +4,28 @@ Current project: **hungii-mumbai**, reference `qvqnzsqrxejdlvnbqwcs`, Supabase *
 
 ## Already provisioned
 
-- Four SQL migrations applied; backend-only RLS tables, encrypted tracker/token/verifier/address/session fields, versioned consent, callback generation fencing and durable session leases.
-- `hungii-api` deployed with public callback support and Auth.getUser on every API action. Actual Mumbai execution header verified. API/root without an account returns login required.
-- `HUNGII_TOKEN_KEY` generated and installed as a server secret. Provisioning credentials are in a private, gitignored `supabase/.env.provisioning`; never paste them into chat, Android, a public repo or the draft.
-- Swiggy session-resumption gate false; price unit unverified. No Swiggy client or auth host set until Builders supplies approved configuration.
-- Cron purge every ten minutes, with successful execution verified; access also purges expiry. Free inactivity pausing constrains scheduled cleanup and availability.
-- Native project URL/publishable key configured in private `android-prototype/local.properties`. `hungii.supabaseAuthReady=false` keeps Google login visibly pending.
+- Six SQL migrations applied, including backend-only Hungii accounts, ownership/deletion fences, encrypted tracker/provider fields, durable MCP leases and scheduled expiry cleanup.
+- `hungii-api` verifies signed WorkOS JWTs and live sessions for account actions. Android/callbacks force Mumbai; the handler rejects other regions. Swiggy callback and WorkOS refresh are separately scoped public endpoints.
+- WorkOS staging application **Hungii Android**, client `client_01M3XWXNG4XE1J3C7NP76HBJKC`; Magic Auth email codes enabled. Android redirect `com.hungii.prototype://auth-return` registered. The free hosted AuthKit domain is used. Email/password also remains available in staging.
+- WorkOS API key, client ID and exact JWT issuer installed as server secrets. The issuer references the environment's default application, `client_01M3XWQW4SPGCDAVZ551TTSY5S`, as documented by WorkOS. No secret enters Android.
+- `HUNGII_TOKEN_KEY` installed. Provisioning files are gitignored and private; do not paste them into chat, APKs or review drafts.
+- `SWIGGY_SESSION_RESUME_VERIFIED=false`, price unit unverified, no approved Swiggy client/endpoints installed.
+- Cron purge every ten minutes plus access cleanup. Free inactivity pausing constrains cleanup/availability.
 
-## Google user login still needs an OAuth client
+## Hungii user sign-in
 
-Supabase dashboard login via GitHub is independent of Hungii users signing in with Google. In the founder's Google Cloud project, create an OAuth web client and configure the consent screen. Authorized provider redirect: `https://qvqnzsqrxejdlvnbqwcs.supabase.co/auth/v1/callback`. Install the Google client ID/secret in Supabase Auth's Google settings; do not place the client secret in Android or chat. App redirect allowlist is scoped to `hungii://auth-return?flow=*` so the app can validate its random login-flow nonce. Verify real phone/browser PKCE, cancellation and replay before setting `hungii.supabaseAuthReady=true` and rebuilding. Production verified app links, consent-screen verification and distribution need separate validation. [Google provider](https://supabase.com/docs/guides/auth/social-login/auth-google), [redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls).
+The opening screen offers Hungii email sign-in or local-only use without an account. Cloud profile/goals/meal-filter sync is optional after sign-in and can be stopped per device; saved provider meal shortcuts remain local. Changes sync automatically only after permission, and conflicting revisions require a choice. Version 0.6 uses WorkOS AuthKit with Supabase Postgres/Edge Functions. Supabase dashboard GitHub login and Hungii user login are independent. No Google OAuth configuration is needed for the selected email login. Android opens AuthKit with PKCE/state, exchanges the public authorization code, then uses the backend to refresh and authorize its session. Revoked sessions fail live checks. [Architecture](adr/0003-workos-with-supabase.md).
+
+Only public values go into gitignored `android-prototype/local.properties`:
+
+```properties
+hungii.supabaseUrl=https://qvqnzsqrxejdlvnbqwcs.supabase.co
+hungii.supabasePublishableKey=YOUR_PUBLISHABLE_KEY
+hungii.workosClientId=client_01M3XWXNG4XE1J3C7NP76HBJKC
+hungii.workosAuthReady=true
+```
+
+Use Accounts → Continue with email, enter your email, then select Email sign-in code if the password screen appears. WorkOS can send a six-digit email code; no phone OTP is needed for this app login. This is staging authentication, with a custom-scheme Android callback. The founder confirmed successful email-code sign-in on their phone. Configure production AuthKit/release signing/verified App Links before public distribution. The backend owns database authorization; direct Supabase Data API access is disabled, so no third-party Auth/JWT-role template is required by this implementation. [WorkOS](https://supabase.com/docs/guides/auth/third-party/workos).
 
 ## Swiggy staging remains approval-gated
 
@@ -40,6 +52,6 @@ npx --yes deno check --config supabase/functions/deno.json supabase/functions/hu
 npx --yes deno test --config supabase/functions/deno.json --allow-env supabase/functions/_shared/
 ```
 
-The SQL test in `supabase/tests/privacy-and-leases.sql` uses rolled-back synthetic accounts on Hungii's own project. Never run it against a different production database. The `demo` Android flavor reaches a local read-only MCP server; the `real` flavor never substitutes fixtures. [Android build/demo guide](../android-prototype/README.md).
+The SQL tests in `supabase/tests/privacy-and-leases.sql` and `supabase/tests/workos-ownership.sql` uses rolled-back synthetic accounts on Hungii's own project. Never run it against a different production database. The `demo` Android flavor reaches a local read-only MCP server; the `real` flavor never substitutes fixtures. [Android build/demo guide](../android-prototype/README.md).
 
 Before production: complete [external gates](approval-readiness.md#external-gates-before-production), including approved agreements/privacy contact, at least 48 hours green staging, explicit production access, support/alerts/recovery and staged rollout. A staging request can describe prepared controls; it cannot assert production approval.

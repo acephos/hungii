@@ -10,11 +10,13 @@ The current prototype is a native Kotlin / Jetpack Compose Android app with char
 
 Build and run instructions: [android-prototype/README.md](android-prototype/README.md). Requires Android 8.0 or newer. The downloadable build is generated at `artifacts/hungii-android-prototype.apk`.
 
-Version 0.4 has separate real-service and synthetic local-demo builds. Supabase Free is provisioned in Mumbai, with an authenticated API, backend-only encrypted tracker/credential/session storage, durable MCP session leases and scheduled expiry cleanup. Google user login and Swiggy access remain pending; the real build never substitutes sample meals for provider results.
+Version 0.6 has separate real-service and synthetic local-demo builds. Supabase Free is provisioned in Mumbai, with an authenticated API, backend-only encrypted tracker/credential/session storage, durable MCP session leases and scheduled expiry cleanup. WorkOS staging email sign-in is configured; Swiggy access remains pending; the real build never substitutes sample meals for provider results.
+
+The first screen offers email sign-in or local-only use without an account. Profile/goals/preferences sync is optional after sign-in, restores across devices and prevents silent conflicting overwrites. Saved Swiggy meal shortcuts remain local.
 
 The Android tracker and consented meal shortcuts use AES-256-GCM with per-account Keystore keys. Voice uses an available on-device recognizer or typed input. The demo uses our fictional MCP fixtures, is labeled throughout and cannot order.
 
-See [readiness evidence](docs/approval-readiness.md), [service setup](docs/swiggy-setup.md), [stack decision](docs/adr/0001-native-android-and-mumbai-backend.md) and [MCP contract](docs/swiggy-integration-contract.md). Local tests and deployed Supabase checks do not establish Swiggy approval or production certification.
+See [readiness evidence](docs/approval-readiness.md), [service setup](docs/swiggy-setup.md), [stack decision](docs/adr/0003-workos-with-supabase.md) and [MCP contract](docs/swiggy-integration-contract.md). Local tests and deployed Supabase checks do not establish Swiggy approval or production certification.
 
 ## Earlier web exploration
 

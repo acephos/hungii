@@ -5,7 +5,7 @@ declare
   a uuid:=gen_random_uuid(); b uuid:=gen_random_uuid(); nonce uuid:=gen_random_uuid(); rival uuid:=gen_random_uuid();
   epoch bigint; s public.swiggy_mcp_sessions; i integer; result integer;
 begin
-  insert into auth.users(id,email) values(a,a::text||'@hungii-test.invalid'),(b,b::text||'@hungii-test.invalid');
+  insert into public.hungii_accounts(id,identity_hash) values(a,repeat('a',43)),(b,repeat('b',43));
   epoch:=public.begin_swiggy_consent(a,'synthetic-state','encrypted-verifier','2026-10-02.1');
   assert (select count(*) from public.consume_swiggy_oauth_state('synthetic-state'))=1, 'OAuth state missing';
   assert (select count(*) from public.consume_swiggy_oauth_state('synthetic-state'))=0, 'OAuth replay accepted';
@@ -38,11 +38,11 @@ begin
   insert into public.hungii_state(user_id,state,updated_at) values(a,'{"ciphertext":"synthetic"}',now()-interval '91 days');
   perform public.purge_hungii_expired();
   assert not exists(select from public.hungii_state where user_id=a), 'Tracker expiry failed';
-  delete from auth.users where id=a;
-  assert not exists(select from public.swiggy_oauth_states where user_id=a), 'Auth deletion left OAuth data';
-  assert not exists(select from public.swiggy_connections where user_id=a), 'Auth deletion left connection';
-  assert not exists(select from public.swiggy_mcp_sessions where user_id=a), 'Auth deletion left session';
-  assert not exists(select from public.swiggy_consent_epochs where user_id=a), 'Auth deletion left consent';
+  delete from public.hungii_accounts where id=a;
+  assert not exists(select from public.swiggy_oauth_states where user_id=a), 'Account deletion left OAuth data';
+  assert not exists(select from public.swiggy_connections where user_id=a), 'Account deletion left connection';
+  assert not exists(select from public.swiggy_mcp_sessions where user_id=a), 'Account deletion left session';
+  assert not exists(select from public.swiggy_consent_epochs where user_id=a), 'Account deletion left consent';
 end $$;
 rollback;
 select 'OAuth replay, isolation, lease fencing, quotas, cooldown, withdrawal, crash recovery, expiry and cascades passed' as verification;

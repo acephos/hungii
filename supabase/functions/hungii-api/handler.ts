@@ -3,6 +3,7 @@ import { cartView, discover, discovery, menuView, HungiiError, withFood, type Js
 import { digest, randomSecret, seal, unseal } from "../_shared/secrets.ts";
 import { trackerState, PRIVACY_VERSION } from "../_shared/tracker.ts";
 import { DurableFoodSessions } from "../_shared/durable-sessions.ts";
+import { workosAuth } from "../_shared/workos.ts";
 
 const required = (name: string): string => {
   const value = Deno.env.get(name);
@@ -51,6 +52,9 @@ export async function handler(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const check = (error: unknown) => { if (error) throw new HungiiError("HUNGII_STORAGE", "Hungii could not save this update. Try again.", 503); };
 
+    if(request.method==='GET' && url.pathname.endsWith('/welcome')) {
+      return new Response('<!doctype html><meta name="viewport" content="width=device-width"><title>Hungii</title><style>body{background:#101211;color:#f5f7ee;font:20px system-ui;padding:40px;max-width:600px}h1{color:#caff48}</style><h1>Hungii</h1><p>Budget-aware meal planning for your day.</p><p>You can close this browser tab and return to the Hungii Android app.</p>',{headers:{'Content-Type':'text/html','Cache-Control':'no-store','Referrer-Policy':'no-referrer','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"}});
+    }
     if (request.method === "GET" && url.pathname.endsWith("/callback")) {
       const state = text(url.searchParams.get("state"), 200);
       const { data, error } = await db.rpc("consume_swiggy_oauth_state", { state_digest: await digest(state) });
@@ -72,18 +76,26 @@ export async function handler(request: Request): Promise<Response> {
     }
 
     if (request.method !== "POST") return json({ error: { code: "HUNGII_METHOD", message: "Use the Hungii app to connect." } }, 405);
-    const bearer = request.headers.get("Authorization")?.match(/^Bearer (.+)$/)?.[1];
-    if (!bearer) throw new HungiiError("HUNGII_LOGIN_REQUIRED", "Please sign in to Hungii.", 401);
-    const { data: identity, error: authError } = await db.auth.getUser(bearer);
-    if (authError || !identity.user) throw new HungiiError("HUNGII_LOGIN_REQUIRED", "Please sign in to Hungii again.", 401);
-    const user = identity.user.id;
-    const purged=await db.rpc("purge_hungii_expired");check(purged.error);
     if (Number(request.headers.get("Content-Length") ?? 0) > 100_000) throw new HungiiError("HUNGII_BAD_INPUT", "This request is too large.");
     const raw = await request.text();
     if (raw.length > 100_000) throw new HungiiError("HUNGII_BAD_INPUT", "This request is too large.");
     let body: Json;
     try { body = JSON.parse(raw); } catch { throw new HungiiError("HUNGII_BAD_INPUT", "Invalid request."); }
+    if(!body || typeof body!=='object' || Array.isArray(body))throw new HungiiError("HUNGII_BAD_INPUT", "Invalid request.");
+    if(url.pathname.endsWith('/auth/refresh')) return json(await workosAuth().refresh(text(body.refresh_token,8192)));
+    const bearer = request.headers.get("Authorization")?.match(/^Bearer (.+)$/)?.[1];
+    if (!bearer) throw new HungiiError("HUNGII_LOGIN_REQUIRED", "Please sign in to Hungii.", 401);
+    const identity=await workosAuth().verify(bearer);
     const action = text(body.action);
+    const account=await db.rpc('resolve_hungii_account',{subject_hash:await digest(`${required('WORKOS_CLIENT_ID')}:${identity.subject}`)});check(account.error);
+    const owned=account.data?.[0];
+    if(!owned || owned.status==='deleted' || owned.status==='deleting' && action!=='delete_account')throw new HungiiError('HUNGII_ACCOUNT_DELETING','Account deletion is pending. Retry deletion from Accounts.',409);
+    const user=owned.id;
+    const purged=await db.rpc("purge_hungii_expired");check(purged.error);
+    if(action==='sign_out') {
+      await workosAuth().signOut(identity);
+      return json({signedOut:true,logoutUrl:`https://api.workos.com/user_management/sessions/logout?session_id=${encodeURIComponent(identity.sessionId)}&return_to=${encodeURIComponent(`${required("SUPABASE_URL")}/functions/v1/hungii-api/welcome?forceFunctionRegion=ap-south-1`)}`});
+    }
 
     if (action === "connect") {
       if (body.consent !== true || body.privacyVersion!==PRIVACY_VERSION) throw new HungiiError("HUNGII_CONSENT", "Read the privacy notice before allowing connection retention.");
@@ -98,27 +110,33 @@ export async function handler(request: Request): Promise<Response> {
     }
     // Only user-authored tracker state; no whole Swiggy payloads or tokens in this table.
     if (action === "state_get") {
-      const stored = await db.from("hungii_state").select("state").eq("user_id", user).maybeSingle(); check(stored.error);
+      const stored = await db.from("hungii_state").select("state,updated_at").eq("user_id", user).maybeSingle(); check(stored.error);
       const encrypted=stored.data?.state?.ciphertext;
-      return json({ state: encrypted ? trackerState(JSON.parse(await unseal(encrypted,`${user}:tracker`,secret))) : null });
+      return json({ state: encrypted ? trackerState(JSON.parse(await unseal(encrypted,`${user}:tracker`,secret))) : null, updatedAt:stored.data?.updated_at??null, consentVersion:stored.data?.state?.consentVersion??null });
     }
     if (action === "state_save") {
       if(body.privacyVersion!==PRIVACY_VERSION) throw new HungiiError("HUNGII_CONSENT", "Read the privacy notice before syncing.");
       const normalized=trackerState(body.state);
-      const stored = await db.from("hungii_state").upsert({ user_id: user, state: { ciphertext: await seal(JSON.stringify(normalized),`${user}:tracker`,secret), consentVersion: PRIVACY_VERSION }, updated_at: new Date().toISOString() }); check(stored.error);
-      return json({ saved: true });
+      const expected=body.expectedUpdatedAt??null;
+      if(expected!==null && (typeof expected!=='string' || !Number.isFinite(Date.parse(expected))))throw new HungiiError('HUNGII_BAD_INPUT','Invalid sync revision.');
+      const stored=await db.rpc('save_hungii_state',{owner_id:user,encrypted_state:{ciphertext:await seal(JSON.stringify(normalized),`${user}:tracker`,secret),consentVersion:PRIVACY_VERSION},expected_update:expected});check(stored.error);
+      if(!stored.data?.[0]?.saved)throw new HungiiError('HUNGII_SYNC_CONFLICT','Your cloud profile changed on another device. Choose which copy to keep.',409);
+      return json({saved:true,updatedAt:stored.data[0].updated_at});
     }
     const { data: connection, error } = await db.from("swiggy_connections").select("*").eq("user_id", user).maybeSingle(); check(error);
     const connected = connection && connection.consent_version===PRIVACY_VERSION && Date.parse(connection.expires_at) > Date.now() + 60_000;
     const addressId = connected && connection.encrypted_address_id ? await unseal(connection.encrypted_address_id,`${user}:address`,secret) : null;
-    if (action === "status") return json({ connected: Boolean(connected), addressId, expiresAt: connected ? connection.expires_at : null, environment: Deno.env.get("SWIGGY_FOOD_URL")?.includes("mcp-staging") ? "staging" : Deno.env.get("SWIGGY_FOOD_URL") ? "production" : "not-configured", cartWritesEnabled: false, priceUnitVerified: ["rupees", "paise"].includes(Deno.env.get("SWIGGY_PRICE_UNIT") ?? "") });
+    if (action === "status") return json({ accountId:user, connected: Boolean(connected), addressId, expiresAt: connected ? connection.expires_at : null, environment: Deno.env.get("SWIGGY_FOOD_URL")?.includes("mcp-staging") ? "staging" : Deno.env.get("SWIGGY_FOOD_URL") ? "production" : "not-configured", cartWritesEnabled: false, priceUnitVerified: ["rupees", "paise"].includes(Deno.env.get("SWIGGY_PRICE_UNIT") ?? "") });
     if (["disconnect","delete_account","delete_cloud_tracker"].includes(action)) {
       if(body.confirm!==true) throw new HungiiError("HUNGII_CONFIRM_REQUIRED", "Confirm deletion first.");
       if(action==="delete_cloud_tracker") { const removed=await db.from("hungii_state").delete().eq("user_id",user);check(removed.error);return json({deleted:true}); }
       const session=await db.from("swiggy_mcp_sessions").select("encrypted_metadata,generation,phase,cooldown_until").eq("user_id",user).maybeSingle();check(session.error);
       const remoteAllowed=session.data?.phase!=="blocked" && !(session.data?.cooldown_until && Date.parse(session.data.cooldown_until)>Date.now());
       let revoked = !connection;
-      const withdrawn=await db.rpc("withdraw_swiggy_consent",{owner_id:user});check(withdrawn.error);
+      if(action==='delete_account') {
+        const erased=await db.rpc('begin_hungii_account_deletion',{owner_id:user});check(erased.error);
+        if(!erased.data)throw new HungiiError('HUNGII_ACCOUNT_DELETING','This account has already been erased.',409);
+      } else {const withdrawn=await db.rpc("withdraw_swiggy_consent",{owner_id:user});check(withdrawn.error);}
       if (connection && remoteAllowed) {
         try {
           const token = await unseal(connection.encrypted_token, `${user}:swiggy`, secret);
@@ -136,7 +154,11 @@ export async function handler(request: Request): Promise<Response> {
           await upstreamJson(`${authBase()}/auth/logout`, {}, token);revoked=true;
         } catch { /* Withdrawal still erases local provider data. */ }
       }
-      if(action==="delete_account") {const removedUser=await db.auth.admin.deleteUser(user,false);check(removedUser.error);}
+      if(action==="delete_account") {
+        try {await workosAuth().deleteUser(identity);}
+        catch {return json({disconnected:true,deleted:false,accountDeletionPending:true,revocationConfirmed:revoked});}
+        const finished=await db.from('hungii_accounts').update({status:'deleted',delete_after:new Date(Date.now()+86400000).toISOString()}).eq('id',user).eq('status','deleting');check(finished.error);
+      }
       return json({ disconnected: true, deleted: action==="delete_account", revocationConfirmed: revoked });
     }
     if (!connected) throw new HungiiError("HUNGII_RECONNECT", "Connect your Swiggy account to find meals.", 401);

@@ -2,6 +2,10 @@
 
 Checked 2 October 2026 against provider documentation. These research notes informed the [accepted stack decision](adr/0001-native-android-and-mumbai-backend.md); Supabase Free was subsequently provisioned; see [current readiness evidence](approval-readiness.md). Free quotas are service limits, not a promise that an entire production app stays free.
 
+## Current selection
+
+The founder selected WorkOS AuthKit with Supabase. Staging email authentication is configured and tested against the real Mumbai backend. Use the free hosted auth domain and email codes, avoiding paid SSO, custom domains and SMS. The native public-client protocol avoids upgrading Kotlin solely for the current Android SDK. Database access remains server-only; [ADR](adr/0003-workos-with-supabase.md). Earlier recommendations below are research context, superseded where they proposed Supabase Auth or Convex.
+
 ## Supabase: credible alternative to Convex
 
 The Free plan includes two active projects, 500 MB database per project, 50,000 monthly active users, 1 GB file storage, 5 GB egress, 500,000 Edge Function invocations, two million realtime messages and 200 peak realtime connections. [Billing documentation](https://supabase.com/docs/guides/platform/billing-on-supabase)
