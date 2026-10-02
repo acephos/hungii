@@ -1,0 +1,987 @@
+{
+  "restaurants": [
+    {
+      "id": "mock-bowls",
+      "name": "Bowl Theory",
+      "cuisines": [
+        "Healthy",
+        "Bowls"
+      ],
+      "availabilityStatus": "OPEN",
+      "deliveryTimeMinutes": 19,
+      "distanceKm": 1.1,
+      "offer": "\u20b970 off above \u20b9219"
+    },
+    {
+      "id": "mock-kitchen",
+      "name": "Everyday Kitchen",
+      "cuisines": [
+        "Indian",
+        "Home-style"
+      ],
+      "availabilityStatus": "OPEN",
+      "deliveryTimeMinutes": 16,
+      "distanceKm": 0.8,
+      "offer": "\u20b970 off above \u20b9219"
+    },
+    {
+      "id": "mock-wraps",
+      "name": "Wrap & Roll",
+      "cuisines": [
+        "Wraps",
+        "Snacks"
+      ],
+      "availabilityStatus": "OPEN",
+      "deliveryTimeMinutes": 24,
+      "distanceKm": 2.1,
+      "offer": "\u20b970 off above \u20b9219"
+    },
+    {
+      "id": "mock-protein",
+      "name": "The Protein Club",
+      "cuisines": [
+        "Healthy",
+        "Salads"
+      ],
+      "availabilityStatus": "OPEN",
+      "deliveryTimeMinutes": 22,
+      "distanceKm": 1.6,
+      "offer": "\u20b970 off above \u20b9219"
+    },
+    {
+      "id": "mock-sweet",
+      "name": "Oat Social",
+      "cuisines": [
+        "Breakfast",
+        "Desserts"
+      ],
+      "availabilityStatus": "OPEN",
+      "deliveryTimeMinutes": 18,
+      "distanceKm": 1.0,
+      "offer": "\u20b970 off above \u20b9219"
+    },
+    {
+      "id": "mock-closed",
+      "name": "Night Kitchen",
+      "cuisines": [
+        "Indian"
+      ],
+      "availabilityStatus": "CLOSED",
+      "deliveryTimeMinutes": 45,
+      "distanceKm": 3.0
+    }
+  ],
+  "dishes": [
+    {
+      "id": "tofu",
+      "restaurantId": "mock-bowls",
+      "name": "Spicy tofu power bowl",
+      "price": 185,
+      "isVeg": true,
+      "description": "Spicy tofu power bowl. spicy, light.",
+      "inStock": true,
+      "tags": [
+        "spicy",
+        "light"
+      ],
+      "photo": 1,
+      "side": false,
+      "nutrition": {
+        "calories": [
+          408,
+          552
+        ],
+        "protein": [
+          23,
+          31
+        ],
+        "carbs": [
+          49,
+          67
+        ],
+        "fat": [
+          14,
+          18
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate",
+      "variantsV2": [
+        {
+          "groupId": "portion",
+          "name": "Portion",
+          "variations": [
+            {
+              "id": "regular",
+              "name": "Regular",
+              "price": 0,
+              "inStock": 1,
+              "default": 1
+            },
+            {
+              "id": "large",
+              "name": "Large",
+              "price": 45,
+              "inStock": 1,
+              "default": 0
+            }
+          ]
+        }
+      ],
+      "addons": [
+        {
+          "groupId": "extras",
+          "groupName": "Make it yours",
+          "minAddons": 0,
+          "maxAddons": 2,
+          "maxFreeAddons": 0,
+          "choices": [
+            {
+              "id": "extra-tofu",
+              "name": "Extra tofu",
+              "price": 39
+            },
+            {
+              "id": "extra-protein",
+              "name": "Extra protein",
+              "price": 59
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "chicken",
+      "restaurantId": "mock-bowls",
+      "name": "Pepper chicken rice bowl",
+      "price": 210,
+      "isVeg": false,
+      "description": "Pepper chicken rice bowl. spicy, filling.",
+      "inStock": true,
+      "tags": [
+        "spicy",
+        "filling"
+      ],
+      "photo": 2,
+      "side": false,
+      "nutrition": {
+        "calories": [
+          459,
+          621
+        ],
+        "protein": [
+          36,
+          48
+        ],
+        "carbs": [
+          48,
+          66
+        ],
+        "fat": [
+          14,
+          18
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate",
+      "variantsV2": [
+        {
+          "groupId": "portion",
+          "name": "Portion",
+          "variations": [
+            {
+              "id": "regular",
+              "name": "Regular",
+              "price": 0,
+              "inStock": 1,
+              "default": 1
+            },
+            {
+              "id": "large",
+              "name": "Large",
+              "price": 45,
+              "inStock": 1,
+              "default": 0
+            }
+          ]
+        }
+      ],
+      "addons": [
+        {
+          "groupId": "extras",
+          "groupName": "Make it yours",
+          "minAddons": 0,
+          "maxAddons": 2,
+          "maxFreeAddons": 0,
+          "choices": [
+            {
+              "id": "extra-tofu",
+              "name": "Extra tofu",
+              "price": 39
+            },
+            {
+              "id": "extra-protein",
+              "name": "Extra protein",
+              "price": 59
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "paneer-bowl",
+      "restaurantId": "mock-bowls",
+      "name": "Paneer tikka grain bowl",
+      "price": 195,
+      "isVeg": true,
+      "description": "Paneer tikka grain bowl. spicy, cheesy, filling.",
+      "inStock": true,
+      "tags": [
+        "spicy",
+        "cheesy",
+        "filling"
+      ],
+      "photo": 3,
+      "side": false,
+      "nutrition": {
+        "calories": [
+          502,
+          678
+        ],
+        "protein": [
+          26,
+          36
+        ],
+        "carbs": [
+          53,
+          71
+        ],
+        "fat": [
+          19,
+          25
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate",
+      "variantsV2": [
+        {
+          "groupId": "portion",
+          "name": "Portion",
+          "variations": [
+            {
+              "id": "regular",
+              "name": "Regular",
+              "price": 0,
+              "inStock": 1,
+              "default": 1
+            },
+            {
+              "id": "large",
+              "name": "Large",
+              "price": 45,
+              "inStock": 1,
+              "default": 0
+            }
+          ]
+        }
+      ],
+      "addons": [
+        {
+          "groupId": "extras",
+          "groupName": "Make it yours",
+          "minAddons": 0,
+          "maxAddons": 2,
+          "maxFreeAddons": 0,
+          "choices": [
+            {
+              "id": "extra-tofu",
+              "name": "Extra tofu",
+              "price": 39
+            },
+            {
+              "id": "extra-protein",
+              "name": "Extra protein",
+              "price": 59
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dal",
+      "restaurantId": "mock-kitchen",
+      "name": "Home-style dal & rice",
+      "price": 125,
+      "isVeg": true,
+      "description": "Home-style dal & rice. bland, filling.",
+      "inStock": true,
+      "tags": [
+        "bland",
+        "filling"
+      ],
+      "photo": 4,
+      "side": false,
+      "nutrition": {
+        "calories": [
+          434,
+          586
+        ],
+        "protein": [
+          15,
+          21
+        ],
+        "carbs": [
+          64,
+          86
+        ],
+        "fat": [
+          12,
+          16
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate"
+    },
+    {
+      "id": "eggs",
+      "restaurantId": "mock-kitchen",
+      "name": "Egg curry & jeera rice",
+      "price": 155,
+      "isVeg": false,
+      "description": "Egg curry & jeera rice. spicy, filling.",
+      "inStock": true,
+      "tags": [
+        "spicy",
+        "filling"
+      ],
+      "photo": 5,
+      "side": false,
+      "nutrition": {
+        "calories": [
+          476,
+          644
+        ],
+        "protein": [
+          22,
+          30
+        ],
+        "carbs": [
+          54,
+          72
+        ],
+        "fat": [
+          19,
+          25
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate"
+    },
+    {
+      "id": "rajma",
+      "restaurantId": "mock-kitchen",
+      "name": "Rajma comfort plate",
+      "price": 139,
+      "isVeg": true,
+      "description": "Rajma comfort plate. bland, filling.",
+      "inStock": true,
+      "tags": [
+        "bland",
+        "filling"
+      ],
+      "photo": 4,
+      "side": false,
+      "nutrition": {
+        "calories": [
+          468,
+          632
+        ],
+        "protein": [
+          19,
+          25
+        ],
+        "carbs": [
+          68,
+          92
+        ],
+        "fat": [
+          13,
+          17
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate"
+    },
+    {
+      "id": "paneer",
+      "restaurantId": "mock-wraps",
+      "name": "Cheesy paneer wrap",
+      "price": 175,
+      "isVeg": true,
+      "description": "Cheesy paneer wrap. cheesy, filling.",
+      "inStock": true,
+      "tags": [
+        "cheesy",
+        "filling"
+      ],
+      "photo": 3,
+      "side": false,
+      "nutrition": {
+        "calories": [
+          484,
+          656
+        ],
+        "protein": [
+          22,
+          30
+        ],
+        "carbs": [
+          49,
+          67
+        ],
+        "fat": [
+          22,
+          30
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate"
+    },
+    {
+      "id": "chickpea",
+      "restaurantId": "mock-wraps",
+      "name": "Spicy chickpea crunch wrap",
+      "price": 145,
+      "isVeg": true,
+      "description": "Spicy chickpea crunch wrap. spicy, light.",
+      "inStock": true,
+      "tags": [
+        "spicy",
+        "light"
+      ],
+      "photo": 6,
+      "side": false,
+      "nutrition": {
+        "calories": [
+          382,
+          518
+        ],
+        "protein": [
+          16,
+          22
+        ],
+        "carbs": [
+          49,
+          67
+        ],
+        "fat": [
+          13,
+          17
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate"
+    },
+    {
+      "id": "chicken-wrap",
+      "restaurantId": "mock-wraps",
+      "name": "Grilled chicken wrap",
+      "price": 189,
+      "isVeg": false,
+      "description": "Grilled chicken wrap. light, filling.",
+      "inStock": true,
+      "tags": [
+        "light",
+        "filling"
+      ],
+      "photo": 2,
+      "side": false,
+      "nutrition": {
+        "calories": [
+          391,
+          529
+        ],
+        "protein": [
+          30,
+          40
+        ],
+        "carbs": [
+          40,
+          54
+        ],
+        "fat": [
+          14,
+          18
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate"
+    },
+    {
+      "id": "protein-chicken",
+      "restaurantId": "mock-protein",
+      "name": "Chicken & greens box",
+      "price": 229,
+      "isVeg": false,
+      "description": "Chicken & greens box. light, bland.",
+      "inStock": true,
+      "tags": [
+        "light",
+        "bland"
+      ],
+      "photo": 2,
+      "side": false,
+      "nutrition": {
+        "calories": [
+          332,
+          448
+        ],
+        "protein": [
+          39,
+          53
+        ],
+        "carbs": [
+          15,
+          21
+        ],
+        "fat": [
+          13,
+          17
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate"
+    },
+    {
+      "id": "protein-tofu",
+      "restaurantId": "mock-protein",
+      "name": "Tofu avocado salad",
+      "price": 209,
+      "isVeg": true,
+      "description": "Tofu avocado salad. light, bland.",
+      "inStock": true,
+      "tags": [
+        "light",
+        "bland"
+      ],
+      "photo": 1,
+      "side": false,
+      "nutrition": {
+        "calories": [
+          357,
+          483
+        ],
+        "protein": [
+          24,
+          32
+        ],
+        "carbs": [
+          20,
+          28
+        ],
+        "fat": [
+          20,
+          28
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate"
+    },
+    {
+      "id": "protein-paneer",
+      "restaurantId": "mock-protein",
+      "name": "Paneer protein plate",
+      "price": 239,
+      "isVeg": true,
+      "description": "Paneer protein plate. cheesy, filling.",
+      "inStock": true,
+      "tags": [
+        "cheesy",
+        "filling"
+      ],
+      "photo": 3,
+      "side": false,
+      "nutrition": {
+        "calories": [
+          518,
+          702
+        ],
+        "protein": [
+          34,
+          46
+        ],
+        "carbs": [
+          28,
+          38
+        ],
+        "fat": [
+          30,
+          40
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate"
+    },
+    {
+      "id": "oats",
+      "restaurantId": "mock-sweet",
+      "name": "Banana peanut overnight oats",
+      "price": 119,
+      "isVeg": true,
+      "description": "Banana peanut overnight oats. sweet, bland.",
+      "inStock": true,
+      "tags": [
+        "sweet",
+        "bland"
+      ],
+      "photo": 6,
+      "side": false,
+      "nutrition": {
+        "calories": [
+          348,
+          471
+        ],
+        "protein": [
+          14,
+          20
+        ],
+        "carbs": [
+          43,
+          59
+        ],
+        "fat": [
+          14,
+          20
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate"
+    },
+    {
+      "id": "yogurt",
+      "restaurantId": "mock-sweet",
+      "name": "Berry yogurt crunch bowl",
+      "price": 149,
+      "isVeg": true,
+      "description": "Berry yogurt crunch bowl. sweet, light.",
+      "inStock": true,
+      "tags": [
+        "sweet",
+        "light"
+      ],
+      "photo": 1,
+      "side": false,
+      "nutrition": {
+        "calories": [
+          272,
+          368
+        ],
+        "protein": [
+          17,
+          23
+        ],
+        "carbs": [
+          33,
+          45
+        ],
+        "fat": [
+          8,
+          12
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate"
+    },
+    {
+      "id": "pancakes",
+      "restaurantId": "mock-sweet",
+      "name": "Chocolate protein pancakes",
+      "price": 199,
+      "isVeg": true,
+      "description": "Chocolate protein pancakes. sweet, filling.",
+      "inStock": true,
+      "tags": [
+        "sweet",
+        "filling"
+      ],
+      "photo": 6,
+      "side": false,
+      "nutrition": {
+        "calories": [
+          416,
+          564
+        ],
+        "protein": [
+          25,
+          33
+        ],
+        "carbs": [
+          45,
+          61
+        ],
+        "fat": [
+          15,
+          21
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate"
+    },
+    {
+      "id": "raita",
+      "restaurantId": "mock-bowls",
+      "name": "Mint raita",
+      "price": 29,
+      "isVeg": true,
+      "description": "Mint raita. bland, light.",
+      "inStock": true,
+      "tags": [
+        "bland",
+        "light"
+      ],
+      "photo": 4,
+      "side": true,
+      "nutrition": {
+        "calories": [
+          72,
+          98
+        ],
+        "protein": [
+          4,
+          6
+        ],
+        "carbs": [
+          6,
+          8
+        ],
+        "fat": [
+          3,
+          5
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate"
+    },
+    {
+      "id": "rice-side",
+      "restaurantId": "mock-bowls",
+      "name": "Extra brown rice",
+      "price": 49,
+      "isVeg": true,
+      "description": "Extra brown rice. bland, filling.",
+      "inStock": true,
+      "tags": [
+        "bland",
+        "filling"
+      ],
+      "photo": 4,
+      "side": true,
+      "nutrition": {
+        "calories": [
+          144,
+          195
+        ],
+        "protein": [
+          3,
+          5
+        ],
+        "carbs": [
+          31,
+          41
+        ],
+        "fat": [
+          1,
+          1
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate"
+    },
+    {
+      "id": "egg-side",
+      "restaurantId": "mock-protein",
+      "name": "Two boiled eggs",
+      "price": 39,
+      "isVeg": false,
+      "description": "Two boiled eggs. bland, light.",
+      "inStock": true,
+      "tags": [
+        "bland",
+        "light"
+      ],
+      "photo": 5,
+      "side": true,
+      "nutrition": {
+        "calories": [
+          123,
+          167
+        ],
+        "protein": [
+          11,
+          15
+        ],
+        "carbs": [
+          1,
+          1
+        ],
+        "fat": [
+          8,
+          12
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate"
+    },
+    {
+      "id": "curd",
+      "restaurantId": "mock-kitchen",
+      "name": "Fresh curd",
+      "price": 29,
+      "isVeg": true,
+      "description": "Fresh curd. bland, light.",
+      "inStock": true,
+      "tags": [
+        "bland",
+        "light"
+      ],
+      "photo": 4,
+      "side": true,
+      "nutrition": {
+        "calories": [
+          76,
+          103
+        ],
+        "protein": [
+          4,
+          6
+        ],
+        "carbs": [
+          6,
+          8
+        ],
+        "fat": [
+          4,
+          6
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate"
+    },
+    {
+      "id": "dip",
+      "restaurantId": "mock-wraps",
+      "name": "Greek yogurt dip",
+      "price": 29,
+      "isVeg": true,
+      "description": "Greek yogurt dip. bland, light.",
+      "inStock": true,
+      "tags": [
+        "bland",
+        "light"
+      ],
+      "photo": 4,
+      "side": true,
+      "nutrition": {
+        "calories": [
+          51,
+          69
+        ],
+        "protein": [
+          4,
+          6
+        ],
+        "carbs": [
+          3,
+          5
+        ],
+        "fat": [
+          3,
+          3
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate"
+    },
+    {
+      "id": "banana",
+      "restaurantId": "mock-sweet",
+      "name": "Banana",
+      "price": 29,
+      "isVeg": true,
+      "description": "Banana. sweet, light.",
+      "inStock": true,
+      "tags": [
+        "sweet",
+        "light"
+      ],
+      "photo": 6,
+      "side": true,
+      "nutrition": {
+        "calories": [
+          81,
+          109
+        ],
+        "protein": [
+          1,
+          1
+        ],
+        "carbs": [
+          20,
+          26
+        ],
+        "fat": [
+          0,
+          0
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate"
+    },
+    {
+      "id": "soldout",
+      "restaurantId": "mock-bowls",
+      "name": "Sold-out mushroom bowl",
+      "price": 159,
+      "isVeg": true,
+      "description": "Sold-out mushroom bowl. light.",
+      "inStock": false,
+      "tags": [
+        "light"
+      ],
+      "photo": 1,
+      "side": false,
+      "nutrition": {
+        "calories": [
+          357,
+          483
+        ],
+        "protein": [
+          15,
+          21
+        ],
+        "carbs": [
+          49,
+          67
+        ],
+        "fat": [
+          10,
+          14
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate"
+    },
+    {
+      "id": "closed-dish",
+      "restaurantId": "mock-closed",
+      "name": "Night chicken biryani",
+      "price": 179,
+      "isVeg": false,
+      "description": "Night chicken biryani. spicy, filling.",
+      "inStock": true,
+      "tags": [
+        "spicy",
+        "filling"
+      ],
+      "photo": 5,
+      "side": false,
+      "nutrition": {
+        "calories": [
+          612,
+          828
+        ],
+        "protein": [
+          26,
+          34
+        ],
+        "carbs": [
+          72,
+          98
+        ],
+        "fat": [
+          24,
+          32
+        ]
+      },
+      "nutritionSource": "Hungii synthetic recipe estimate \u00b7 \u00b115% illustration, not a calibrated real-meal estimate"
+    }
+  ]
+}

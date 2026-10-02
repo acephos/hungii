@@ -11,7 +11,10 @@ artifacts/*.apk
 supabase/.temp/
 supabase/.branches/
 node_modules/
+.venv-agent/
 
 # Locally generated review recordings and device telemetry
 artifacts/*.mp4
 artifacts/*.gesture-telemetry.json
+
+!demo/.env.agent.example

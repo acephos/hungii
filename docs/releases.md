@@ -3,14 +3,14 @@
 GitHub Actions checks `main` and pull requests. The separate release workflow runs for `vX.Y.Z` tags or an explicit existing-tag dispatch. It validates the tag's version and ancestry on main, tests the backend, builds/lints both Android variants and publishes a GitHub prerelease with:
 
 - `hungii-preview.apk`: the phone build with WorkOS staging login and optional cloud sync/local-only use.
-- `hungii-emulator-demo.apk`: separate fictional MCP demo, using the emulator-only host address.
+- `hungii-simulator.apk`: separate synthetic MCP checkout + cloud Assistant; connect through Tailscale to the running local services.
 - `SHA256SUMS.txt`: file checksums.
 
 These are development-signed previews, with the same certificate as the Tailscale APK. They are not Play Store production releases. Production signing, verified Android App Links and provider approvals remain separate release gates. No Play Store fee, paid runner or paid service is activated.
 
 ## Repository configuration
 
-Public variables: `HUNGII_SUPABASE_URL`, `HUNGII_SUPABASE_PUBLISHABLE_KEY`, `HUNGII_WORKOS_CLIENT_ID`, and `HUNGII_PREVIEW_CERT_SHA256`. Publishable keys and client IDs are public identifiers; the backend still requires a verified WorkOS identity/session for account access.
+Public variables: `HUNGII_SUPABASE_URL`, `HUNGII_SUPABASE_PUBLISHABLE_KEY`, `HUNGII_WORKOS_CLIENT_ID`, `HUNGII_DEMO_API_URL`, and `HUNGII_PREVIEW_CERT_SHA256`. Publishable keys and client IDs are public identifiers; the backend still requires a verified WorkOS identity/session for account access.
 
 Private secret: `HUNGII_PREVIEW_KEYSTORE_B64`, containing the stable preview signing key. Never commit/export it in logs or artifacts. Do not generate a new key for each CI run: Android would reject updates to existing installs. The workflow sets `HUNGII_PREVIEW_KEYSTORE_PATH` explicitly for Gradle and deletes that runner-local copy after the job. The current local Android key is in the path reported by `./gradlew :app:signingReport`, which can differ from `~/.android` under XDG configuration.
 

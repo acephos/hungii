@@ -29,10 +29,12 @@ jobs:
           HUNGII_SUPABASE_URL: ${{ vars.HUNGII_SUPABASE_URL }}
           HUNGII_SUPABASE_PUBLISHABLE_KEY: ${{ vars.HUNGII_SUPABASE_PUBLISHABLE_KEY }}
           HUNGII_WORKOS_CLIENT_ID: ${{ vars.HUNGII_WORKOS_CLIENT_ID }}
+          HUNGII_DEMO_API_URL: ${{ vars.HUNGII_DEMO_API_URL }}
       - name: Check and test backend (no live services)
         run: |
+          python3 -m py_compile demo/agent.py
           npx --yes deno@2.9.6 check --config supabase/functions/deno.json supabase/functions/hungii-api/index.ts
-          npx --yes deno@2.9.6 test --config supabase/functions/deno.json --allow-env supabase/functions/_shared/
+          npx --yes deno@2.9.6 test --config supabase/functions/deno.json --allow-env supabase/functions/_shared/ demo/simulator_test.ts
       - name: Build and lint Android
         working-directory: android-prototype
         run: ./gradlew --no-daemon :app:assembleRealDebug :app:assembleDemoDebug :app:lintRealDebug :app:lintDemoDebug

@@ -17,8 +17,8 @@ android {
         applicationId = "com.hungii.prototype"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = providers.gradleProperty("hungiiVersionName").getOrElse("0.6.2-account-sync")
+        versionCode = 8
+        versionName = providers.gradleProperty("hungiiVersionName").getOrElse("0.7.0")
         val config = Properties().apply {
             val source = rootProject.file("local.properties")
             if (source.exists()) source.inputStream().use { load(it) }
@@ -27,6 +27,7 @@ android {
         buildConfigField("String", "SUPABASE_URL", quoted(config.getProperty("hungii.supabaseUrl", "")))
         buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", quoted(config.getProperty("hungii.supabasePublishableKey", "")))
         buildConfigField("String", "WORKOS_CLIENT_ID", quoted(config.getProperty("hungii.workosClientId", "")))
+        buildConfigField("String", "SIMULATOR_URL", quoted(config.getProperty("hungii.demoApiUrl", "http://10.0.2.2:8788/api")))
         buildConfigField("boolean", "WORKOS_AUTH_READY", (config.getProperty("hungii.workosAuthReady", "false") == "true").toString())
     }
     flavorDimensions += "services"
@@ -34,13 +35,15 @@ android {
         create("real") {
             dimension = "services"
             buildConfigField("boolean", "LOCAL_DEMO", "false")
+            buildConfigField("String", "DEMO_API_URL", "\"\"")
             resValue("string", "app_name", "Hungii")
         }
         create("demo") {
             dimension = "services"
             applicationIdSuffix = ".demo"
             buildConfigField("boolean", "LOCAL_DEMO", "true")
-            resValue("string", "app_name", "Hungii · Local demo")
+            buildConfigField("String", "DEMO_API_URL", "BuildConfig.SIMULATOR_URL")
+            resValue("string", "app_name", "Hungii · Simulator")
         }
     }
     buildFeatures { compose = true; buildConfig = true }

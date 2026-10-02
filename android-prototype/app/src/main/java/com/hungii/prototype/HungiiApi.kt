@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit
 class ApiFailure(val code: String, override val message: String) : Exception(message)
 
 class HungiiApi(private val secure: SecureSession) {
-    private val http = OkHttpClient.Builder().callTimeout(45, TimeUnit.SECONDS).retryOnConnectionFailure(false).followRedirects(false).followSslRedirects(false).build()
+    private val http = OkHttpClient.Builder().callTimeout(70, TimeUnit.SECONDS).readTimeout(70, TimeUnit.SECONDS).retryOnConnectionFailure(false).followRedirects(false).followSslRedirects(false).build()
     private val sessionLock=Mutex()
     private var access: String? = null
     private var expires = 0L
@@ -90,7 +90,8 @@ class HungiiApi(private val secure: SecureSession) {
     suspend fun action(action: String, args: JSONObject = JSONObject()): JSONObject {
         args.put("action",action)
         if(BuildConfig.LOCAL_DEMO) return withContext(Dispatchers.IO) {
-            val request=Request.Builder().url("http://10.0.2.2:8788/api").post(args.toString().toRequestBody("application/json".toMediaType())).build()
+            val demoSession=secure.read("demoSession")?:random().also {secure.put("demoSession",it)}
+            val request=Request.Builder().url(BuildConfig.DEMO_API_URL).header("X-Hungii-Demo-Session",demoSession).post(args.toString().toRequestBody("application/json".toMediaType())).build()
             http.newCall(request).execute().use { response ->
                 val data=JSONObject(response.body?.string() ?: "{}")
                 if(!response.isSuccessful) throw ApiFailure(data.optJSONObject("error")?.optString("code") ?: "HUNGII_DEMO",data.optJSONObject("error")?.optString("message") ?: "Start the local demo server.")

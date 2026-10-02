@@ -29,11 +29,15 @@ export async function withFood<T>(url: string, token: string, run: (call: ToolCa
     const tools = connection.tools;
     const ajv = new Ajv({ strict: false, allErrors: true });
     return await run(async (name, args) => {
-      if (!READ_TOOLS.has(name)) throw new HungiiError("HUNGII_WRITE_DISABLED", "Cart writes need an approved, verified item contract before they can be enabled.", 409);
+      if (!READ_TOOLS.has(name) && !demo) throw new HungiiError("HUNGII_WRITE_DISABLED", "Cart writes need an approved, verified item contract before they can be enabled.", 409);
       const tool = tools.find(t => t.name === name);
       if (!tool) throw new HungiiError("HUNGII_TOOL_UNAVAILABLE", "This feature is unavailable for the connected Swiggy account.", 409);
       if (!ajv.compile(tool.inputSchema)(args)) throw new HungiiError("HUNGII_SCHEMA_CHANGED", "Swiggy's current request format differs from the verified integration. Please update Hungii.", 409);
-      return payload(await connection.call(name, args));
+      const result = await connection.call(name, args);
+      if (demo && result.structuredContent?.error?.code?.startsWith("HUNGII_MOCK_")) {
+        throw new HungiiError(result.structuredContent.error.code, result.structuredContent.error.message, 409);
+      }
+      return payload(result);
     });
   });
 }

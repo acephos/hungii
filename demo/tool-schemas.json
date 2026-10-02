@@ -1,0 +1,490 @@
+[
+  {
+    "name": "create_address",
+    "description": "Hungii synthetic simulator: create address. This tool never contacts Swiggy or moves real money.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "fullAddress": {
+          "type": "string"
+        },
+        "addressLine": {
+          "type": "string"
+        },
+        "addressLine2": {
+          "type": "string"
+        },
+        "locality": {
+          "type": "string"
+        },
+        "city": {
+          "type": "string"
+        },
+        "postalCode": {
+          "type": "string"
+        },
+        "latitude": {
+          "type": "number"
+        },
+        "longitude": {
+          "type": "number"
+        },
+        "addressCategory": {
+          "enum": [
+            "HOME",
+            "WORK",
+            "OFFICE",
+            "FRIENDS_AND_FAMILY",
+            "OTHER"
+          ]
+        },
+        "addressTag": {
+          "type": "string"
+        },
+        "userName": {
+          "type": "string"
+        },
+        "userPhone": {
+          "type": "string"
+        },
+        "receiverName": {
+          "type": "string"
+        },
+        "receiverPhone": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "fullAddress",
+        "addressLine",
+        "addressLine2",
+        "city",
+        "postalCode",
+        "addressCategory",
+        "userName",
+        "userPhone"
+      ]
+    }
+  },
+  {
+    "name": "delete_address",
+    "description": "Hungii synthetic simulator: delete address. This tool never contacts Swiggy or moves real money.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "addressId": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "addressId"
+      ]
+    }
+  },
+  {
+    "name": "get_addresses",
+    "description": "Hungii synthetic simulator: get addresses. This tool never contacts Swiggy or moves real money.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "page": {
+          "type": "number"
+        },
+        "pageSize": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_restaurant_menu",
+    "description": "Hungii synthetic simulator: get restaurant menu. This tool never contacts Swiggy or moves real money.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "addressId": {
+          "type": "string"
+        },
+        "restaurantId": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "addressId",
+        "restaurantId"
+      ]
+    }
+  },
+  {
+    "name": "search_menu",
+    "description": "Hungii synthetic simulator: search menu. This tool never contacts Swiggy or moves real money.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "addressId": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string"
+        },
+        "restaurantIdOfAddedItem": {
+          "type": "string"
+        },
+        "vegFilter": {
+          "enum": [
+            0,
+            1
+          ]
+        },
+        "offset": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "addressId",
+        "query"
+      ]
+    }
+  },
+  {
+    "name": "search_restaurants",
+    "description": "Hungii synthetic simulator: search restaurants. This tool never contacts Swiggy or moves real money.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "addressId": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string"
+        },
+        "offset": {
+          "type": "number"
+        },
+        "collection": {
+          "enum": [
+            "EATRIGHT",
+            "BOLT",
+            "STORE_99"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "addressId",
+        "query"
+      ]
+    }
+  },
+  {
+    "name": "apply_food_coupon",
+    "description": "Hungii synthetic simulator: apply food coupon. This tool never contacts Swiggy or moves real money.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "couponCode": {
+          "type": "string"
+        },
+        "addressId": {
+          "type": "string"
+        },
+        "cartId": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "couponCode",
+        "addressId"
+      ]
+    }
+  },
+  {
+    "name": "fetch_food_coupons",
+    "description": "Hungii synthetic simulator: fetch food coupons. This tool never contacts Swiggy or moves real money.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "restaurantId": {
+          "type": "string"
+        },
+        "addressId": {
+          "type": "string"
+        },
+        "couponCode": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "restaurantId",
+        "addressId"
+      ]
+    }
+  },
+  {
+    "name": "flush_food_cart",
+    "description": "Hungii synthetic simulator: flush food cart. This tool never contacts Swiggy or moves real money.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "get_food_cart",
+    "description": "Hungii synthetic simulator: get food cart. This tool never contacts Swiggy or moves real money.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "addressId": {
+          "type": "string"
+        },
+        "restaurantName": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "addressId"
+      ]
+    }
+  },
+  {
+    "name": "update_food_cart",
+    "description": "Hungii synthetic simulator: update food cart. This tool never contacts Swiggy or moves real money.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "restaurantId": {
+          "type": "string"
+        },
+        "cartItems": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "addressId": {
+          "type": "string"
+        },
+        "restaurantName": {
+          "type": "string"
+        },
+        "cutleryOptIn": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "restaurantId",
+        "cartItems",
+        "addressId"
+      ]
+    }
+  },
+  {
+    "name": "check_payment_status",
+    "description": "Hungii synthetic simulator: check payment status. This tool never contacts Swiggy or moves real money.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "paasId": {
+          "type": "string"
+        },
+        "orderId": {
+          "type": "string"
+        },
+        "addressId": {
+          "type": "string"
+        },
+        "cartId": {
+          "type": "string"
+        },
+        "lat": {
+          "type": "number"
+        },
+        "lng": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "paasId"
+      ]
+    }
+  },
+  {
+    "name": "confirm_order",
+    "description": "Hungii synthetic simulator: confirm order. This tool never contacts Swiggy or moves real money.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "orderId": {
+          "type": "string"
+        },
+        "addressId": {
+          "type": "string"
+        },
+        "cartId": {
+          "type": "string"
+        },
+        "lat": {
+          "type": "number"
+        },
+        "lng": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "orderId",
+        "addressId",
+        "lat",
+        "lng"
+      ]
+    }
+  },
+  {
+    "name": "get_payment_options",
+    "description": "Hungii synthetic simulator: get payment options. This tool never contacts Swiggy or moves real money.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "addressId": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "place_food_order",
+    "description": "Hungii synthetic simulator: place food order. This tool never contacts Swiggy or moves real money.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "addressId": {
+          "type": "string"
+        },
+        "paymentMethod": {
+          "type": "string"
+        },
+        "intentApp": {
+          "type": "string"
+        },
+        "generateUPIQR": {
+          "type": "boolean"
+        },
+        "noteToRestaurant": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "addressId"
+      ]
+    }
+  },
+  {
+    "name": "get_food_delivery_status",
+    "description": "Hungii synthetic simulator: get food delivery status. This tool never contacts Swiggy or moves real money.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "orderId": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "orderId"
+      ]
+    }
+  },
+  {
+    "name": "get_food_order_details",
+    "description": "Hungii synthetic simulator: get food order details. This tool never contacts Swiggy or moves real money.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "orderId": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "orderId"
+      ]
+    }
+  },
+  {
+    "name": "get_food_orders",
+    "description": "Hungii synthetic simulator: get food orders. This tool never contacts Swiggy or moves real money.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "addressId": {
+          "type": "string"
+        },
+        "activeOnly": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "addressId"
+      ]
+    }
+  },
+  {
+    "name": "track_food_order",
+    "description": "Hungii synthetic simulator: track food order. This tool never contacts Swiggy or moves real money.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "orderId": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "report_error",
+    "description": "Hungii synthetic simulator: report error. This tool never contacts Swiggy or moves real money.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "tool": {
+          "type": "string"
+        },
+        "domain": {
+          "type": "string"
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "flowDescription": {
+          "type": "string"
+        },
+        "toolContext": {
+          "type": "object"
+        },
+        "userNotes": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "tool",
+        "errorMessage"
+      ]
+    }
+  }
+]

@@ -32,14 +32,14 @@ data class Nutrition(val calories: Span, val protein: Span, val carbs: Span, val
 }
 data class Meal(val id: String, val dishId: String, val restaurantId: String, val name: String, val restaurant: String,
     val imageUrl: String?, val veg: Boolean?, val itemPrice: Double?, val etaMinutes: Int?, val distanceKm: Double?,
-    val description: String = "", val offerText: String? = null, val nutrition: Nutrition? = null) {
+    val description: String = "", val offerText: String? = null, val nutrition: Nutrition? = null, val estimatedPayable: Double? = null, val photo: Int = 0) {
     val price get() = Span(itemPrice?.roundToInt() ?: 0,itemPrice?.roundToInt() ?: 0)
     val priceLabel get() = itemPrice?.let { "₹" + if(it == it.toInt().toDouble()) it.toInt().toString() else "%.2f".format(java.util.Locale.ROOT,it) } ?: "Price unavailable"
     val etaLabel get() = etaMinutes?.let { "$it min est." } ?: "ETA unavailable"
     val badge get() = if(BuildConfig.LOCAL_DEMO) "SYNTHETIC DEMO" else "Powered by Swiggy"
     val tags get() = setOf("spicy","cheesy","sweet","bland","light","filling").filter { it in (name+" "+description).lowercase() }.toSet()
     val benefit get() = if(description.isNotBlank()) description else "${restaurant}. ${etaLabel}."
-    val compromise get() = "Nutrition is not published here. Fees and coupon eligibility are checked in the cart."
+    val compromise get() = if(nutrition!=null) "Estimated nutrition, not a lab measurement. Final savings depend on the basket." else "Nutrition is not published here. Fees and coupon eligibility are checked in the cart."
     fun json() = JSONObject().put("id",id).put("dishId",dishId).put("restaurantId",restaurantId).put("name",name).put("restaurant",restaurant)
         .put("imageUrl",imageUrl ?: JSONObject.NULL).put("veg",veg ?: JSONObject.NULL).put("itemPrice",itemPrice ?: JSONObject.NULL)
         .put("etaMinutes",etaMinutes ?: JSONObject.NULL).put("distanceKm",distanceKm ?: JSONObject.NULL).put("description",description).put("offerText",offerText ?: JSONObject.NULL)
@@ -47,10 +47,11 @@ data class Meal(val id: String, val dishId: String, val restaurantId: String, va
         fun from(o: JSONObject) = Meal(o.getString("id"),o.getString("dishId"),o.getString("restaurantId"),o.getString("name"),o.getString("restaurant"),
             o.optString("imageUrl").takeIf { it.startsWith("https://") },if(o.isNull("veg")) null else o.getBoolean("veg"),
             if(o.isNull("itemPrice")) null else o.getDouble("itemPrice"),if(o.isNull("etaMinutes")) null else o.getInt("etaMinutes"),
-            if(o.isNull("distanceKm")) null else o.getDouble("distanceKm"),o.optString("description"),o.optString("offerText").takeIf { it.isNotBlank() && it != "null" })
+            if(o.isNull("distanceKm")) null else o.getDouble("distanceKm"),o.optString("description"),o.optString("offerText").takeIf { it.isNotBlank() && it != "null" },o.optJSONObject("nutrition")?.let {Nutrition.from(it)},if(o.isNull("estimatedPayable"))null else o.optDouble("estimatedPayable"),o.optInt("photo"))
     }
 }
-enum class Screen { Home, Discover, Finalists, Draw, Winner, Review, Saved, Day }
+enum class Screen { Home, Assistant, Discover, Finalists, Draw, Winner, Review, Payment, Order, Saved, Day }
+data class ChatMessage(val text:String,val fromUser:Boolean=false,val actions:List<Pair<String,String>> = emptyList())
 data class DeliveryAddress(val id: String,val label: String,val addressLine: String)
 data class Restaurant(val id: String,val name: String,val etaMinutes: Int?,val distanceKm: Double?)
 
@@ -89,6 +90,24 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
     var winner by mutableStateOf<Meal?>(null); var drawOrder by mutableStateOf<List<Meal>>(emptyList())
     var shuffling by mutableStateOf(false); var canPick by mutableStateOf(false); var pickedIndex by mutableStateOf<Int?>(null)
     var receipt by mutableStateOf(""); var lastPassed by mutableStateOf<Meal?>(null)
+    var assistantLoading by mutableStateOf(false)
+    var assistantConsent by mutableStateOf(false)
+    var assistantConsentPending by mutableStateOf(false)
+    var pendingAssistantText by mutableStateOf("")
+    val chatMessages=mutableStateListOf<ChatMessage>()
+    var assistantAction by mutableStateOf<Pair<String,String>?>(null)
+    var paymentOptions by mutableStateOf<JSONObject?>(null)
+    var selectedMethodId by mutableStateOf("mock-upi")
+    var payment by mutableStateOf<JSONObject?>(null)
+    var paymentStage by mutableStateOf("choose")
+    var checkoutNote by mutableStateOf("")
+    var order by mutableStateOf<JSONObject?>(null)
+    var checkoutCart by mutableStateOf<JSONObject?>(null)
+    var replaceCartPending by mutableStateOf(false)
+    var mcpTrace by mutableStateOf<List<String>>(emptyList())
+    private var paymentJob:Job?=null
+    private val trackedOrders=mutableSetOf<String>()
+    private val eatenOrders=mutableSetOf<String>()
     var loading by mutableStateOf(false); var connectionMessage by mutableStateOf("")
     var accountOpen by mutableStateOf(false); var connected by mutableStateOf(false)
     var signedIn by mutableStateOf(api.signedIn); val configured get() = api.configured
@@ -111,16 +130,22 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
     val mealMoneyGuide get() = moneyLeft/opportunities.coerceAtLeast(1)
     val pool get() = if(opportunities<=0) emptyList() else meals.filter {
         it.id !in passed && finalists.none { m -> m.id == it.id } && (!vegOnly || it.veg == true) &&
-            (!budgetOnly || (it.itemPrice != null && it.itemPrice <= 250)) && (it.itemPrice == null || it.itemPrice <= moneyLeft)
+            (!budgetOnly || (it.itemPrice != null && it.itemPrice <= 250))
     }.sortedByDescending {
         (if(taste in it.tags) 28.0 else 0.0) + (if(fast && it.etaMinutes != null) 45.0-it.etaMinutes else 0.0) -
-            ((it.itemPrice ?: mealMoneyGuide.toDouble())-mealMoneyGuide).coerceAtLeast(0.0)/7
+            ((it.estimatedPayable ?: it.itemPrice ?: mealMoneyGuide.toDouble())-mealMoneyGuide).coerceAtLeast(0.0)/7 +
+            (if(highProtein) (it.nutrition?.protein?.mid?:0f)*1.1 else 0.0) -
+            kotlin.math.abs((it.nutrition?.protein?.mid?:proteinLeft.mid/opportunities.coerceAtLeast(1))-proteinLeft.mid.coerceAtLeast(0f)/opportunities.coerceAtLeast(1))/5 -
+            ((it.nutrition?.carbs?.high?:0)-(carbGoal-intake.carbs.mid).coerceAtLeast(0f)/opportunities.coerceAtLeast(1)).coerceAtLeast(0f)/6 -
+            ((it.nutrition?.fat?.high?:0)-(fatGoal-intake.fat.mid).coerceAtLeast(0f)/opportunities.coerceAtLeast(1)).coerceAtLeast(0f)/3 -
+            (it.etaMinutes?:25)/8.0 -
+            ((it.nutrition?.calories?.mid?:0f)-caloriesLeft.mid/opportunities.coerceAtLeast(1)).coerceAtLeast(0f)/30
     }.take(8)
 
     init {
         initializationJob=viewModelScope.launch {
             db.migrate(); loadLocal(); ready=true; initializing=false
-            if(signedIn && !BuildConfig.LOCAL_DEMO) refresh()
+            if(signedIn) refresh()
         }
         startPersistence()
     }
@@ -253,7 +278,10 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
     suspend fun refreshConnection() {
         val status=api.action("status"); connected=status.getBoolean("connected"); addressId=status.optString("addressId").takeIf { it.isNotBlank()&&it!="null" }; environment=status.optString("environment")
         if(!connected) { meals.clear(); finalists.clear(); restaurants.clear(); winner=null; cart=null; coupons=null }
-        if(connected&&addressId==null) loadAddresses()
+        if(connected&&addressId==null) {
+            loadAddresses()
+            if(BuildConfig.LOCAL_DEMO&&addresses.isNotEmpty()){addressId=addresses.first().id;api.action("select_address",JSONObject().put("addressId",addressId))}
+        }
     }
     fun refresh() = run {
         accountLoading=true
@@ -280,7 +308,7 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
             finalists.clear(); passed.clear(); winner=null; cart=null; coupons=null
             val args=JSONObject().put("query",query)
             if(highProtein) args.put("collection","EATRIGHT") else if(fast) args.put("collection","BOLT")
-            val result=api.action("discover",args); meals.clear(); restaurants.clear()
+            val result=api.action("discover",args); meals.clear(); restaurants.clear();if(result.optBoolean("expandedQuery"))connectionMessage="Added nearby alternatives for your shortlist. Craving and macro trade-offs stay visible."
             val a=result.getJSONArray("meals"); for(i in 0 until a.length()) meals.add(Meal.from(a.getJSONObject(i)))
             val rs=result.getJSONArray("restaurants"); for(i in 0 until rs.length()) { val r=rs.getJSONObject(i); restaurants.add(Restaurant(r.getString("id"),r.getString("name"),if(r.isNull("etaMinutes")) null else r.getInt("etaMinutes"),if(r.isNull("distanceKm")) null else r.getDouble("distanceKm"))) }
         }
@@ -290,16 +318,47 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
         meals.clear(); passed.clear()
         val a=result.getJSONArray("meals"); for(i in 0 until a.length()) meals.add(Meal.from(a.getJSONObject(i)).copy(etaMinutes=restaurant.etaMinutes,distanceKm=restaurant.distanceKm))
     }
-    fun review() {
-        screen=Screen.Review; cart=null; coupons=null
+    fun review(replace:Boolean=false) {
+        screen=Screen.Review; coupons=null
         val meal=winner ?: return
         run {
-            // Selection permits scoped details; still no cart mutation or order.
-            api.action("menu",JSONObject().put("query",meal.name).put("restaurantId",meal.restaurantId).put("vegOnly",vegOnly))
-            cart=api.action("cart")
-            coupons=api.action("coupons",JSONObject().put("restaurantId",meal.restaurantId))
+            if(BuildConfig.LOCAL_DEMO) {
+                try {applyCart(api.action("cart_create",JSONObject().put("dishId",meal.dishId).put("restaurantId",meal.restaurantId).put("replace",replace)))}
+                catch(e:ApiFailure){if(e.code=="HUNGII_REPLACE_CART"){replaceCartPending=true;return@run}else throw e}
+                coupons=api.action("coupons",JSONObject().put("restaurantId",meal.restaurantId))
+            } else {
+                api.action("menu",JSONObject().put("query",meal.name).put("restaurantId",meal.restaurantId).put("vegOnly",vegOnly))
+                cart=api.action("cart");coupons=api.action("coupons",JSONObject().put("restaurantId",meal.restaurantId))
+            }
         }
     }
+    private fun trace(result:JSONObject){result.optJSONArray("mcpTrace")?.let {a->mcpTrace=(0 until a.length()).map {a.getString(it)}}}
+    private fun applyCart(result:JSONObject){cart=result.optJSONObject("cart")?:result;trace(result)}
+    fun refreshCart()=run {applyCart(api.action("cart"))}
+    fun changeQuantity(id:String,quantity:Int)=run {applyCart(api.action("cart_quantity",JSONObject().put("dishId",id).put("quantity",quantity)))}
+    fun changeVariant(id:String,group:String,variant:String)=run {applyCart(api.action("cart_variant",JSONObject().put("dishId",id).put("groupId",group).put("variationId",variant)))}
+    fun changeAddons(id:String,addons:JSONArray)=run {applyCart(api.action("cart_addons",JSONObject().put("dishId",id).put("addons",addons)))}
+    fun addSide(id:String)=run {applyCart(api.action("cart_add_side",JSONObject().put("dishId",id)))}
+    fun applyCoupon(code:String)=run {applyCart(api.action("cart_coupon",JSONObject().put("couponCode",code)))}
+    fun choosePayment(){payment=null;paymentStage="choose";screen=Screen.Payment;run {val result=api.action("payment_options");paymentOptions=result.getJSONObject("paymentOptions");applyCart(result)}}
+    fun beginPayment()=run {
+        val c=cart?:return@run
+        val result=api.action("checkout",JSONObject().put("confirm",true).put("requestId",java.util.UUID.randomUUID().toString()).put("revision",c.getInt("revision")).put("payable",c.getDouble("payable")).put("methodId",selectedMethodId).put("note",checkoutNote))
+        payment=result.getJSONObject("payment");checkoutCart=result.getJSONObject("checkoutCart");trace(result)
+        if(payment!!.optString("status")=="CONFIRMED") completeOrder(payment!!.getString("orderId"))
+        else {paymentStage="pending";startPaymentPolling()}
+    }
+    private fun startPaymentPolling(){paymentJob?.cancel();paymentJob=viewModelScope.launch {val until=System.currentTimeMillis()+60000;while(paymentStage=="pending"&&System.currentTimeMillis()<until){delay(1600);try {val result=api.action("payment_status",paymentArgs());consumePayment(result)}catch(_:Exception){connectionMessage="Payment status is unresolved. Refresh status before retrying checkout.";paymentStage="unresolved";break}}}}
+    private fun paymentArgs():JSONObject {val p=payment?:return JSONObject();return JSONObject().put("paasId",p.getString("paasId")).put("orderId",p.getString("orderId")).put("cartId",p.getString("cartId"))}
+    fun simulatePayment(outcome:String)=run {val result=api.action("simulate_payment",paymentArgs().put("outcome",outcome));consumePayment(result)}
+    fun refreshPayment()=run {consumePayment(api.action("payment_status",paymentArgs()))}
+    private suspend fun consumePayment(result:JSONObject){trace(result);val status=result.getJSONObject("paymentStatus");if(status.optBoolean("confirmed")){paymentStage="confirmed";completeOrder(status.getString("orderId"))}else if(status.optBoolean("isTerminalFailure")){paymentStage="failed";connectionMessage="Mock payment ${status.optString("status").lowercase()}. Your cart is saved; no order was placed."}else paymentStage="pending"}
+    private suspend fun completeOrder(id:String){order=api.action("order",JSONObject().put("orderId",id));trace(order!!);if(trackedOrders.add(id))spent+=(checkoutCart?.optDouble("payable")?:0.0).roundToInt();paymentStage="confirmed";screen=Screen.Order}
+    fun logOrderAsEaten(){val id=order?.optJSONObject("details")?.optJSONObject("order")?.optInt("order_id")?.toString()?:return;if(!eatenOrders.add(id)){receipt="This meal is already in your food log.";return};val items=checkoutCart?.optJSONArray("items")?:return;for(i in 0 until items.length()){items.getJSONObject(i).optJSONObject("nutrition")?.let {intake+=Nutrition.from(it)}};opportunities=(opportunities-1).coerceAtLeast(0);receipt="Synthetic meal estimate logged. Your next meal budgets are updated.";screen=Screen.Day}
+    fun retryPayment(){paymentJob?.cancel();payment=null;paymentStage="choose";choosePayment()}
+    fun sendAssistantMessage(text:String){val message=text.trim().take(1500);if(message.isBlank()||assistantLoading)return;screen=Screen.Assistant;if(!assistantConsent){pendingAssistantText=message;assistantConsentPending=true;return};chatMessages.add(ChatMessage(message,true));assistantLoading=true;viewModelScope.launch {try{val context=JSONObject().put("caloriesLeft",caloriesLeft.label).put("proteinLeft",proteinGoal-intake.protein.mid).put("carbsLeft",carbGoal-intake.carbs.mid).put("fatLeft",fatGoal-intake.fat.mid).put("moneyLeft",moneyLeft).put("opportunities",opportunities).put("query",query).put("taste",taste).put("screen",screen.name).put("winner",winner?.name?:"");val result=api.action("agent_chat",JSONObject().put("message",message).put("context",context).put("consent",true));val a=result.optJSONArray("actions");val actions=if(a==null)emptyList() else (0 until a.length()).map {a.getJSONObject(it).let {o->o.getString("action") to o.optString("value")}};chatMessages.add(ChatMessage(result.getString("reply"),actions=actions));trace(result)}catch(e:ApiFailure){chatMessages.add(ChatMessage(e.message))}catch(_:Exception){chatMessages.add(ChatMessage("I couldn’t connect to free inference. Your manual filters and cart still work."))}finally{assistantLoading=false}}}
+    fun acceptAssistant(){assistantConsent=true;assistantConsentPending=false;val text=pendingAssistantText;pendingAssistantText="";sendAssistantMessage(text)}
+    fun applyAssistantAction(){val (action,value)=assistantAction?:return;assistantAction=null;val n=value.toIntOrNull();when(action){"search"->{query=value.take(120);search()};"set_allowance"->if(n!=null&&n in 0..100000)allowance=n;"set_opportunities"->if(n!=null&&n in 0..8)opportunities=n;"set_calorie_goal"->if(n!=null&&n in 500..10000)calorieGoal=n;"log_calories"->if(n!=null&&n in 0..10000)intake=intake.copy(calories=intake.calories+Span(n,n));"set_protein_goal"->if(n!=null&&n in 1..1000)proteinGoal=n;"set_carb_goal"->if(n!=null&&n in 1..1500)carbGoal=n;"set_fat_goal"->if(n!=null&&n in 1..1000)fatGoal=n;"log_carbs"->if(n!=null&&n in 0..1500)intake=intake.copy(carbs=intake.carbs+Span(n,n));"log_fat"->if(n!=null&&n in 0..1000)intake=intake.copy(fat=intake.fat+Span(n,n));"log_spending"->if(n!=null&&n in 0..100000)spent+=n;"log_protein"->if(n!=null&&n in 0..1000)intake=intake.copy(protein=intake.protein+Span(n,n));"set_taste"->if(value in listOf("any","spicy","cheesy","sweet","bland","light","filling"))taste=value;"navigate_home"->screen=Screen.Home;"navigate_day"->screen=Screen.Day;"navigate_saved"->screen=Screen.Saved;"review_cart"->if(winner!=null)review();"save_winner"->winner?.let {toggleSaved(it)}};receipt="Assistant change confirmed."}
     private fun clearSaved() {savedMeals.clear();savedConsent=false;savedConsentAt=0}
     private fun clearProviderData() {connected=false;addressId=null;meals.clear();finalists.clear();winner=null;restaurants.clear();cart=null;coupons=null;addresses.clear();drawOrder=emptyList();passed.clear();lastPassed=null;pendingSave=null;clearSaved()}
     fun disconnect() = run {
@@ -352,10 +411,10 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
     fun acceptSaving() { savedConsent=true;savedConsentAt=System.currentTimeMillis(); pendingSave?.let {savedMeals.add(it)}; pendingSave=null }
     fun forgetSaved() = run {persistenceJob?.cancelAndJoin();ready=false;clearSaved();db.erase(owner);db.save(TrackerRecord(owner,snapshot().toString()));ready=true;startPersistence()}
     fun remove(m: Meal) {finalists.remove(m);winner=null;screen=Screen.Discover}
-    fun showFinalists() {if(finalists.size==1){winner=finalists[0];screen=Screen.Winner}else if(finalists.isNotEmpty()) screen=Screen.Finalists}
-    fun startDraw() {if(finalists.size<2||shuffling)return;drawOrder=finalists.shuffled(SecureRandom());winner=null;pickedIndex=null;canPick=false;shuffling=true;screen=Screen.Draw}
+    fun showFinalists() {if(finalists.isNotEmpty())screen=Screen.Finalists}
+    fun startDraw() {if(finalists.size!=3||shuffling)return;drawOrder=finalists.shuffled(SecureRandom());winner=null;pickedIndex=null;canPick=false;shuffling=true;screen=Screen.Draw}
     fun pick(i: Int) {if(canPick&&!shuffling&&pickedIndex==null&&i in drawOrder.indices){pickedIndex=i;canPick=false;winner=drawOrder[i]}}
-    fun goBack() {shuffling=false;screen=when(screen){Screen.Draw,Screen.Winner->Screen.Finalists;Screen.Review->Screen.Winner;Screen.Finalists->Screen.Discover;else->Screen.Home}}
+    fun goBack() {shuffling=false;screen=when(screen){Screen.Draw,Screen.Winner->Screen.Finalists;Screen.Review->Screen.Winner;Screen.Payment->Screen.Review;Screen.Order->Screen.Home;Screen.Finalists->Screen.Discover;else->Screen.Home}}
     fun invalidateCheckInUndo() {undoUpdate=null}
     fun update(input: String) {
         val oldAllowance=allowance;val oldOpportunities=opportunities;val oldTaste=taste;val oldQuery=query
@@ -370,5 +429,5 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
         receipt=changes.joinToString(" ")
     }
     fun undoInput() {undoUpdate?.invoke();undoUpdate=null;receipt="Last update undone."}
-    override fun onCleared() {db.close();super.onCleared()}
+    override fun onCleared() {paymentJob?.cancel();db.close();super.onCleared()}
 }
