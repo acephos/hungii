@@ -17,8 +17,8 @@ android {
         applicationId = "com.hungii.prototype"
         minSdk = 26
         targetSdk = 35
-        versionCode = 8
-        versionName = providers.gradleProperty("hungiiVersionName").getOrElse("0.7.0")
+        versionCode = 9
+        versionName = providers.gradleProperty("hungiiVersionName").getOrElse("0.7.1")
         val config = Properties().apply {
             val source = rootProject.file("local.properties")
             if (source.exists()) source.inputStream().use { load(it) }

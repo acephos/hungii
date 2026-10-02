@@ -32,8 +32,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.sin
 
-@Composable internal fun FilledInput(value:String,onValueChange:(String)->Unit,placeholder:String,modifier:Modifier=Modifier) {
-    OutlinedTextField(value,onValueChange,modifier=modifier,singleLine=true,shape=RoundedCornerShape(24.dp),placeholder={Text(placeholder,fontSize=14.sp)},textStyle=LocalTextStyle.current.copy(fontSize=15.sp),colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Raised,unfocusedContainerColor=Raised,focusedBorderColor=Lime.copy(alpha=.5f),unfocusedBorderColor=Color.Transparent))
+@Composable internal fun FilledInput(value:String,onValueChange:(String)->Unit,placeholder:String,modifier:Modifier=Modifier,showLabel:Boolean=false) {
+    OutlinedTextField(value,onValueChange,modifier=modifier,singleLine=true,shape=RoundedCornerShape(24.dp),label=if(showLabel) {{Text(placeholder,fontSize=12.sp)}} else null,placeholder={Text(placeholder,fontSize=14.sp)},textStyle=LocalTextStyle.current.copy(fontSize=15.sp),colors=OutlinedTextFieldDefaults.colors(focusedContainerColor=Raised,unfocusedContainerColor=Raised,focusedBorderColor=Lime.copy(alpha=.5f),unfocusedBorderColor=Color.Transparent))
 }
 @Composable private fun Panel(modifier:Modifier=Modifier,content:@Composable ColumnScope.()->Unit) {
     Column(modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Surface).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp),content=content)

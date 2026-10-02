@@ -1,11 +1,11 @@
-# Hungii 0.7 simulator verification
+# Hungii 0.7.1 simulator verification
 
 Checked 2 October 2026. This adds a separately installed synthetic Android Simulator; live Swiggy access remains approval-gated. It does not supersede earlier WorkOS/Supabase evidence or establish production certification.
 
 - Current Food inventory: 20 documented top-level tool schemas; Hungii's own Streamable HTTP server uses the official MCP TypeScript SDK. Nutrition is app-owned synthetic metadata, not claimed as provider data. Nested cart members remain a documented simulator assumption.
 - 28 Deno tests passed: prior backend/account/session tests plus cart totals/coupon thresholds, UPI successful/failed/expired/cancelled states, changed-cart rejection, repeated checkout/confirmation, device isolation, unavailable items, one-time craving broadening and eligible-coupon discovery estimates and a regression proving live endpoint writes stay blocked even with a demo flag.
 - 3 Python SDK-adapter tests passed without cloud/network calls: internal reasoning is not replayed into Groq requests, MCP structured/text payloads are reduced to one compact representation, reviewable proposals preserve their state.
-- Both native Android variants assemble and pass lint using the stable preview signing certificate. The Simulator is version 0.7.0, code 8.
+- Both native Android variants assemble and pass lint using the stable preview signing certificate. The Simulator is version 0.7.1, code 9.
 - A real Groq Free cloud turn through Google ADK called `get_addresses` and `search_restaurants` against the local MCP server and returned the three synthetic chicken dishes under ₹250. No local model is installed; no paid fallback or upgrade is enabled.
 - The Android Assistant completed a live Groq turn after opt-in and displayed a reviewable ₹350 food-allowance proposal, without changing the tracker automatically. Reviewing and applying it changed the displayed tracker budget; meal logging had already reduced calorie/protein remaining values and meal opportunities.
 - The private Groq key is in ignored `demo/.env.agent` with mode 0600. A value-match scan found no key in publishable source or decompressed entries of either APK. No key value is recorded in this evidence.

@@ -632,9 +632,9 @@ internal fun GoalsDialog(model: HungiiModel,onClose: ()->Unit) {
     val valid=listOf(cal,protein,carbs,fat,allowance).all { (it.toIntOrNull()?:0)>0 } && (opportunities.toIntOrNull()?:-1) in 0..8 && listOf(eatenCal,eatenP,eatenC,eatenF,spent).all { (it.toIntOrNull()?:-1)>=0 }
     AlertDialog(onDismissRequest=onClose,containerColor=Surface,title={DisplayText("Your day, your rules.",26)},text={
         Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-            FilledInput(name,onValueChange={name=it.take(60)},placeholder="Your name (optional)",modifier=Modifier.fillMaxWidth())
+            FilledInput(name,onValueChange={name=it.take(60)},placeholder="Your name (optional)",modifier=Modifier.fillMaxWidth(),showLabel=true)
             listOf(Triple("Daily calories",cal,{v:String->cal=v}),Triple("Protein goal (g)",protein,{v:String->protein=v}),Triple("Carbs goal (g)",carbs,{v:String->carbs=v}),Triple("Fat goal (g)",fat,{v:String->fat=v}),Triple("Food allowance (₹)",allowance,{v:String->allowance=v}),Triple("Opportunities left",opportunities,{v:String->opportunities=v}),Triple("Calories eaten today",eatenCal,{v:String->eatenCal=v}),Triple("Protein eaten (g)",eatenP,{v:String->eatenP=v}),Triple("Carbs eaten (g)",eatenC,{v:String->eatenC=v}),Triple("Fat eaten (g)",eatenF,{v:String->eatenF=v}),Triple("Money spent today (₹)",spent,{v:String->spent=v})).forEach { (label,value,update) ->
-                FilledInput(value,onValueChange={v->update(v.filter {it.isDigit()})},placeholder=label,modifier=Modifier.fillMaxWidth())
+                FilledInput(value,onValueChange={v->update(v.filter {it.isDigit()})},placeholder=label,modifier=Modifier.fillMaxWidth(),showLabel=true)
             }
             Text("Enter your actual daily totals. Swiggy orders do not automatically become consumed nutrition.",color=Muted,fontSize=11.sp,lineHeight=18.sp)
         }
