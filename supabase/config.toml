@@ -1,0 +1,4 @@
+project_id = "hungii"
+
+[functions.hungii-api]
+verify_jwt = false # Public callback/refresh; account actions verify WorkOS JWT and live session.

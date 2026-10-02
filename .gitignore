@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.gradle/
+**/build/
+local.properties
+artifacts/*.apk
+.env
+.env.*
+!.env.example
+supabase/.temp/
+supabase/.branches/
+node_modules/
+
+# Locally generated review recordings and device telemetry
+artifacts/*.mp4
+artifacts/*.gesture-telemetry.json

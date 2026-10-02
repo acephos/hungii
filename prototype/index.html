@@ -1,0 +1,32 @@
+<!doctype html>
+<!-- Throwaway UI prototype. Question: which layout makes orb → shortlist → lucky draw feel easiest? Three structurally different variants, shared in-memory sample state. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f4ef">
+  <title>Hungii · Find your next happy meal</title>
+  <link rel="icon" href="../assets/icon.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app"></div>
+  <div id="notice" role="status" aria-live="polite"></div>
+  <dialog id="budget-dialog">
+    <form id="budget-form">
+      <div class="dialog-heading"><div><span class="eyebrow">YOUR DAY, YOUR RULES</span><h2>Make room for real life.</h2></div><button type="button" data-action="close-budget" class="icon-button" aria-label="Close budget editor">×</button></div>
+      <div class="input-grid">
+        <label>Daily calories<input name="cal" type="number" min="1" required></label>
+        <label>Protein goal (g)<input name="protein" type="number" min="1" required></label>
+        <label>Carbs goal (g)<input name="carbs" type="number" min="1" required></label>
+        <label>Fat goal (g)<input name="fat" type="number" min="1" required></label>
+        <label>Daily food allowance (₹)<input name="allowance" type="number" min="1" required></label>
+        <label>Eating opportunities left<input name="opportunities" type="number" min="1" max="8" required></label>
+      </div>
+      <p class="muted small">Consumed food and money already spent stay in your log. Changing your plan refreshes the unselected meal pool.</p>
+      <button class="primary" type="submit">Update my day <span>↗</span></button>
+    </form>
+  </dialog>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,374 @@
+package com.hungii.prototype
+
+import android.app.Application
+import android.net.Uri
+import androidx.compose.runtime.*
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.*
+import org.json.JSONArray
+import org.json.JSONObject
+import java.security.SecureRandom
+import java.time.LocalDate
+import kotlin.math.roundToInt
+
+data class Span(val low: Int, val high: Int) {
+    val mid get() = (low + high)/2f
+    val label get() = if(low == high) "$low" else "$low–$high"
+    operator fun plus(other: Span) = Span(low+other.low,high+other.high)
+    fun portion(f: Float) = Span((low*f).toInt(),(high*f).toInt())
+    fun json() = JSONArray().put(low).put(high)
+    companion object { fun from(a: JSONArray) = Span(a.getInt(0),a.getInt(1)) }
+}
+data class Nutrition(val calories: Span, val protein: Span, val carbs: Span, val fat: Span) {
+    operator fun plus(n: Nutrition) = Nutrition(calories+n.calories,protein+n.protein,carbs+n.carbs,fat+n.fat)
+    fun portion(f: Float) = Nutrition(calories.portion(f),protein.portion(f),carbs.portion(f),fat.portion(f))
+    fun json() = JSONObject().put("calories",calories.json()).put("protein",protein.json()).put("carbs",carbs.json()).put("fat",fat.json())
+    companion object {
+        val zero = Nutrition(Span(0,0),Span(0,0),Span(0,0),Span(0,0))
+        fun from(o: JSONObject) = Nutrition(Span.from(o.getJSONArray("calories")),Span.from(o.getJSONArray("protein")),Span.from(o.getJSONArray("carbs")),Span.from(o.getJSONArray("fat")))
+    }
+}
+data class Meal(val id: String, val dishId: String, val restaurantId: String, val name: String, val restaurant: String,
+    val imageUrl: String?, val veg: Boolean?, val itemPrice: Double?, val etaMinutes: Int?, val distanceKm: Double?,
+    val description: String = "", val offerText: String? = null, val nutrition: Nutrition? = null) {
+    val price get() = Span(itemPrice?.roundToInt() ?: 0,itemPrice?.roundToInt() ?: 0)
+    val priceLabel get() = itemPrice?.let { "₹" + if(it == it.toInt().toDouble()) it.toInt().toString() else "%.2f".format(java.util.Locale.ROOT,it) } ?: "Price unavailable"
+    val etaLabel get() = etaMinutes?.let { "$it min est." } ?: "ETA unavailable"
+    val badge get() = if(BuildConfig.LOCAL_DEMO) "SYNTHETIC DEMO" else "Powered by Swiggy"
+    val tags get() = setOf("spicy","cheesy","sweet","bland","light","filling").filter { it in (name+" "+description).lowercase() }.toSet()
+    val benefit get() = if(description.isNotBlank()) description else "${restaurant}. ${etaLabel}."
+    val compromise get() = "Nutrition is not published here. Fees and coupon eligibility are checked in the cart."
+    fun json() = JSONObject().put("id",id).put("dishId",dishId).put("restaurantId",restaurantId).put("name",name).put("restaurant",restaurant)
+        .put("imageUrl",imageUrl ?: JSONObject.NULL).put("veg",veg ?: JSONObject.NULL).put("itemPrice",itemPrice ?: JSONObject.NULL)
+        .put("etaMinutes",etaMinutes ?: JSONObject.NULL).put("distanceKm",distanceKm ?: JSONObject.NULL).put("description",description).put("offerText",offerText ?: JSONObject.NULL)
+    companion object {
+        fun from(o: JSONObject) = Meal(o.getString("id"),o.getString("dishId"),o.getString("restaurantId"),o.getString("name"),o.getString("restaurant"),
+            o.optString("imageUrl").takeIf { it.startsWith("https://") },if(o.isNull("veg")) null else o.getBoolean("veg"),
+            if(o.isNull("itemPrice")) null else o.getDouble("itemPrice"),if(o.isNull("etaMinutes")) null else o.getInt("etaMinutes"),
+            if(o.isNull("distanceKm")) null else o.getDouble("distanceKm"),o.optString("description"),o.optString("offerText").takeIf { it.isNotBlank() && it != "null" })
+    }
+}
+enum class Screen { Home, Discover, Finalists, Draw, Winner, Review, Saved, Day }
+data class DeliveryAddress(val id: String,val label: String,val addressLine: String)
+data class Restaurant(val id: String,val name: String,val etaMinutes: Int?,val distanceKm: Double?)
+
+@OptIn(kotlinx.coroutines.FlowPreview::class)
+class HungiiModel(application: Application) : AndroidViewModel(application) {
+    private val db = PrivateTrackerStore(application)
+    private val api = HungiiApi(SecureSession(application))
+    var screen by mutableStateOf(Screen.Home)
+    var calorieGoal by mutableStateOf(2200); var proteinGoal by mutableStateOf(140)
+    var carbGoal by mutableStateOf(250); var fatGoal by mutableStateOf(70)
+    var allowance by mutableStateOf(600); var spent by mutableStateOf(0)
+    var opportunities by mutableStateOf(2); var intake by mutableStateOf(Nutrition.zero)
+    var taste by mutableStateOf("any"); var highProtein by mutableStateOf(false)
+    var vegOnly by mutableStateOf(false); var budgetOnly by mutableStateOf(false); var fast by mutableStateOf(false)
+    var query by mutableStateOf("healthy bowls")
+    var displayName by mutableStateOf("")
+    var offlineMode by mutableStateOf(BuildConfig.LOCAL_DEMO)
+    var initializing by mutableStateOf(true)
+    var accountLoading by mutableStateOf(api.signedIn && !BuildConfig.LOCAL_DEMO)
+    var cloudSetupPending by mutableStateOf(false)
+    var cloudSyncEnabled by mutableStateOf(false)
+    var cloudSyncMessage by mutableStateOf("")
+    var cloudConflict by mutableStateOf(false)
+    private var cloudDecisionMade=false
+    private var cloudReady=false
+    private var cloudRevision:String?=null
+    private var lastSyncedState:String?=null
+    private var cloudJob:Job?=null
+    private var syncEpoch=0
+    private lateinit var initializationJob:Job
+    val meals = mutableStateListOf<Meal>(); val finalists = mutableStateListOf<Meal>()
+    val passed = mutableStateListOf<String>(); val savedMeals = mutableStateListOf<Meal>()
+    val saved get() = savedMeals.map { it.id }
+    val addresses = mutableStateListOf<DeliveryAddress>(); val restaurants = mutableStateListOf<Restaurant>()
+    var addressPage by mutableStateOf(1); var moreAddresses by mutableStateOf(false)
+    var winner by mutableStateOf<Meal?>(null); var drawOrder by mutableStateOf<List<Meal>>(emptyList())
+    var shuffling by mutableStateOf(false); var canPick by mutableStateOf(false); var pickedIndex by mutableStateOf<Int?>(null)
+    var receipt by mutableStateOf(""); var lastPassed by mutableStateOf<Meal?>(null)
+    var loading by mutableStateOf(false); var connectionMessage by mutableStateOf("")
+    var accountOpen by mutableStateOf(false); var connected by mutableStateOf(false)
+    var signedIn by mutableStateOf(api.signedIn); val configured get() = api.configured
+    var environment by mutableStateOf(""); var addressId by mutableStateOf<String?>(null)
+    var cart by mutableStateOf<JSONObject?>(null); var coupons by mutableStateOf<JSONObject?>(null)
+    var savedConsent by mutableStateOf(false); var pendingSave by mutableStateOf<Meal?>(null)
+    private var savedConsentAt = 0L
+    private var persistenceJob: Job? = null
+    var privacyAction by mutableStateOf<String?>(null)
+    val privacyVersion = "2026-10-02.3"
+    private var owner = api.userId ?: "device"
+    private var foodDay = LocalDate.now().toString()
+    private var ready by mutableStateOf(false)
+    private var undoUpdate by mutableStateOf<(() -> Unit)?>(null)
+    val canUndoInput get() = undoUpdate != null
+    val moneyLeft get() = allowance-spent
+    val caloriesLeft get() = Span(calorieGoal-intake.calories.high,calorieGoal-intake.calories.low)
+    val proteinLeft get() = Span(proteinGoal-intake.protein.high,proteinGoal-intake.protein.low)
+    val reservedCalories get() = Span(0,0)
+    val mealMoneyGuide get() = moneyLeft/opportunities.coerceAtLeast(1)
+    val pool get() = if(opportunities<=0) emptyList() else meals.filter {
+        it.id !in passed && finalists.none { m -> m.id == it.id } && (!vegOnly || it.veg == true) &&
+            (!budgetOnly || (it.itemPrice != null && it.itemPrice <= 250)) && (it.itemPrice == null || it.itemPrice <= moneyLeft)
+    }.sortedByDescending {
+        (if(taste in it.tags) 28.0 else 0.0) + (if(fast && it.etaMinutes != null) 45.0-it.etaMinutes else 0.0) -
+            ((it.itemPrice ?: mealMoneyGuide.toDouble())-mealMoneyGuide).coerceAtLeast(0.0)/7
+    }.take(8)
+
+    init {
+        initializationJob=viewModelScope.launch {
+            db.migrate(); loadLocal(); ready=true; initializing=false
+            if(signedIn && !BuildConfig.LOCAL_DEMO) refresh()
+        }
+        startPersistence()
+    }
+    private fun startPersistence() {
+        persistenceJob=viewModelScope.launch {
+            snapshotFlow { if(ready) TrackerRecord(owner,snapshot().toString()) else null }.filterNotNull().debounce(600).collect { value ->
+                db.save(value)
+                if(cloudReady && cloudSyncEnabled && signedIn && cloudState().toString()!=lastSyncedState) scheduleCloudSync()
+            }
+        }
+    }
+    private fun preferences()=JSONObject().put("displayName",displayName).put("taste",taste).put("query",query)
+        .put("highProtein",highProtein).put("vegOnly",vegOnly).put("budgetOnly",budgetOnly).put("fast",fast)
+    private fun cloudState()=tracker().put("preferences",preferences())
+    private fun snapshot() = cloudState().put("offlineMode",offlineMode).put("cloudSyncEnabled",cloudSyncEnabled).put("cloudDecisionMade",cloudDecisionMade)
+        .put("cloudRevision",cloudRevision?:JSONObject.NULL).put("lastSyncedState",lastSyncedState?:JSONObject.NULL)
+        .put("savedConsent",savedConsent).put("savedConsentAt",savedConsentAt).put("privacyVersion",privacyVersion).put("savedMeals",JSONArray(savedMeals.map { it.copy(imageUrl=null,itemPrice=null,etaMinutes=null,distanceKm=null,description="",offerText=null).json() }))
+    private fun tracker() = JSONObject().put("day",foodDay).put("calorieGoal",calorieGoal).put("proteinGoal",proteinGoal)
+        .put("carbGoal",carbGoal).put("fatGoal",fatGoal).put("allowance",allowance).put("spent",spent).put("opportunities",opportunities).put("intake",intake.json())
+    private suspend fun loadLocal() {
+        val stored = try {db.get(owner)?.payload} catch(_:Exception) {receipt="Saved data could not be decrypted. You can erase it from Accounts.";null} ?: return
+        try {
+            val o=JSONObject(stored); applyState(o)
+            if(!signedIn)offlineMode=o.optBoolean("offlineMode")
+            cloudSyncEnabled=o.optBoolean("cloudSyncEnabled") && o.optString("privacyVersion")==privacyVersion
+            cloudDecisionMade=o.optBoolean("cloudDecisionMade") && o.optString("privacyVersion")==privacyVersion
+            cloudRevision=o.optString("cloudRevision").takeIf {it.isNotBlank()&&it!="null"}
+            lastSyncedState=o.optString("lastSyncedState").takeIf {it.isNotBlank()&&it!="null"}
+            savedConsentAt=o.optLong("savedConsentAt")
+            savedConsent=o.optBoolean("savedConsent")&&o.optString("privacyVersion")==privacyVersion&&System.currentTimeMillis()-savedConsentAt<30L*86400*1000; savedMeals.clear()
+            if(savedConsent) o.optJSONArray("savedMeals")?.let { a -> for(i in 0 until a.length()) savedMeals.add(Meal.from(a.getJSONObject(i))) }
+        } catch (_: Exception) { receipt="The saved tracker could not be loaded. Please check your day." }
+    }
+    private fun applyState(o:JSONObject) {
+        calorieGoal=o.getInt("calorieGoal");proteinGoal=o.getInt("proteinGoal");carbGoal=o.getInt("carbGoal");fatGoal=o.getInt("fatGoal");allowance=o.getInt("allowance")
+        if(o.getString("day")==LocalDate.now().toString()) {
+            spent=o.getInt("spent");opportunities=o.getInt("opportunities");intake=Nutrition.from(o.getJSONObject("intake"))
+        } else {spent=0;opportunities=2;intake=Nutrition.zero}
+        foodDay=LocalDate.now().toString()
+        o.optJSONObject("preferences")?.let {v->
+            displayName=v.optString("displayName");taste=v.optString("taste","any");query=v.optString("query","healthy bowls")
+            highProtein=v.optBoolean("highProtein");vegOnly=v.optBoolean("vegOnly");budgetOnly=v.optBoolean("budgetOnly");fast=v.optBoolean("fast")
+        }
+    }
+    private fun resetCloud() {
+        syncEpoch++;cloudJob?.cancel();cloudJob=null;cloudSyncEnabled=false;cloudReady=false;cloudConflict=false
+        cloudRevision=null;lastSyncedState=null;cloudDecisionMade=false;cloudSetupPending=false;cloudSyncMessage=""
+    }
+    private suspend fun restoreCloud(force:Boolean=false) {
+        if(cloudDecisionMade && !cloudSyncEnabled && !force) {
+            cloudReady=false;cloudSetupPending=false;return
+        }
+        val localChanged=cloudSyncEnabled && lastSyncedState!=null && cloudState().toString()!=lastSyncedState
+        val response=api.action("state_get")
+        val revision=response.optString("updatedAt").takeIf {it.isNotBlank()&&it!="null"}
+        val state=response.optJSONObject("state")
+        if(!force && localChanged && revision!=cloudRevision) {
+            cloudReady=false;cloudConflict=true;cloudSyncMessage="This profile changed on another device. Choose a copy in Accounts.";return
+        }
+        if(state!=null && (force || !localChanged)) {
+            applyState(state);lastSyncedState=cloudState().toString()
+            cloudSyncEnabled=cloudSyncEnabled && response.optString("consentVersion")==privacyVersion && state.has("preferences")
+            if(cloudSyncEnabled)cloudDecisionMade=true
+            cloudSyncMessage="Profile restored from your Hungii account."
+        } else if(state==null && cloudRevision!=null) {
+            // Another device's deletion or expiry is not permission to recreate a copy.
+            cloudSyncEnabled=false;cloudSyncMessage="Cloud copy is absent. Allow sync again to create a new copy."
+        }
+        cloudRevision=revision;cloudReady=true;cloudConflict=false
+        cloudSetupPending=!cloudDecisionMade
+        if(cloudSyncEnabled && cloudState().toString()!=lastSyncedState)scheduleCloudSync()
+    }
+    private fun scheduleCloudSync() {
+        cloudJob?.cancel()
+        cloudJob=viewModelScope.launch {
+            delay(1000)
+            while(loading)delay(200)
+            if(cloudReady && cloudSyncEnabled && signedIn) syncTracker()
+        }
+    }
+    fun useOffline() {offlineMode=true;cloudDecisionMade=true;cloudSyncEnabled=false;cloudSetupPending=false}
+    fun keepDeviceOnly() {cloudDecisionMade=true;cloudSetupPending=false;cloudSyncEnabled=false}
+    fun pauseCloudSync() {syncEpoch++;cloudJob?.cancel();cloudSyncEnabled=false;cloudReady=false;cloudDecisionMade=true;cloudSetupPending=false;cloudSyncMessage="Cloud sync is off. Your profile stays on this device."}
+    fun restoreProfile()=run {restoreCloud(force=true);cloudDecisionMade=true;cloudSetupPending=false}
+    fun useCloudCopy()=run {cloudSyncEnabled=true;cloudDecisionMade=true;restoreCloud(force=true)}
+    fun keepLocalCopy()=run {
+        val response=api.action("state_get")
+        cloudRevision=response.optString("updatedAt").takeIf {it.isNotBlank()&&it!="null"}
+        cloudConflict=false;cloudReady=true;pushCloudState()
+    }
+    private suspend fun pushCloudState() {
+        val epoch=syncEpoch
+        val current=cloudState().toString()
+        val response=api.action("state_save",JSONObject().put("state",JSONObject(current)).put("privacyVersion",privacyVersion).put("expectedUpdatedAt",cloudRevision?:JSONObject.NULL))
+        if(epoch!=syncEpoch)return
+        cloudRevision=response.getString("updatedAt");lastSyncedState=current;cloudReady=true;cloudConflict=false
+        cloudSyncEnabled=true;cloudDecisionMade=true;cloudSetupPending=false;cloudSyncMessage="Profile and preferences synced."
+    }
+    private fun run(block: suspend () -> Unit) {
+        if(loading) return
+        viewModelScope.launch {
+            loading=true; connectionMessage=""
+            try { block() } catch(e: ApiFailure) {
+                connectionMessage=e.message
+                if(e.code=="HUNGII_SYNC_CONFLICT") {cloudConflict=true;cloudReady=false;cloudSyncMessage=e.message}
+                if(e.code=="HUNGII_LOGIN_REQUIRED") {
+                    resetCloud();api.clearSession(); signedIn=false; clearProviderData()
+                    persistenceJob?.cancelAndJoin(); ready=false; owner="device"; resetTracker(); loadLocal(); ready=true; startPersistence()
+                }
+                if(e.code=="HUNGII_RECONNECT") { connected=false; addressId=null; meals.clear(); finalists.clear(); winner=null; restaurants.clear(); cart=null; coupons=null }
+            } catch (_: Exception) { connectionMessage="Could not complete this request. Try again." }
+            finally { loading=false; accountLoading=false }
+        }
+    }
+    fun signInUrl() = api.signInUrl()
+    fun handleCallback(uri: Uri) = run {
+        if(uri.host=="auth-return") {
+            accountLoading=true
+            initializationJob.join()
+            api.callback(uri); signedIn=true;offlineMode=false;resetCloud()
+            persistenceJob?.cancelAndJoin();ready=false; owner=api.userId ?: "device"; resetTracker(); savedMeals.clear(); savedConsent=false; loadLocal(); ready=true;startPersistence()
+        }
+        try {if(!BuildConfig.LOCAL_DEMO)restoreCloud();refreshConnection()} finally {accountLoading=false}
+    }
+    private fun resetTracker() {
+        foodDay=LocalDate.now().toString(); calorieGoal=2200; proteinGoal=140; carbGoal=250; fatGoal=70
+        allowance=600; spent=0; opportunities=2; intake=Nutrition.zero
+        displayName="";taste="any";query="healthy bowls";highProtein=false;vegOnly=false;budgetOnly=false;fast=false
+    }
+    suspend fun refreshConnection() {
+        val status=api.action("status"); connected=status.getBoolean("connected"); addressId=status.optString("addressId").takeIf { it.isNotBlank()&&it!="null" }; environment=status.optString("environment")
+        if(!connected) { meals.clear(); finalists.clear(); restaurants.clear(); winner=null; cart=null; coupons=null }
+        if(connected&&addressId==null) loadAddresses()
+    }
+    fun refresh() = run {
+        accountLoading=true
+        try {if(!BuildConfig.LOCAL_DEMO)restoreCloud();refreshConnection()} finally {accountLoading=false}
+    }
+    fun connect(onUrl: (String)->Unit) = run {
+        val response=api.action("connect",JSONObject().put("consent",true).put("privacyVersion",privacyVersion))
+        if(BuildConfig.LOCAL_DEMO) refreshConnection() else onUrl(response.getString("authorizationUrl"))
+    }
+    private suspend fun loadAddresses(page: Int=1) {
+        val result=api.action("addresses",JSONObject().put("page",page)); addresses.clear()
+        val a=result.getJSONArray("addresses"); for(i in 0 until a.length()) { val o=a.getJSONObject(i); addresses.add(DeliveryAddress(o.getString("id"),o.getString("label"),o.getString("addressLine"))) }
+        addressPage=page; moreAddresses=result.getJSONObject("pagination").getBoolean("hasMore")
+    }
+    fun addressList(page: Int=1) = run { loadAddresses(page); accountOpen=true }
+    fun selectAddress(address: DeliveryAddress) = run {
+        api.action("select_address",JSONObject().put("addressId",address.id).put("page",addressPage)); addressId=address.id
+        meals.clear(); finalists.clear(); passed.clear(); restaurants.clear(); winner=null; cart=null; coupons=null; accountOpen=false
+    }
+    fun search() {
+        screen=Screen.Discover
+        if(!signedIn||!connected||addressId==null) { accountOpen=true; return }
+        run {
+            finalists.clear(); passed.clear(); winner=null; cart=null; coupons=null
+            val args=JSONObject().put("query",query)
+            if(highProtein) args.put("collection","EATRIGHT") else if(fast) args.put("collection","BOLT")
+            val result=api.action("discover",args); meals.clear(); restaurants.clear()
+            val a=result.getJSONArray("meals"); for(i in 0 until a.length()) meals.add(Meal.from(a.getJSONObject(i)))
+            val rs=result.getJSONArray("restaurants"); for(i in 0 until rs.length()) { val r=rs.getJSONObject(i); restaurants.add(Restaurant(r.getString("id"),r.getString("name"),if(r.isNull("etaMinutes")) null else r.getInt("etaMinutes"),if(r.isNull("distanceKm")) null else r.getDouble("distanceKm"))) }
+        }
+    }
+    fun restaurantMeals(restaurant: Restaurant) = run {
+        val result=api.action("menu",JSONObject().put("query",query).put("restaurantId",restaurant.id).put("vegOnly",vegOnly))
+        meals.clear(); passed.clear()
+        val a=result.getJSONArray("meals"); for(i in 0 until a.length()) meals.add(Meal.from(a.getJSONObject(i)).copy(etaMinutes=restaurant.etaMinutes,distanceKm=restaurant.distanceKm))
+    }
+    fun review() {
+        screen=Screen.Review; cart=null; coupons=null
+        val meal=winner ?: return
+        run {
+            // Selection permits scoped details; still no cart mutation or order.
+            api.action("menu",JSONObject().put("query",meal.name).put("restaurantId",meal.restaurantId).put("vegOnly",vegOnly))
+            cart=api.action("cart")
+            coupons=api.action("coupons",JSONObject().put("restaurantId",meal.restaurantId))
+        }
+    }
+    private fun clearSaved() {savedMeals.clear();savedConsent=false;savedConsentAt=0}
+    private fun clearProviderData() {connected=false;addressId=null;meals.clear();finalists.clear();winner=null;restaurants.clear();cart=null;coupons=null;addresses.clear();drawOrder=emptyList();passed.clear();lastPassed=null;pendingSave=null;clearSaved()}
+    fun disconnect() = run {
+        val result=api.action("disconnect",JSONObject().put("confirm",true))
+        persistenceJob?.cancelAndJoin();ready=false;clearProviderData();db.erase(owner);db.save(TrackerRecord(owner,snapshot().toString()));ready=true;startPersistence()
+        connectionMessage=if(result.optBoolean("revocationConfirmed")) "Disconnected and erased saved Swiggy data." else "Disconnected and erased Hungii's copy. Remote revocation could not be confirmed; check Swiggy account access."
+    }
+    fun signOut(onUrl:(String)->Unit) = run {
+        try {api.signOut()?.let(onUrl)} catch (_: Exception) { connectionMessage="Signed out on this device. The remote sign-out could not be confirmed." }
+        signedIn=false;resetCloud();clearProviderData()
+        persistenceJob?.cancelAndJoin();ready=false; owner=if(BuildConfig.LOCAL_DEMO) "local-demo" else "device"; resetTracker(); savedMeals.clear(); savedConsent=false; loadLocal(); ready=true;startPersistence()
+    }
+    fun syncTracker() = run {
+        if(!cloudReady) {
+            val response=api.action("state_get")
+            cloudRevision=response.optString("updatedAt").takeIf {it.isNotBlank()&&it!="null"}
+            val remote=response.optJSONObject("state")
+            if(remote!=null && remote.toString()!=cloudState().toString() && lastSyncedState!=cloudState().toString()) {
+                cloudConflict=true;cloudSyncMessage="Choose whether to use the cloud profile or keep this device's profile.";return@run
+            }
+            cloudReady=true
+        }
+        if(cloudConflict)return@run
+        pushCloudState();connectionMessage="Profile, preferences and tracker synced."
+    }
+    fun performPrivacyAction() {
+        val action=privacyAction?:return;privacyAction=null
+        run {
+            if(action=="delete_cloud_tracker") {
+                cloudJob?.cancel();api.action(action,JSONObject().put("confirm",true));resetCloud();cloudDecisionMade=true
+                connectionMessage="Cloud profile, preferences and tracker erased. Device copy remains.";return@run
+            }
+            if(action=="delete_account") {
+                val result=api.action(action,JSONObject().put("confirm",true))
+                if(!result.optBoolean("deleted")) {
+                    persistenceJob?.cancelAndJoin();ready=false;resetCloud();db.erase(owner);clearProviderData();resetTracker();ready=true;startPersistence()
+                    connectionMessage="Hungii's cloud data was erased. Account-provider deletion is pending; retry Delete Hungii account.";return@run
+                }
+            }
+            persistenceJob?.cancelAndJoin();ready=false
+            db.erase(owner);clearProviderData();resetTracker()
+            if(action=="delete_account") {resetCloud();api.clearSession();signedIn=false;owner="device";accountOpen=false}
+            ready=true;startPersistence();connectionMessage="Selected data erased."
+        }
+    }
+    fun like(m: Meal) { if(finalists.size<3&&finalists.none {it.id==m.id}) { finalists.add(m); lastPassed=null; if(finalists.size==3) screen=Screen.Finalists } }
+    fun pass(m: Meal) { passed.add(m.id); lastPassed=m }
+    fun undoSwipe() { lastPassed?.let {passed.remove(it.id); lastPassed=null} ?: if(finalists.isNotEmpty()) {finalists.removeAt(finalists.lastIndex);screen=Screen.Discover} else Unit }
+    fun toggleSaved(m: Meal) { if(m.id in saved) savedMeals.removeAll {it.id==m.id} else if(savedConsent) savedMeals.add(m) else pendingSave=m }
+    fun acceptSaving() { savedConsent=true;savedConsentAt=System.currentTimeMillis(); pendingSave?.let {savedMeals.add(it)}; pendingSave=null }
+    fun forgetSaved() = run {persistenceJob?.cancelAndJoin();ready=false;clearSaved();db.erase(owner);db.save(TrackerRecord(owner,snapshot().toString()));ready=true;startPersistence()}
+    fun remove(m: Meal) {finalists.remove(m);winner=null;screen=Screen.Discover}
+    fun showFinalists() {if(finalists.size==1){winner=finalists[0];screen=Screen.Winner}else if(finalists.isNotEmpty()) screen=Screen.Finalists}
+    fun startDraw() {if(finalists.size<2||shuffling)return;drawOrder=finalists.shuffled(SecureRandom());winner=null;pickedIndex=null;canPick=false;shuffling=true;screen=Screen.Draw}
+    fun pick(i: Int) {if(canPick&&!shuffling&&pickedIndex==null&&i in drawOrder.indices){pickedIndex=i;canPick=false;winner=drawOrder[i]}}
+    fun goBack() {shuffling=false;screen=when(screen){Screen.Draw,Screen.Winner->Screen.Finalists;Screen.Review->Screen.Winner;Screen.Finalists->Screen.Discover;else->Screen.Home}}
+    fun invalidateCheckInUndo() {undoUpdate=null}
+    fun update(input: String) {
+        val oldAllowance=allowance;val oldOpportunities=opportunities;val oldTaste=taste;val oldQuery=query
+        val raw=input.lowercase();val changes=mutableListOf<String>()
+        Regex("(?:₹|rs\\.?\\s*|rupees?\\s*)(\\d+)").find(raw)?.groupValues?.get(1)?.toIntOrNull()?.let { amount ->
+            when {"left" in raw||"remaining" in raw->{allowance=spent+amount;changes.add("₹$amount left today.")};"daily" in raw||"budget" in raw||"allowance" in raw->{allowance=amount;changes.add("Allowance updated.")};else->changes.add("Add ‘left’ or ‘daily budget’ to that amount.")}
+        }
+        Regex("\\b([0-8])\\s*(?:more\\s+)?meals?\\s*(?:left|remaining)?").find(raw)?.groupValues?.get(1)?.toIntOrNull()?.let {opportunities=it;changes.add("$it opportunities left.")}
+        listOf("spicy","cheesy","sweet","bland","light","filling").firstOrNull {it in raw}?.let {taste=it;query=it+" food";changes.add("Searching for $it food next.")}
+        if(changes.isEmpty()) { query=input.trim().take(150);changes.add("Next search: $query. Log food quantities in My day; this check-in does not guess nutrition.") }
+        undoUpdate={allowance=oldAllowance;opportunities=oldOpportunities;taste=oldTaste;query=oldQuery}
+        receipt=changes.joinToString(" ")
+    }
+    fun undoInput() {undoUpdate?.invoke();undoUpdate=null;receipt="Last update undone."}
+    override fun onCleared() {db.close();super.onCleared()}
+}

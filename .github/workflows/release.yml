@@ -1,0 +1,106 @@
+name: Publish Android preview
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing vX.Y.Z tag to publish
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.repository == 'acephos/hungii'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate release tag
+        run: |
+          python3 - <<'PY'
+          import os,re,subprocess
+          from pathlib import Path
+          tag=os.environ['RELEASE_TAG']
+          assert re.fullmatch(r'v\d+\.\d+\.\d+',tag),'Use a vX.Y.Z tag.'
+          assert subprocess.check_output(['git','rev-parse',tag+'^{commit}']).strip()==subprocess.check_output(['git','rev-parse','HEAD']).strip()
+          subprocess.run(['git','merge-base','--is-ancestor','HEAD','origin/main'],check=True)
+          source=Path('android-prototype/app/build.gradle.kts').read_text()
+          version=re.search(r'getOrElse\("(\d+\.\d+(?:\.\d+)?)[^"]*"\)',source).group(1)
+          if version.count('.')==1:version+='.0'
+          assert tag=='v'+version,'Update the app version before tagging.'
+          PY
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Configure public Android service settings
+        run: python3 scripts/ci/android-config.py
+        env:
+          HUNGII_REQUIRE_CONFIG: 'true'
+          HUNGII_SUPABASE_URL: ${{ vars.HUNGII_SUPABASE_URL }}
+          HUNGII_SUPABASE_PUBLISHABLE_KEY: ${{ vars.HUNGII_SUPABASE_PUBLISHABLE_KEY }}
+          HUNGII_WORKOS_CLIENT_ID: ${{ vars.HUNGII_WORKOS_CLIENT_ID }}
+      - name: Restore stable preview signing key
+        env:
+          PREVIEW_KEYSTORE: ${{ secrets.HUNGII_PREVIEW_KEYSTORE_B64 }}
+        run: |
+          python3 - <<'PY'
+          import os,base64
+          from pathlib import Path
+          value=os.environ.get('PREVIEW_KEYSTORE')
+          assert value,'Configure HUNGII_PREVIEW_KEYSTORE_B64 before publishing.'
+          key=Path.home()/'.android/debug.keystore'
+          key.parent.mkdir(parents=True,exist_ok=True)
+          key.write_bytes(base64.b64decode(value,validate=True));key.chmod(0o600)
+          PY
+      - name: Check and test backend
+        run: |
+          npx --yes deno@2.9.6 check --config supabase/functions/deno.json supabase/functions/hungii-api/index.ts
+          npx --yes deno@2.9.6 test --config supabase/functions/deno.json --allow-env supabase/functions/_shared/
+      - name: Build and lint signed previews
+        working-directory: android-prototype
+        run: ./gradlew --no-daemon -PhungiiVersionName="${RELEASE_TAG#v}" :app:assembleRealDebug :app:assembleDemoDebug :app:lintRealDebug :app:lintDemoDebug
+      - name: Package and verify APKs
+        run: |
+          mkdir -p release-artifacts
+          cp android-prototype/app/build/outputs/apk/real/debug/app-real-debug.apk release-artifacts/hungii-preview.apk
+          cp android-prototype/app/build/outputs/apk/demo/debug/app-demo-debug.apk release-artifacts/hungii-emulator-demo.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose release-artifacts/hungii-preview.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose release-artifacts/hungii-emulator-demo.apk
+          cd release-artifacts
+          sha256sum *.apk > SHA256SUMS.txt
+      - name: Publish GitHub prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > "$RUNNER_TEMP/hungii-release-notes.md" <<'NOTES'
+          Native Android preview with optional cloud profile sync and local-only use.
+
+          Install hungii-preview.apk on your phone. Its stable development signing key supports updates from the existing Tailscale preview. Android 8+ is required.
+
+          hungii-emulator-demo.apk uses fictional local MCP data at 10.0.2.2:8788 and is for the emulator only.
+
+          This is a development-signed preview, not a Play Store production release. WorkOS uses staging; Swiggy live access remains approval-gated. No cart mutation, order or payment is enabled. Cloud sync is optional.
+          NOTES
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" release-artifacts/* --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$RELEASE_TAG" release-artifacts/* --repo "$GITHUB_REPOSITORY" --verify-tag --prerelease --title "Hungii $RELEASE_TAG · Android preview" --notes-file "$RUNNER_TEMP/hungii-release-notes.md"
+          fi
+      - name: Remove private signing material
+        if: always()
+        run: rm -f "$HOME/.android/debug.keystore"

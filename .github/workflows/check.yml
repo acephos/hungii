@@ -1,0 +1,38 @@
+name: Check Android and backend
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - name: Configure Android
+        run: python3 scripts/ci/android-config.py
+        env:
+          HUNGII_SUPABASE_URL: ${{ vars.HUNGII_SUPABASE_URL }}
+          HUNGII_SUPABASE_PUBLISHABLE_KEY: ${{ vars.HUNGII_SUPABASE_PUBLISHABLE_KEY }}
+          HUNGII_WORKOS_CLIENT_ID: ${{ vars.HUNGII_WORKOS_CLIENT_ID }}
+      - name: Check and test backend (no live services)
+        run: |
+          npx --yes deno@2.9.6 check --config supabase/functions/deno.json supabase/functions/hungii-api/index.ts
+          npx --yes deno@2.9.6 test --config supabase/functions/deno.json --allow-env supabase/functions/_shared/
+      - name: Build and lint Android
+        working-directory: android-prototype
+        run: ./gradlew --no-daemon :app:assembleRealDebug :app:assembleDemoDebug :app:lintRealDebug :app:lintDemoDebug
