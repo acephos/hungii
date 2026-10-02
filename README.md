@@ -29,3 +29,9 @@ Open [Hungii](http://localhost:5173/prototype/?variant=a) to review the earlier 
 Swipe to shortlist three meals, shuffle them face down, and pick a card. The orb supports scripted text updates and optional browser voice. Meals, nutrition, prices, coupons, and checkout are sample data; nothing is ordered.
 
 See [prototype notes](prototype/README.md) and the [product specification](docs/meal-planner-product.md).
+
+## Checkpoints and preview releases
+
+Public repository: [acephos/hungii](https://github.com/acephos/hungii). Main/PR checks type-check and test the backend, then build and lint both Android variants. Standard GitHub-hosted Linux runners are free for public repositories. No paid runner or store publication is enabled.
+
+Push an annotated `vX.Y.Z` tag from a tested main checkpoint to build and publish a GitHub prerelease with the phone preview, emulator demo and SHA-256 checksums. The release uses the stable preview signing key held in GitHub Secrets and verifies its public certificate fingerprint before publication. [Release setup](docs/releases.md).

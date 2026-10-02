@@ -75,12 +75,15 @@ jobs:
         working-directory: android-prototype
         run: ./gradlew --no-daemon -PhungiiVersionName="${RELEASE_TAG#v}" :app:assembleRealDebug :app:assembleDemoDebug :app:lintRealDebug :app:lintDemoDebug
       - name: Package and verify APKs
+        env:
+          EXPECTED_PREVIEW_CERT: ${{ vars.HUNGII_PREVIEW_CERT_SHA256 }}
         run: |
           mkdir -p release-artifacts
           cp android-prototype/app/build/outputs/apk/real/debug/app-real-debug.apk release-artifacts/hungii-preview.apk
           cp android-prototype/app/build/outputs/apk/demo/debug/app-demo-debug.apk release-artifacts/hungii-emulator-demo.apk
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose release-artifacts/hungii-preview.apk
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose release-artifacts/hungii-emulator-demo.apk
+          python3 scripts/ci/verify-preview-certificate.py release-artifacts/hungii-preview.apk release-artifacts/hungii-emulator-demo.apk
           cd release-artifacts
           sha256sum *.apk > SHA256SUMS.txt
       - name: Publish GitHub prerelease
