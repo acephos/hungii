@@ -1,12 +1,12 @@
-# Hungii 0.6 account and optional sync verification
+# Hungii 0.6.2 account and optional sync verification
 
 Verified 2 October 2026. WorkOS staging email authentication is configured with the registered Android PKCE callback; Supabase Free remains in Mumbai. Function version 9 is active with signed WorkOS JWT verification, live session checks, server-only refresh and account deletion fences. Six migrations are applied. Both Android variants assemble and lint passes; 19 backend/protocol tests pass. Two real temporary WorkOS identities passed isolated tracker save/read, refresh, deletion and sign-out rejection checks; users and database records were removed. No emails were sent to those test accounts. SQL ownership/deletion tests also passed on the real Mumbai database.
 
-Current real APK: version 0.6-account-sync, code 5, 18915378 bytes, SHA-256 `0d49bc203a328becdc870a3d58d24c09129522bfd9bbcfae45cb5c2e7ec4407c`. Tailscale download returned HTTP 200 with identical bytes at http://100.103.202.33:8787/hungii.apk. Demo APK SHA-256 `504ea5d129af25f94c0b8e1df3cc7b5ca8bee8cb8cfa8dbc46cdfc6e33d791ca`. The demo remains an emulator-only fictional MCP experience.
+Current real APK: version 0.6.2, code 7, 18628126 bytes, SHA-256 `bc9a5e684af013cf10999c7d607f5cdd33c77cb130dbf81e2accd4cbc1aed69e`. Tailscale download returned HTTP 200 with identical bytes at http://100.103.202.33:8787/hungii.apk. Demo APK SHA-256 `866c03a4b58bd5064afa7942afc20d7d9afad78cdb89e70612906b6c254b1570`. The demo remains an emulator-only fictional MCP experience.
 
 Actual cloud profile/revision tests passed in Postgres and the deployed API. A seeded real staging profile restored on the Android emulator, and a native preference edit automatically appeared in the Mumbai cloud record. Stale updates returned a conflict without changing the cloud copy.
 
-The public welcome/sign-out page returned HTTP 200, no-store and x-sb-edge-region: ap-south-1. The real app never substitutes fictional meals. Swiggy access and production release gates remain pending; see [current readiness](../docs/approval-readiness.md). Native hosted WorkOS password sign-in completed on the Android emulator, with its real PKCE authorization code exchanged and callback returning to Hungii. The founder installed this APK and confirmed successful email-code sign-in on the physical phone.
+The public welcome/sign-out page returned HTTP 200, no-store and x-sb-edge-region: ap-south-1. The real app never substitutes fictional meals. Swiggy access and production release gates remain pending; see [current readiness](../docs/approval-readiness.md). Native hosted WorkOS password sign-in completed on the Android emulator, with its real PKCE authorization code exchanged and callback returning to Hungii. The founder previously confirmed successful email-code sign-in on the physical phone. The published 0.6.2 APK was update-tested on the emulator, retaining its local-only choice and saved ₹325 allowance.
 
 The WorkOS API key was scanned against source/docs and decompressed APK entries; no match was found. Public WorkOS client ID is included by design. The WorkOS-hosted native sign-in screen exposes Email sign-in code alongside staging password sign-in.
 
@@ -56,3 +56,5 @@ This is a read-only adapter: it neither adds the drawn meal to a cart nor places
 Native optional-sync verification: a cloud preference restored and an edited taste synced to the real backend. After stopping sync, another taste edit did not change the cloud copy; the disabled-sync choice survived force-stop/reopen. The API test access token expired during this check and the real server refresh succeeded before reading the unchanged cloud profile.
 
 Local-only verification: after signing out of the synthetic account, choosing Use locally without an account opened the tracker. A changed ₹325 allowance survived force-stop and reopen with emulator Wi-Fi/mobile data disabled, without returning to login. Networking was restored afterward. The temporary native WorkOS account, its matching database record and temporary test credentials were removed.
+
+Release CI and main checkpoint checks passed; the published APKs were downloaded anonymously and their checksums verified. See [push review evidence](../docs/push-review.md) and [v0.6.2 prerelease](https://github.com/acephos/hungii/releases/tag/v0.6.2).
