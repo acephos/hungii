@@ -35,7 +35,7 @@ chmod 600 demo/.env.agent
 
 Google ADK + LiteLLM uses `groq/openai/gpt-oss-20b`, with no paid fallback. The FastAPI agent listens only on localhost:8789. The Android Assistant asks for opt-in before sending text/transcribed speech and selected tracker context to cloud inference. Groq processing is outside India. Provider login, real addresses, real provider payloads and payment credentials are not sent by this demo. Voice recognition is on-device where Android supports it; typed input works otherwise. There is no spoken AI reply yet.
 
-The agent can read selected Food MCP tools and propose searches, tracker changes and app navigation. Native confirmation applies changes; the LLM cannot place orders, settle payments or confirm orders. Calls are serialized, bounded to five model calls per turn and four turns/minute. Free provider token/request limits still apply; errors display a manual-filter fallback, never a fabricated AI answer. Tool responses are compacted; internal reasoning is excluded from Groq history for compatibility.
+The agent can read selected Food MCP tools and propose searches, tracker changes and app navigation. Native confirmation applies changes; the LLM cannot place orders, settle payments or confirm orders. Calls are serialized, bounded to five model calls and four executed tools per turn, plus four turns/minute. The app passes up to four recent conversation messages and explicit daily goals/allowance so follow-up requests have context. Chat is not persisted across app restarts. Free provider token/request limits still apply; errors display a manual-filter fallback, never a fabricated AI answer. Tool responses are compacted; internal reasoning is excluded from Groq history for compatibility.
 
 ## Checkout demonstration
 

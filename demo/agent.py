@@ -67,7 +67,7 @@ async def chat(request:Request):
    actions.append({'action':action,'value':value[:150]});return {'proposed':True,'awaitingUserConfirmation':True}
   context=body.get('context',{})
   # Only known user-entered tracker totals and synthetic candidate descriptions.
-  context={k:v for k,v in context.items() if k in ['caloriesLeft','proteinLeft','carbsLeft','fatLeft','moneyLeft','opportunities','query','taste','screen','winner','cart','candidates']}
+  context={k:v for k,v in context.items() if k in ['caloriesLeft','proteinLeft','carbsLeft','fatLeft','moneyLeft','allowance','spent','goals','opportunities','query','taste','screen','winner','cart','candidates']}
   executed=0
   async def tool_budget(tool,args,tool_context):
    nonlocal executed
@@ -79,7 +79,7 @@ async def chat(request:Request):
   runner=InMemoryRunner(agent=agent,app_name='hungii_demo')
   sid=await runner.session_service.create_session(app_name='hungii_demo',user_id=session)
   # Conversation context remains on this server only for the duration of a turn.
-  history=body.get('history',[])[-4:];prefix='Previous conversation: '+json.dumps(history,ensure_ascii=False)+'\n' if history else ''
+  history=[{'role':h.get('role'),'text':str(h.get('text',''))[:1500]} for h in body.get('history',[])[-4:] if isinstance(h,dict) and h.get('role') in ['user','assistant']];prefix='Previous conversation: '+json.dumps(history,ensure_ascii=False)+'\n' if history else ''
   content=types.Content(role='user',parts=[types.Part(text=prefix+'Current tracker/app context: '+json.dumps(context,ensure_ascii=False)+'\nUser: '+message)])
   text=[]
   async def run():

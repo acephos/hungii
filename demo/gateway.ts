@@ -27,7 +27,7 @@ export function createGateway(provider=mockProvider(),network:typeof fetch=fetch
    if(b.action==='disconnect'||b.action==='reset_demo'){if(b.confirm!==true)throw new HungiiError('HUNGII_CONFIRM_REQUIRED','Confirm before resetting.');await sessions.drop(session);provider.reset(token);state.addressId=null;state.requests.clear();state.connected=b.action==='reset_demo';return response({disconnected:true,revocationConfirmed:true,deleted:true});}
    if(b.action==='agent_chat'){
     if(b.consent!==true)throw new HungiiError('HUNGII_AGENT_CONSENT','Allow cloud assistant processing first.');
-    const agent=await fetch('http://127.0.0.1:8789/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session,message:String(b.message??'').slice(0,1500),context:b.context??{}}),signal:AbortSignal.timeout(65000)}).catch(()=>null);
+    const agent=await fetch('http://127.0.0.1:8789/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({session,message:String(b.message??'').slice(0,1500),context:b.context??{},history:b.history??[]}),signal:AbortSignal.timeout(65000)}).catch(()=>null);
     if(!agent)throw new HungiiError('HUNGII_AGENT_SETUP','Cloud assistant is not running yet. Meal discovery and mock checkout still work.',503);
     const result=await agent.json();return response(result,agent.status);
    }

@@ -103,6 +103,10 @@ import kotlin.math.sin
     Row(horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.CenterVertically){repeat(3){i->Box(Modifier.size(7.dp).graphicsLayer{alpha=if(reduced).65f else .35f+.65f*((sin(phase-i)+1)/2);translationY=if(reduced)0f else -3f*sin(phase-i)}.background(Lime,CircleShape))};Spacer(Modifier.width(8.dp));Text("Thinking…",color=Muted,fontSize=13.sp)}
 }
 @Composable internal fun AssistantScreen(model:HungiiModel,voice:VoiceState,onVoice:()->Unit,reduceMotion:Boolean) {
+    if(!BuildConfig.LOCAL_DEMO){
+        Column(Modifier.fillMaxSize().padding(22.dp),verticalArrangement=Arrangement.spacedBy(20.dp),horizontalAlignment=Alignment.CenterHorizontally){DisplayText("Your Hungii companion.",28);GlassOrb(Modifier.size(220.dp),VoiceState(),false,reduceMotion);Panel{Text("Try the cloud Assistant in Simulator",color=White,fontSize=18.sp,fontWeight=FontWeight.Bold);Text("The Simulator preview connects Google ADK and Groq Free to synthetic MCP data. This account build keeps your local tracker and optional cloud sync available.",color=Muted,fontSize=14.sp,lineHeight=22.sp);LimeButton("View my day",Icons.Outlined.BarChart){model.screen=Screen.Day};OutlineButton("Find a meal"){model.screen=Screen.Home}}}
+        return
+    }
     var input by remember{mutableStateOf("")};val list=androidx.compose.foundation.lazy.rememberLazyListState()
     LaunchedEffect(model.chatMessages.size,model.assistantLoading){if(model.chatMessages.isNotEmpty())list.animateScrollToItem(model.chatMessages.size)}
     Column(Modifier.fillMaxSize().padding(horizontal=22.dp)) {
