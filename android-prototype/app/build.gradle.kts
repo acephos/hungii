@@ -9,12 +9,16 @@ plugins {
 android {
     namespace = "com.hungii.prototype"
     compileSdk = 35
+    providers.environmentVariable("HUNGII_PREVIEW_KEYSTORE_PATH").orNull?.let { path ->
+        require(file(path).isFile) { "Configured preview signing key is missing." }
+        signingConfigs.getByName("debug").storeFile = file(path)
+    }
     defaultConfig {
         applicationId = "com.hungii.prototype"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = providers.gradleProperty("hungiiVersionName").getOrElse("0.6-account-sync")
+        versionCode = 6
+        versionName = providers.gradleProperty("hungiiVersionName").getOrElse("0.6.1-account-sync")
         val config = Properties().apply {
             val source = rootProject.file("local.properties")
             if (source.exists()) source.inputStream().use { load(it) }

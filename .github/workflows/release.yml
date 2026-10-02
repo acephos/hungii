@@ -22,6 +22,7 @@ jobs:
       contents: write
     env:
       RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      HUNGII_PREVIEW_KEYSTORE_PATH: ${{ runner.temp }}/hungii-preview.keystore
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -57,15 +58,18 @@ jobs:
       - name: Restore stable preview signing key
         env:
           PREVIEW_KEYSTORE: ${{ secrets.HUNGII_PREVIEW_KEYSTORE_B64 }}
+          EXPECTED_PREVIEW_CERT: ${{ vars.HUNGII_PREVIEW_CERT_SHA256 }}
         run: |
           python3 - <<'PY'
-          import os,base64
+          import os,base64,hashlib,subprocess
           from pathlib import Path
           value=os.environ.get('PREVIEW_KEYSTORE')
           assert value,'Configure HUNGII_PREVIEW_KEYSTORE_B64 before publishing.'
-          key=Path.home()/'.android/debug.keystore'
+          key=Path(os.environ['HUNGII_PREVIEW_KEYSTORE_PATH'])
           key.parent.mkdir(parents=True,exist_ok=True)
           key.write_bytes(base64.b64decode(value,validate=True));key.chmod(0o600)
+          cert=subprocess.check_output(['keytool','-exportcert','-keystore',str(key),'-alias','androiddebugkey','-storepass','android'])
+          assert hashlib.sha256(cert).hexdigest()==os.environ['EXPECTED_PREVIEW_CERT'],'Restored preview key has an unexpected certificate.'
           PY
       - name: Check and test backend
         run: |
@@ -106,4 +110,4 @@ jobs:
           fi
       - name: Remove private signing material
         if: always()
-        run: rm -f "$HOME/.android/debug.keystore"
+        run: rm -f "$HUNGII_PREVIEW_KEYSTORE_PATH"
