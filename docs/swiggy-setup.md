@@ -22,6 +22,8 @@ Enable Google in Supabase Auth using a Google OAuth client and the provider's se
 
 ## 3. Swiggy Builders access
 
+Swiggy documents a staging environment at `mcp-staging.swiggy.com/{server}` with the same interface as production, seeded data and no real orders. The access page says staging credentials are issued during application review. Before receiving access, it recommends building against a local development stub. The reviewed docs do not link an official downloadable stub. The quickstart's broader wording about starting without approval does not establish anonymous access to hosted staging. [Testing options](swiggy-testing-options.md), [access](https://mcp.swiggy.com/builders/docs/operate/access.md), [quickstart](https://mcp.swiggy.com/builders/docs/start/developer/index.md)
+
 Apply with Hungii's use case, Food scope, expected traffic, technical contact and demo. Request staging access and exact allowlisting of this complete callback:
 
 ```text
