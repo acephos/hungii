@@ -2,6 +2,8 @@
 
 Selected stack: Kotlin/Compose, Room, Supabase Auth/Postgres in Mumbai, and a TypeScript Food MCP adapter in Mumbai Edge Functions. WorkOS and Convex are not dependencies. The code and disconnected APK are prepared; neither external service has been provisioned or deployed.
 
+The [staging onboarding request](swiggy-staging-email.md) has been sent; approval is pending. The latest [compliance audit](swiggy-application-compliance.md) found a prerequisite for hosted MCP testing: the adapter currently initializes and closes an MCP connection per API action, which conflicts with the current provider's persistent-session guidance. Resolve session topology and rate/block handling with Swiggy before making hosted staging calls. This setup guide is configuration preparation, not a declaration that the adapter is ready to run against the provider. Remaining privacy, deletion, storage and attribution gates apply before real-user production.
+
 ## 1. Supabase project
 
 Create a project in the specific **South Asia (Mumbai)** region. Record its project reference, HTTPS URL and publishable key. Android only needs the URL and public key; service-role keys and Swiggy tokens stay on the server. [Regions](https://supabase.com/docs/guides/platform/regions), [secrets](https://supabase.com/docs/guides/functions/secrets)
