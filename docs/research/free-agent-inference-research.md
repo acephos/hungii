@@ -1,5 +1,7 @@
 # Free cloud inference for the local MCP demo
 
+> Dated research. This preserves the original findings or correspondence; use [current status](../approval-readiness.md) and the [documentation index](../README.md) for today’s implementation and setup.
+
 Checked 2 October 2026 against first-party documentation and package metadata. This is an implementation recommendation; no provider account, API key, or live inference request was created by this research. The founder ruled out running models on this machine.
 
 Use Google ADK as the free agent SDK, with Groq's Free plan for cloud inference. The MCP server and tool execution stay on the developer machine. The language model runs on Groq. SDK licensing does not include inference: the provider's separate free quota is what makes this demo possible. ADK is Apache 2.0 and supports provider adapters. [ADK license](https://github.com/google/adk-python/blob/main/LICENSE), [ADK LiteLLM integration](https://adk.dev/agents/models/litellm/)

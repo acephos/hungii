@@ -1,10 +1,12 @@
 # Hungii free-stack research
 
-Checked 2 October 2026 against provider documentation. These research notes informed the [accepted stack decision](adr/0001-native-android-and-mumbai-backend.md); Supabase Free was subsequently provisioned; see [current readiness evidence](approval-readiness.md). Free quotas are service limits, not a promise that an entire production app stays free.
+> Dated research. This preserves the original findings or correspondence; use [current status](../approval-readiness.md) and the [documentation index](../README.md) for today’s implementation and setup.
+
+Checked 2 October 2026 against provider documentation. These research notes informed the [accepted stack decision](../adr/0001-native-android-and-mumbai-backend.md); Supabase Free was subsequently provisioned; see [current readiness evidence](../approval-readiness.md). Free quotas are service limits, not a promise that an entire production app stays free.
 
 ## Current selection
 
-The founder selected WorkOS AuthKit with Supabase. Staging email authentication is configured and tested against the real Mumbai backend. Use the free hosted auth domain and email codes, avoiding paid SSO, custom domains and SMS. The native public-client protocol avoids upgrading Kotlin solely for the current Android SDK. Database access remains server-only; [ADR](adr/0003-workos-with-supabase.md). Earlier recommendations below are research context, superseded where they proposed Supabase Auth or Convex.
+The founder selected WorkOS AuthKit with Supabase. Staging email authentication is configured and tested against the real Mumbai backend. Use the free hosted auth domain and email codes, avoiding paid SSO, custom domains and SMS. The native public-client protocol avoids upgrading Kotlin solely for the current Android SDK. Database access remains server-only; [ADR](../adr/0003-workos-with-supabase.md). Earlier recommendations below are research context, superseded where they proposed Supabase Auth or Convex.
 
 ## Supabase: credible alternative to Convex
 

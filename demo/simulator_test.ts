@@ -1,26 +1,435 @@
-import {MockFood,MockFailure,schemas} from './catalogue.ts';
-import {createGateway} from './gateway.ts';
-import {payload} from '../supabase/functions/_shared/food.ts';
-import {sdkFactory} from '../supabase/functions/_shared/sessions.ts';
-const assert=(value:unknown,message='Assertion failed')=>{if(!value)throw new Error(message);};
-async function engine(){const f=new MockFood();await f.call('get_addresses',{});await f.call('update_food_cart',{addressId:'demo-address',restaurantId:'mock-bowls',cartItems:[{menu_item_id:'chicken',quantity:1,variants:[{group_id:'portion',variation_id:'regular'}]}]});return f;}
-Deno.test('current documented Food inventory has20 tools and Food confirmation context',()=>{assert(schemas.length===20);assert(schemas.find(t=>t.name==='confirm_order')!.inputSchema.required?.join(',')==='orderId,addressId,lat,lng');assert(!schemas.some(t=>t.name==='simulate_payment'));});
-Deno.test('threshold side lowers final payable and cart totals match',async()=>{const f=await engine();const before=f.cart('demo-address').data.pricing.to_pay;await f.call('update_food_cart',{addressId:'demo-address',restaurantId:'mock-bowls',cartItems:[...f.cartItems,{menu_item_id:'raita',quantity:1}]});await f.call('apply_food_coupon',{addressId:'demo-address',couponCode:'FUEL70'});const cart=f.cart('demo-address').data;assert(cart.pricing.to_pay<before);assert(cart.offers.coupon_discount===70);assert(cart.pricing.to_pay===Math.round((cart.pricing.item_total+cart.pricing.delivery_charge+cart.pricing.taxes_and_charges-70)*100)/100);});
-Deno.test('UPI stays pending and cannot confirm until successful terminal status',async()=>{const f=await engine();const p=await f.call('place_food_order',{addressId:'demo-address',paymentMethod:'UPI',intentApp:'mock-upi'});assert(p.status==='PENDING_PAYMENT'&&f.orders.size===0);const context={orderId:p.orderId,addressId:p.addressId,cartId:p.cartId,lat:p.lat,lng:p.lng};let denied=false;try{await f.call('confirm_order',context);}catch(e){denied=e instanceof MockFailure;}assert(denied);f.settle(p.paasId,'SUCCESS');const status=await f.call('check_payment_status',{paasId:p.paasId});assert(status.isTerminalSuccess&&!status.confirmed);await f.call('confirm_order',context);await f.call('confirm_order',context);assert(f.orders.size===1&&f.cartItems.length===0);});
-Deno.test('failed/cancelled payment preserves cart and cannot confirm',async()=>{for(const outcome of ['FAILED','CANCELLED','EXPIRED']){const f=await engine();const p=await f.call('place_food_order',{addressId:'demo-address',paymentMethod:'UPI'});f.settle(p.paasId,outcome);const s=await f.call('check_payment_status',{paasId:p.paasId});assert(s.isTerminalFailure&&f.cartItems.length===1&&f.orders.size===0);let denied=false;try{await f.call('confirm_order',{orderId:p.orderId,addressId:p.addressId,lat:p.lat,lng:p.lng});}catch{denied=true;}assert(denied);}});
-Deno.test('cart changed during payment cannot produce an order',async()=>{const f=await engine();const p=await f.call('place_food_order',{addressId:'demo-address',paymentMethod:'UPI'});await f.call('update_food_cart',{addressId:'demo-address',restaurantId:'mock-bowls',cartItems:[{...f.cartItems[0],quantity:2}]});f.settle(p.paasId,'SUCCESS');let denied=false;try{await f.call('confirm_order',{orderId:p.orderId,addressId:p.addressId,lat:p.lat,lng:p.lng});}catch{denied=true;}assert(denied&&f.orders.size===0);});
-Deno.test('unavailable items, wrong restaurant and invalid quantity rejected without replacing basket',async()=>{const f=await engine();for(const item of [{menu_item_id:'soldout',quantity:1},{menu_item_id:'dal',quantity:1},{menu_item_id:'raita',quantity:-1}]){let denied=false;try{await f.call('update_food_cart',{addressId:'demo-address',restaurantId:'mock-bowls',cartItems:[item]});}catch{denied=true;}assert(denied&&f.cartItems[0].menu_item_id==='chicken');}});
-Deno.test('MCP protocol checkout, repeated checkout request, and device isolation',async()=>{const g=createGateway(undefined,((input,init)=>g.provider.handler(new Request(input,init))) as typeof fetch);const sdk=await sdkFactory('http://127.0.0.1/food','hungii-local-demo-not-provider',((input,init)=>g.provider.handler(new Request(input,init))) as typeof fetch);const raw=await sdk.call('get_addresses',{});assert(payload(raw).addresses.length===2);await sdk.close();const post=async(action:string,args:Record<string,unknown>={},user='aaaaaaaaaaaaaaaa')=>{const r=await g.handler(new Request('http://localhost/api',{method:'POST',headers:{'Content-Type':'application/json','x-hungii-demo-session':user},body:JSON.stringify({action,...args})}));const j=await r.json();assert(r.ok,JSON.stringify(j));return j;};try{await post('select_address',{addressId:'demo-address'});const a=await post('cart_create',{dishId:'chicken',restaurantId:'mock-bowls'});const c=a.cart;const args={requestId:'111111111111111111',confirm:true,revision:c.revision,payable:c.payable,methodId:'mock-upi'};const p=await post('checkout',args);const same=await post('checkout',args);assert(same.payment.orderId===p.payment.orderId);const done=await post('simulate_payment',{paasId:p.payment.paasId,orderId:p.payment.orderId,cartId:p.payment.cartId,outcome:'SUCCESS'});assert(done.paymentStatus.confirmed);assert(done.mcpTrace.includes('update_food_cart')&&done.mcpTrace.includes('confirm_order'));await post('select_address',{addressId:'demo-address'},'bbbbbbbbbbbbbbbb');assert((await post('orders',{},'bbbbbbbbbbbbbbbb')).orders.length===0);}finally{await g.close();await g.provider.close();}});
-Deno.test('live Swiggy writes stay disabled even with the local-demo flag',async()=>{
- const {withFood,HungiiError}=await import('../supabase/functions/_shared/food.ts');let calls=0;
- const fake={run:async<T>(_u:string,_t:string,_url:string,task:(c:any)=>Promise<T>)=>task({tools:schemas,call:()=>{calls++;throw new Error('Network must not be used');}})};
- for(const host of ['mcp.swiggy.com','mcp-staging.swiggy.com']){
-  let denied=false;try{await withFood('https://'+host+'/food','test',call=>call('place_food_order',{addressId:'demo-address',paymentMethod:'Cash'}),'test',true,fake);}catch(e){denied=e instanceof HungiiError&&e.code==='HUNGII_WRITE_DISABLED';}assert(denied);
- }
- assert(calls===0);
+import { MockFailure, MockFood, schemas } from "./catalogue.ts";
+import { createGateway } from "./gateway.ts";
+import { payload } from "../supabase/functions/_shared/food.ts";
+import { sdkFactory } from "../supabase/functions/_shared/sessions.ts";
+import { HungiiError } from "../supabase/functions/_shared/errors.ts";
+import { mockProvider } from "./mcp-server.ts";
+const assert = (value: unknown, message = "Assertion failed") => {
+  if (!value) throw new Error(message);
+};
+
+Deno.test("synthetic MCP rejects invalid bodies and releases terminated transports", async () => {
+  const provider = mockProvider();
+  const network =
+    ((input, init) =>
+      provider.handler(new Request(input, init))) as typeof fetch;
+  try {
+    for (
+      const body of [
+        "null",
+        "[]",
+        "{",
+        JSON.stringify({ padding: "é".repeat(51000) }),
+      ]
+    ) {
+      const r = await provider.handler(
+        new Request("http://localhost/food", {
+          method: "POST",
+          headers: { Authorization: "Bearer hungii-local-demo-not-provider" },
+          body,
+        }),
+      );
+      assert(r.status === (body.length > 1000 ? 413 : 400));
+      assert(provider.stats.activeServers === 0);
+    }
+    for (let i = 0; i < 3; i++) {
+      const connection = await sdkFactory(
+        "http://localhost/food",
+        "hungii-local-demo-not-provider",
+        network,
+      );
+      assert(provider.stats.activeServers === 1);
+      await connection.close();
+      assert(
+        provider.stats.activeServers === 0,
+        "Terminated MCP server remained retained",
+      );
+    }
+  } finally {
+    await provider.close();
+  }
 });
-Deno.test('narrow cravings broaden once and single-meal estimates include eligible coupons',async()=>{
- const g=createGateway(undefined,((input,init)=>g.provider.handler(new Request(input,init))) as typeof fetch);
- const post=async(action:string,args:Record<string,unknown>={})=>{const r=await g.handler(new Request('http://localhost/api',{method:'POST',headers:{'Content-Type':'application/json','X-Hungii-Demo-Session':'discovery-ranking-test'},body:JSON.stringify({action,...args})}));assert(r.ok);return r.json();};
- try{await post('select_address',{addressId:'demo-address'});const r=await post('discover',{query:'dragonfruit lasagna'});assert(r.expandedQuery&&r.meals.length>=3);const m=r.meals.find((m:any)=>m.dishId==='protein-chicken');assert(m&&m.estimatedPayable===212.45);assert(r.mcpTrace.filter((t:string)=>t==='search_restaurants').length===2);}finally{await g.close();await g.provider.close();}
+async function engine() {
+  const f = new MockFood();
+  await f.call("get_addresses", {});
+  await f.call("update_food_cart", {
+    addressId: "demo-address",
+    restaurantId: "mock-bowls",
+    cartItems: [{
+      menu_item_id: "chicken",
+      quantity: 1,
+      variants: [{ group_id: "portion", variation_id: "regular" }],
+    }],
+  });
+  return f;
+}
+Deno.test("documented Food snapshot has 20 tools and Food confirmation context", () => {
+  assert(schemas.length === 20);
+  assert(
+    schemas.find((t) => t.name === "confirm_order")!.inputSchema.required?.join(
+      ",",
+    ) === "orderId,addressId,lat,lng",
+  );
+  assert(!schemas.some((t) => t.name === "simulate_payment"));
+});
+Deno.test("threshold side lowers final payable and cart totals match", async () => {
+  const f = await engine();
+  const before = f.cart("demo-address").data.pricing.to_pay;
+  await f.call("update_food_cart", {
+    addressId: "demo-address",
+    restaurantId: "mock-bowls",
+    cartItems: [...f.cartItems, { menu_item_id: "raita", quantity: 1 }],
+  });
+  await f.call("apply_food_coupon", {
+    addressId: "demo-address",
+    couponCode: "FUEL70",
+  });
+  const cart = f.cart("demo-address").data;
+  assert(cart.pricing.to_pay < before);
+  assert(cart.offers.coupon_discount === 70);
+  assert(
+    cart.pricing.to_pay ===
+      Math.round(
+          (cart.pricing.item_total + cart.pricing.delivery_charge +
+            cart.pricing.taxes_and_charges - 70) * 100,
+        ) / 100,
+  );
+});
+Deno.test("UPI stays pending and cannot confirm until successful terminal status", async () => {
+  const f = await engine();
+  const p = await f.call("place_food_order", {
+    addressId: "demo-address",
+    paymentMethod: "UPI",
+    intentApp: "mock-upi",
+  });
+  assert(p.status === "PENDING_PAYMENT" && f.orders.size === 0);
+  const context = {
+    orderId: p.orderId,
+    addressId: p.addressId,
+    cartId: p.cartId,
+    lat: p.lat,
+    lng: p.lng,
+  };
+  let denied = false;
+  try {
+    await f.call("confirm_order", context);
+  } catch (e) {
+    denied = e instanceof MockFailure;
+  }
+  assert(denied);
+  f.settle(p.paasId, "SUCCESS");
+  const status = await f.call("check_payment_status", { paasId: p.paasId });
+  assert(status.isTerminalSuccess && !status.confirmed);
+  await f.call("confirm_order", context);
+  await f.call("confirm_order", context);
+  assert(f.orders.size === 1 && f.cartItems.length === 0);
+});
+Deno.test("failed/cancelled payment preserves cart and cannot confirm", async () => {
+  for (const outcome of ["FAILED", "CANCELLED", "EXPIRED"]) {
+    const f = await engine();
+    const p = await f.call("place_food_order", {
+      addressId: "demo-address",
+      paymentMethod: "UPI",
+    });
+    f.settle(p.paasId, outcome);
+    const s = await f.call("check_payment_status", { paasId: p.paasId });
+    assert(
+      s.isTerminalFailure && f.cartItems.length === 1 && f.orders.size === 0,
+    );
+    let denied = false;
+    try {
+      await f.call("confirm_order", {
+        orderId: p.orderId,
+        addressId: p.addressId,
+        lat: p.lat,
+        lng: p.lng,
+      });
+    } catch {
+      denied = true;
+    }
+    assert(denied);
+  }
+});
+Deno.test("cart changed during payment cannot produce an order", async () => {
+  const f = await engine();
+  const p = await f.call("place_food_order", {
+    addressId: "demo-address",
+    paymentMethod: "UPI",
+  });
+  await f.call("update_food_cart", {
+    addressId: "demo-address",
+    restaurantId: "mock-bowls",
+    cartItems: [{ ...f.cartItems[0], quantity: 2 }],
+  });
+  f.settle(p.paasId, "SUCCESS");
+  let denied = false;
+  try {
+    await f.call("confirm_order", {
+      orderId: p.orderId,
+      addressId: p.addressId,
+      lat: p.lat,
+      lng: p.lng,
+    });
+  } catch {
+    denied = true;
+  }
+  assert(denied && f.orders.size === 0);
+});
+Deno.test("unavailable items, wrong restaurant and invalid quantity rejected without replacing basket", async () => {
+  const f = await engine();
+  for (
+    const item of [{ menu_item_id: "soldout", quantity: 1 }, {
+      menu_item_id: "dal",
+      quantity: 1,
+    }, { menu_item_id: "raita", quantity: -1 }]
+  ) {
+    let denied = false;
+    try {
+      await f.call("update_food_cart", {
+        addressId: "demo-address",
+        restaurantId: "mock-bowls",
+        cartItems: [item],
+      });
+    } catch {
+      denied = true;
+    }
+    assert(denied && f.cartItems[0].menu_item_id === "chicken");
+  }
+});
+Deno.test("MCP protocol checkout, repeated checkout request, and device isolation", async () => {
+  const g = createGateway(
+    undefined,
+    ((input, init) =>
+      g.provider.handler(new Request(input, init))) as typeof fetch,
+  );
+  const sdk = await sdkFactory(
+    "http://127.0.0.1/food",
+    "hungii-local-demo-not-provider",
+    ((input, init) =>
+      g.provider.handler(new Request(input, init))) as typeof fetch,
+  );
+  const raw = await sdk.call("get_addresses", {});
+  assert(payload(raw).addresses.length === 2);
+  await sdk.close();
+  const post = async (
+    action: string,
+    args: Record<string, unknown> = {},
+    user = "aaaaaaaaaaaaaaaa",
+  ) => {
+    const r = await g.handler(
+      new Request("http://localhost/api", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-hungii-demo-session": user,
+        },
+        body: JSON.stringify({ action, ...args }),
+      }),
+    );
+    const j = await r.json();
+    assert(r.ok, JSON.stringify(j));
+    return j;
+  };
+  try {
+    await post("select_address", { addressId: "demo-address" });
+    const a = await post("cart_create", {
+      dishId: "chicken",
+      restaurantId: "mock-bowls",
+    });
+    const c = a.cart;
+    const args = {
+      requestId: "111111111111111111",
+      confirm: true,
+      revision: c.revision,
+      payable: c.payable,
+      methodId: "mock-upi",
+    };
+    const p = await post("checkout", args);
+    const same = await post("checkout", args);
+    assert(same.payment.orderId === p.payment.orderId);
+    const done = await post("simulate_payment", {
+      paasId: p.payment.paasId,
+      orderId: p.payment.orderId,
+      cartId: p.payment.cartId,
+      outcome: "SUCCESS",
+    });
+    assert(done.paymentStatus.confirmed);
+    assert(
+      done.mcpTrace.includes("update_food_cart") &&
+        done.mcpTrace.includes("confirm_order"),
+    );
+    await post(
+      "select_address",
+      { addressId: "demo-address" },
+      "bbbbbbbbbbbbbbbb",
+    );
+    assert((await post("orders", {}, "bbbbbbbbbbbbbbbb")).orders.length === 0);
+  } finally {
+    await g.close();
+    await g.provider.close();
+  }
+});
+Deno.test("live Swiggy writes stay disabled even with the local-demo flag", async () => {
+  const { withFood, HungiiError } = await import(
+    "../supabase/functions/_shared/food.ts"
+  );
+  let calls = 0;
+  const fake = {
+    run: async <T>(
+      _u: string,
+      _t: string,
+      _url: string,
+      task: (c: any) => Promise<T>,
+    ) =>
+      task({
+        tools: schemas,
+        call: () => {
+          calls++;
+          throw new Error("Network must not be used");
+        },
+      }),
+  };
+  for (const host of ["mcp.swiggy.com", "mcp-staging.swiggy.com"]) {
+    let denied = false;
+    try {
+      await withFood(
+        "https://" + host + "/food",
+        "test",
+        (call) =>
+          call("place_food_order", {
+            addressId: "demo-address",
+            paymentMethod: "Cash",
+          }),
+        "test",
+        true,
+        fake,
+      );
+    } catch (e) {
+      denied = e instanceof HungiiError && e.code === "HUNGII_WRITE_DISABLED";
+    }
+    assert(denied);
+  }
+  assert(calls === 0);
+});
+Deno.test("narrow cravings broaden once and single-meal estimates include eligible coupons", async () => {
+  const g = createGateway(
+    undefined,
+    ((input, init) =>
+      g.provider.handler(new Request(input, init))) as typeof fetch,
+  );
+  const post = async (action: string, args: Record<string, unknown> = {}) => {
+    const r = await g.handler(
+      new Request("http://localhost/api", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Hungii-Demo-Session": "discovery-ranking-test",
+        },
+        body: JSON.stringify({ action, ...args }),
+      }),
+    );
+    assert(r.ok);
+    return r.json();
+  };
+  try {
+    await post("select_address", { addressId: "demo-address" });
+    const r = await post("discover", { query: "dragonfruit lasagna" });
+    assert(r.expandedQuery && r.meals.length >= 3);
+    const m = r.meals.find((m: any) => m.dishId === "protein-chicken");
+    assert(m && m.estimatedPayable === 212.45);
+    assert(
+      r.mcpTrace.filter((t: string) => t === "search_restaurants").length === 2,
+    );
+  } finally {
+    await g.close();
+    await g.provider.close();
+  }
+});
+
+Deno.test("gateway rejects malformed, non-object and oversized bodies without trusting Content-Length", async () => {
+  const g = createGateway();
+  try {
+    for (const body of ["{", "null", "[]", '"hello"']) {
+      const r = await g.handler(
+        new Request("http://localhost/api", { method: "POST", body }),
+      );
+      assert(
+        r.status === 400,
+        `Expected invalid-input response, got ${r.status}`,
+      );
+      assert((await r.json()).error.code === "HUNGII_BAD_INPUT");
+    }
+    const r = await g.handler(
+      new Request("http://localhost/api", {
+        method: "POST",
+        body: JSON.stringify({ action: "status", padding: "é".repeat(26000) }),
+      }),
+    );
+    assert(r.status === 413, `Oversized UTF-8 body accepted: ${r.status}`);
+  } finally {
+    await g.close();
+    await g.provider.close();
+  }
+});
+
+Deno.test("gateway health remains available at session capacity and capacity errors stay structured", async () => {
+  const g = createGateway();
+  try {
+    for (let i = 0; i < 128; i++) {
+      assert(
+        (await g.handler(
+          new Request("http://localhost/api", {
+            method: "POST",
+            headers: { "x-hungii-demo-session": `capacity-session-${i}` },
+            body: '{"action":"status"}',
+          }),
+        )).ok,
+      );
+    }
+    assert((await g.handler(new Request("http://localhost/health"))).ok);
+    const r = await g.handler(
+      new Request("http://localhost/api", {
+        method: "POST",
+        headers: { "x-hungii-demo-session": "capacity-session-overflow" },
+        body: '{"action":"status"}',
+      }),
+    );
+    assert(r.status === 503);
+    assert((await r.json()).error.code === "HUNGII_DEMO_BUSY");
+  } finally {
+    await g.close();
+    await g.provider.close();
+  }
+});
+
+Deno.test("reset recovers a failed synthetic MCP handshake", async () => {
+  let fail = true;
+  const g = createGateway(
+    undefined,
+    ((input, init) =>
+      fail
+        ? Promise.reject(new HungiiError("HUNGII_DEMO_OFFLINE", "Offline", 503))
+        : g.provider.handler(new Request(input, init))) as typeof fetch,
+  );
+  const post = (action: string, confirm = false) =>
+    g.handler(
+      new Request("http://localhost/api", {
+        method: "POST",
+        body: JSON.stringify({ action, confirm }),
+      }),
+    );
+  try {
+    assert((await post("addresses")).status === 503);
+    fail = false;
+    assert(
+      (await post("reset_demo", true)).ok,
+      "Reset could not discard failed connection",
+    );
+    const response = await post("addresses");
+    assert(response.ok);
+    assert((await response.json()).addresses.length === 2);
+  } finally {
+    await g.close();
+    await g.provider.close();
+  }
 });

@@ -57,4 +57,4 @@ Native optional-sync verification: a cloud preference restored and an edited tas
 
 Local-only verification: after signing out of the synthetic account, choosing Use locally without an account opened the tracker. A changed ₹325 allowance survived force-stop and reopen with emulator Wi-Fi/mobile data disabled, without returning to login. Networking was restored afterward. The temporary native WorkOS account, its matching database record and temporary test credentials were removed.
 
-Release CI and main checkpoint checks passed; the published APKs were downloaded anonymously and their checksums verified. See [push review evidence](../docs/push-review.md) and [v0.6.2 prerelease](https://github.com/acephos/hungii/releases/tag/v0.6.2).
+Release CI and main checkpoint checks passed; the published APKs were downloaded anonymously and their checksums verified. See [push review evidence](../docs/archive/push-review.md) and [v0.6.2 prerelease](https://github.com/acephos/hungii/releases/tag/v0.6.2).

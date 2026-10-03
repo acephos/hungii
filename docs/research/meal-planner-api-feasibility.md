@@ -1,5 +1,7 @@
 # Hungii next-meal planner: API feasibility
 
+> Dated research. This preserves the original findings or correspondence; use [current status](../approval-readiness.md) and the [documentation index](../README.md) for today’s implementation and setup.
+
 Verified 2026-10-01 from the exact Swiggy Builders Club Markdown pages linked below, fetched directly over HTTPS. No authenticated live requests were made. Product direction: an economical, low-decision-load next-meal swipe planner constrained by preferences, time, spend and nutrition goals.
 
 ## Finding

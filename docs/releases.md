@@ -1,6 +1,6 @@
 # Android preview releases
 
-GitHub Actions checks `main` and pull requests. The separate release workflow runs for `vX.Y.Z` tags or an explicit existing-tag dispatch. It validates the tag's version and ancestry on main, tests the backend, builds/lints both Android variants and publishes a GitHub prerelease with:
+GitHub Actions checks `main` and pull requests: backend/protocol tests, repository hygiene/local documentation links, no-inference Assistant regressions, and both Android variants' unit tests/build/lint. The release workflow runs for `vX.Y.Z` tags or an explicit existing-tag dispatch. It validates tag version and ancestry on main, repeats the relevant checks and publishes a GitHub prerelease with:
 
 - `hungii-preview.apk`: the phone build with WorkOS staging login and optional cloud sync/local-only use.
 - `hungii-simulator.apk`: separate synthetic MCP checkout + cloud Assistant; connect through Tailscale to the running local services.
@@ -19,10 +19,12 @@ Supabase service-role, database password/encryption key and WorkOS/Swiggy API se
 ## Publish a checkpoint
 
 1. Merge a green change into main.
-2. Increment `versionCode` and the default app version in `android-prototype/app/build.gradle.kts` when making a new release. Tag `v0.6.2` corresponds to the `0.6.2-account-sync` checkpoint, code 7.
-3. Create and push the matching annotated tag, for example `git tag -a v0.6.2 -m 'Hungii optional-sync Android preview'` then `git push origin v0.6.2`.
+2. Increment `versionCode` and the default app version in `android-prototype/app/build.gradle.kts`. The hardening checkpoint is `0.7.3`, code 11; always use the version in the final merged source.
+3. Create and push a new matching annotated tag, for example `git tag -a v0.7.3 -m 'Hungii simulator and repository hardening'` then `git push origin v0.7.3`.
 4. Check the Publish Android preview workflow. Only a successful build with the expected signing certificate may publish assets. Download the phone APK from the prerelease.
 
 Standard hosted Linux runners for this public repository are free. No artifact archive is uploaded by the check workflow; release APKs attach directly to GitHub Releases. Workflows have timeouts, pinned action commits and limited token permissions. [GitHub billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions), [secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets).
 
-The CI signing configuration uses an explicit debug `SigningConfig.storeFile`, following the [Android command-line signing documentation](https://developer.android.com/build/building-cmdline). The initial `v0.6.0` run was blocked by the certificate guard because the runner used a different default debug keystore; no assets were published for that tag.
+Published tags and APK/checksum assets are historical checkpoints. Uploads do not use `--clobber`; rerunning publication cannot silently replace an existing APK. Use a new version for a fix. An existing-tag dispatch is for an unpublished or incomplete release, and duplicate asset names fail rather than overwrite. Preserve published previews when cleaning obsolete merged branches. See [the initial release history](archive/push-review.md) for failed early tags.
+
+The CI signing configuration uses an explicit debug `SigningConfig.storeFile`, following the [Android command-line signing documentation](https://developer.android.com/build/building-cmdline).

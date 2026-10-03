@@ -4,6 +4,7 @@ import { digest, randomSecret, seal, unseal } from "../_shared/secrets.ts";
 import { trackerState, PRIVACY_VERSION } from "../_shared/tracker.ts";
 import { DurableFoodSessions } from "../_shared/durable-sessions.ts";
 import { workosAuth } from "../_shared/workos.ts";
+import { readJsonObject } from "../_shared/http.ts";
 
 const required = (name: string): string => {
   const value = Deno.env.get(name);
@@ -76,12 +77,7 @@ export async function handler(request: Request): Promise<Response> {
     }
 
     if (request.method !== "POST") return json({ error: { code: "HUNGII_METHOD", message: "Use the Hungii app to connect." } }, 405);
-    if (Number(request.headers.get("Content-Length") ?? 0) > 100_000) throw new HungiiError("HUNGII_BAD_INPUT", "This request is too large.");
-    const raw = await request.text();
-    if (raw.length > 100_000) throw new HungiiError("HUNGII_BAD_INPUT", "This request is too large.");
-    let body: Json;
-    try { body = JSON.parse(raw); } catch { throw new HungiiError("HUNGII_BAD_INPUT", "Invalid request."); }
-    if(!body || typeof body!=='object' || Array.isArray(body))throw new HungiiError("HUNGII_BAD_INPUT", "Invalid request.");
+    const body = await readJsonObject(request, 100_000);
     if(url.pathname.endsWith('/auth/refresh')) return json(await workosAuth().refresh(text(body.refresh_token,8192)));
     const bearer = request.headers.get("Authorization")?.match(/^Bearer (.+)$/)?.[1];
     if (!bearer) throw new HungiiError("HUNGII_LOGIN_REQUIRED", "Please sign in to Hungii.", 401);

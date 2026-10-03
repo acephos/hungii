@@ -1,6 +1,16 @@
 # Hungii readiness evidence
 
-Verified 2 October 2026. This is a technical self-assessment with reproducible evidence, not legal certification or Swiggy approval. It supersedes the initial [pre-hardening audit](swiggy-application-compliance.md). No further email or developer form has been sent after the founder's draft-only instruction.
+Source and local checks updated 3 October 2026. Deployed WorkOS, Mumbai database and emulator evidence below was recorded on 2 October 2026; it has not all been rerun during repository cleanup. This is a technical self-assessment with reproducible evidence, not legal certification or Swiggy approval. It supersedes the initial [pre-hardening audit](archive/swiggy-application-compliance.md). No further email or developer form has been sent after the founder's draft-only instruction.
+
+## Current product boundaries
+
+| Surface | Available | Remaining limits |
+| --- | --- | --- |
+| Real Android preview | WorkOS staging sign-in, encrypted local tracker, optional cloud profile sync; prepared read-only Food adapter | Swiggy access and session-resume verification remain gated. Live cart writes, orders and payments are disabled. Missing nutrition stays unknown. |
+| Android Simulator | Synthetic meal discovery, three finalists and lucky draw, cart/coupon/mock payment/receipt flow; optional Groq Free Assistant | Requires the awake computer and phone Tailscale connection. Server restart clears carts/orders. Receipts and payment state are not recovered after app/server restart. Estimates are fictional. |
+| Earlier web prototype | Scripted visual exploration with fictional data | Historical design artifact; does not use Swiggy or cloud inference. |
+
+The latest published preview and checks are linked from [releases](https://github.com/acephos/hungii/releases) and [Actions](https://github.com/acephos/hungii/actions). Build versions live in [Gradle](../android-prototype/app/build.gradle.kts). See [documentation index](README.md), [simulator setup](../demo/README.md) and [dated verification records](../artifacts/README.md).
 
 ## Provisioned at no charge
 
@@ -25,25 +35,25 @@ Verified 2 October 2026. This is a technical self-assessment with reproducible e
 | Availability and money honesty | Explicitly open restaurants; sold-out dishes excluded; identifiers preserved; price units unverified by default; authoritative existing-cart payable only | Normalization tests pass. Winner selection never mutates the cart or implies that an existing cart quotes the winner. Coupon descriptions remain unapplied. Live units, stock races, customization/cartItems and coupon/payment eligibility are pending. |
 | Nutrition honesty | Missing nutrition remains unknown; only entered food totals count as consumed | No invented restaurant macros. Sourced/calibrated estimates, portion provenance and macro-aware matching remain product work before claims of validated health recommendations. |
 | Attribution | Real cards label “Powered by Swiggy”; synthetic build labels itself throughout | Source/build inspection and demo screenshots. No claim of endorsement. Swiggy branded assets and layout approval remain subject to provider review. |
-| Voice/AI | On-device recognition only when API/device supports it; otherwise typing. No cloud speech, LLM, advertising or training integration | Code/build/lint inspection. Voice model availability varies by phone. The orb is an animated interface and local phrase parser, not a deployed conversational AI. |
+| Voice/AI | On-device recognition when supported; otherwise typing. Real build uses local interpretation. Simulator has separately consented Google ADK + Groq Free cloud inference | Key remains server-side; no local model. Only selected entered context and synthetic fixtures are provided automatically. Free-text user content is not guaranteed free of sensitive data. No live Swiggy-data inference, cloud speech, advertising or training pipeline is connected. |
 | Diagnostics | Hashed user/session IDs, tool, duration and status; deprecation warning logs; no provider arguments/results in application logs | Source inspection and local protocol tests. Actual alert routing, on-call coverage and staging incidents remain unproven. |
 
 ## Account-first and optional profile sync
 
-Version 0.6 opens with Hungii email sign-in or an explicit local-only choice. Local-only mode needs no account and stores entered profile/goals/preferences/tracker encrypted on the device. The choice survives restart. Signing in offers optional cloud sync, with a device-only choice. A device that declines or stops sync does not silently re-enable it on restart. Swiggy connection remains separate.
+The real preview opens with Hungii email sign-in or an explicit local-only choice. Local-only mode needs no account and stores entered profile/goals/preferences/tracker encrypted on the device. The choice survives restart. Signing in offers optional cloud sync, with a device-only choice. A device that declines or stops sync does not silently re-enable it on restart. Swiggy connection remains separate. Simulator connection uses synthetic sessions and needs neither a Swiggy account nor token-retention consent.
 
 Consented cloud sync includes optional name, daily goals/allowance/totals and explicit meal filters/search preferences. It restores on sign-in and syncs later edits automatically. Cloud updates compare the observed server revision; a changed remote copy requires a choice before replacement. Saved Swiggy meal shortcuts remain local under their separate retention permission. Stop sync, restore cloud and erase cloud controls are distinct. No default upload is triggered by sign-in.
 
 ## Validation completed
 
 - Both Android `real` and `demo` debug APKs assemble; both lint variants pass.
-- Deno entrypoint type-checks; **19 backend/protocol tests pass**.
+- Deno backend and simulator entrypoints type-check. Run the current suite from [contributing instructions](../CONTRIBUTING.md); counts in dated evidence describe those checkpoints.
 - Actual Mumbai Postgres transaction tests cover OAuth single use, two-user isolation, concurrent lease rejection, request budget, durable cooldown, stale completion fencing, withdrawal/callback race, uncertain initialization crash, 90-day expiry and Hungii-account cascades. WorkOS ownership tests cover private grants, deletion/write races, account resolution and tombstone expiry. Synthetic SQL users are rolled back.
-- Current real WorkOS/Supabase staging checks pass for two synthetic identities, signed JWT issuer/client binding, live sessions, owner-only tracker save/read, server refresh, actual provider account deletion and sign-out rejection. No emails were sent to these temporary accounts. The earlier 14 Supabase-auth assertions remain historical evidence.
+- Recorded WorkOS/Supabase staging checks passed for two synthetic identities, signed JWT issuer/client binding, live sessions, owner-only tracker save/read, server refresh, actual provider account deletion and sign-out rejection. No emails were sent to these temporary accounts. The earlier 14 Supabase-auth assertions remain historical evidence.
 - Actual migration 006 transaction checks and deployed API checks passed for initial saves, profile roundtrip, server revision/provenance, stale-device conflicts without overwrite and post-deletion fencing.
 - Cron job succeeded. Temporary test accounts/rows were removed after validation; the founder's signed-in phone account is retained. No live Swiggy connections exist.
 - Current real Android emulator completed hosted WorkOS password sign-in with a temporary staging user and public-client PKCE return to Hungii. The email-code choice is present; the founder confirmed successful email-code sign-in on the physical phone.
-- Emulator exercised consent, address choice, MCP discovery, shortlist of three, face-down shuffle, winner and disabled demo checkout. Entered allowance survived reopen, then returned to defaults after confirmed erasure. Native DB/WAL payloads are encrypted.
+- Earlier emulator checks exercised consent, address choice, MCP discovery, shortlist of three, face-down shuffle, winner and the then-disabled demo checkout. Later Simulator checks exercised synthetic cart/coupon/payment/receipt confirmation. Entered allowance survived reopen, then returned to defaults after confirmed erasure. Native DB/WAL payloads are encrypted. These records are linked from the [evidence index](../artifacts/README.md).
 - [Public review video](https://qvqnzsqrxejdlvnbqwcs.supabase.co/storage/v1/object/public/hungii-public-review/hungii-approval-demo.mp4) is a recording of fictional local MCP data, not a Swiggy staging run.
 
 ## External gates before production
@@ -55,6 +65,6 @@ Consented cloud sync includes optional name, daily goals/allowance/totals and ex
 5. Authenticated provider replay/cancellation/expiry/logout, schema changes, rates, stock and price-unit validation; at least 48 hours green staging and explicit production access.
 6. Approved item/customization, coupon and payment contracts before any cart write/order. Calibrated nutrition before validated macro scoring. Production release/signing/distribution, alert routing, support coverage, backup/recovery and staged rollout verification.
 
-Provider sources: [authentication](https://mcp.swiggy.com/builders/docs/start/authenticate.md), [rates](https://mcp.swiggy.com/builders/docs/operate/rate-limits.md), [data handling](https://mcp.swiggy.com/builders/docs/operate/data-and-compliance.md), [production checklist](https://mcp.swiggy.com/builders/docs/build/ship-to-production.md). Infrastructure sources and protocol reasoning: [technical source review](approval-technical-sources.md), [Supabase pricing](https://supabase.com/pricing), [regional invocation](https://supabase.com/docs/guides/functions/regional-invocation). Passing the checks above demonstrates specific controls; it does not replace the remaining approvals or legal review.
+Provider sources: [authentication](https://mcp.swiggy.com/builders/docs/start/authenticate.md), [rates](https://mcp.swiggy.com/builders/docs/operate/rate-limits.md), [data handling](https://mcp.swiggy.com/builders/docs/operate/data-and-compliance.md), [production checklist](https://mcp.swiggy.com/builders/docs/build/ship-to-production.md). Infrastructure sources and protocol reasoning: [technical source review](research/approval-technical-sources.md), [Supabase pricing](https://supabase.com/pricing), [regional invocation](https://supabase.com/docs/guides/functions/regional-invocation). Passing the checks above demonstrates specific controls; it does not replace the remaining approvals or legal review.
 
 Native optional-sync verification: a cloud preference restored and an edited taste synced to the real backend. After stopping sync, another taste edit did not change the cloud copy; the disabled-sync choice survived force-stop/reopen. The API test access token expired during this check and the real server refresh succeeded before reading the unchanged cloud profile.

@@ -1,5 +1,7 @@
 # Technical contracts for approval prerequisites
 
+> Dated research. This preserves the original findings or correspondence; use [current status](../approval-readiness.md) and the [documentation index](../README.md) for today’s implementation and setup.
+
 Verified 2 October 2026. Focused first-party documentation and published source verification for implementation; no external messages or code changes. Download cache: `/tmp/hungii-approval-sources/`. Swiggy Markdown was fetched directly over HTTPS; SDK contracts were checked against the exact pinned published npm package and matching Deno cache.
 
 ## Persistent MCP client and rate controls

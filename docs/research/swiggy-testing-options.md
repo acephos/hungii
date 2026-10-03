@@ -1,5 +1,7 @@
 # Swiggy testing options for Hungii
 
+> Dated research. This preserves the original findings or correspondence; use [current status](../approval-readiness.md) and the [documentation index](../README.md) for today’s implementation and setup.
+
 Verified on 2026-10-02. This is documentation research, not an authenticated staging smoke test. The current [official index](https://mcp.swiggy.com/builders/llms.txt) listed 105 Markdown pages; all were fetched successfully and checked for staging, local stubs, mocks and test credentials. The browser rejected some Markdown content types, so the exact indexed URLs were fetched directly over HTTPS.
 
 **Swiggy documents a seeded staging environment with no real orders, but does not document an anonymously accessible dummy API or publish a runnable local mock in the reviewed material. Hungii can build and test against its own local stub before obtaining access.** [Access and onboarding](https://mcp.swiggy.com/builders/docs/operate/access.md), [Developer quickstart](https://mcp.swiggy.com/builders/docs/start/developer/index.md).

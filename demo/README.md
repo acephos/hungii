@@ -28,6 +28,18 @@ Set `hungii.demoApiUrl=http://YOUR_TAILSCALE_IPV4:8788/api` in gitignored `andro
 
 Version 0.7.2 reports unreachable simulator connections with the destination and these recovery instructions. Synthetic sessions do not require a Swiggy login or token-retention consent. The cloud Assistant still has a separate opt-in.
 
+### Restart after reboot or a crash
+
+On Linux with a systemd user manager and Deno 2.9.6 on PATH, install gateway startup from this checkout:
+
+```sh
+python3 scripts/demo-services.py --bind YOUR_TAILSCALE_IPV4
+```
+
+After configuring the Assistant virtual environment/key below, add `--assistant` to enable it too. The installer writes `hungii-simulator.service` and optionally `hungii-agent.service` under `~/.config/systemd/user/`, backs up changed units, verifies them, enables startup and restarts them. It uses this checkout's absolute path and installed runtimes. Only loopback or a Tailscale IPv4 is accepted. Keys remain in the ignored environment file; none are copied into service units.
+
+Services restart on failure; the gateway retries if Tailscale is not ready at startup. They start with your user manager; the founder computer already has user lingering enabled to start that manager at boot. Other machines may start the manager only after login. No APK installs host services. Check with `systemctl --user status hungii-simulator hungii-agent`; restart with `systemctl --user restart hungii-simulator hungii-agent`; stop with `systemctl --user stop hungii-simulator hungii-agent`. To disable startup, use `systemctl --user disable --now hungii-simulator hungii-agent`. Do not also launch manual copies on the same ports. The computer must stay awake and the phone must be on Tailscale.
+
 ## Cloud Assistant
 
 No model runs locally. Create a Groq Free account/key, remain on Free, then:
@@ -41,9 +53,9 @@ chmod 600 demo/.env.agent
 .venv-agent/bin/python demo/agent.py
 ```
 
-Google ADK + LiteLLM uses `groq/openai/gpt-oss-20b`, with no paid fallback. The FastAPI agent listens only on localhost:8789. The Android Assistant asks for opt-in before sending text/transcribed speech and selected tracker context to cloud inference. Groq processing is outside India. Provider login, real addresses, real provider payloads and payment credentials are not sent by this demo. Voice recognition is on-device where Android supports it; typed input works otherwise. There is no spoken AI reply yet.
+Google ADK + LiteLLM uses `groq/openai/gpt-oss-20b`, with no paid fallback. The FastAPI agent listens only on localhost:8789. The Android Assistant asks for opt-in before sending text/transcribed speech and selected tracker context to cloud inference. Groq processing is outside India. Provider login, real addresses, real provider payloads and payment credentials are not automatically supplied by this demo. Free text can contain whatever you type; avoid entering secrets or real provider records. Voice recognition is on-device where Android supports it; typed input works otherwise. There is no spoken AI reply yet. See [privacy data paths](../docs/privacy-notice-draft.md).
 
-The agent can read selected Food MCP tools and propose searches, tracker changes and app navigation. Native confirmation applies changes; the LLM cannot place orders, settle payments or confirm orders. Calls are serialized, bounded to five model calls and four executed tools per turn, plus four turns/minute. The app passes up to four recent conversation messages and explicit daily goals/allowance so follow-up requests have context. Chat is not persisted across app restarts. Free provider token/request limits still apply; errors display a manual-filter fallback, never a fabricated AI answer. Tool responses are compacted; internal reasoning is excluded from Groq history for compatibility.
+The agent can read selected Food MCP tools and propose searches, tracker changes and app navigation. Native confirmation applies changes; the LLM cannot place orders, settle payments or confirm orders. Only one turn is admitted at a time; overlapping requests return retry-later immediately. Turns are bounded to five model calls, four executed tools and four turns/minute, with a 55-second work deadline and up to five seconds for cleanup. The app passes up to four recent messages and explicit daily goals/allowance so follow-ups have context. Chat is not persisted by Hungii across app restarts or server turns; this is not a guarantee about Groq retention. Free provider limits still apply; errors offer manual filters, never a fabricated AI answer. Tool responses are compacted; internal reasoning is excluded from Groq history.
 
 ## Checkout demonstration
 
@@ -55,7 +67,7 @@ Review the complete bill/address and choose returned UPI, mock QR or COD. Explic
 
 ## Contract limits
 
-Current official Food documentation lists **20 tools**. `tool-schemas.json` snapshots documented top-level parameters; the live provider still advertises schemas dynamically. `cartItems` nested fields, mock currency rupees, quantity limits and deterministic payment outcomes are Hungii simulator assumptions because those member schemas are not published. They do not unlock live writes. Responses are representative documented shapes, not promised byte-for-byte provider behavior. See [contract research](../docs/mock-mcp-contract-research.md).
+Current official Food documentation lists **20 tools**. `tool-schemas.json` snapshots documented top-level parameters; the live provider still advertises schemas dynamically. `cartItems` nested fields, mock currency rupees, quantity limits and deterministic payment outcomes are Hungii simulator assumptions because those member schemas are not published. They do not unlock live writes. Responses are representative documented shapes, not promised byte-for-byte provider behavior. See [contract research](../docs/research/mock-mcp-contract-research.md).
 
 Nutrition intervals are illustrative synthetic estimates, not lab-verified or calibrated uncertainty. They live in Hungii metadata outside MCP provider payloads. Photos are bundled representative prototype assets. No scraped live menus are stored. Fixture order history is session-local; receipt/log/payment state is not recovered after app/server termination. Live Swiggy writes stay blocked and require approvals plus verified authenticated item contracts.
 
@@ -66,5 +78,7 @@ npx --yes deno@2.9.6 test --config supabase/functions/deno.json --allow-env supa
 ```
 
 CI uses synthetic data and no Groq key. The suite covers successful/failed/expired/cancelled payments, cart revisions, coupon savings, invalid items, MCP protocol sessions, device isolation and the live-write gate.
+
+After installing the Assistant dependencies, run `.venv-agent/bin/python -m unittest demo.agent_test -v`. CI installs the same pinned dependencies and exercises input limits, busy-turn rejection, setup failures and the SDK adapter without inference. Both HTTP services cap actual request bytes, including requests with no Content-Length. Gateway health remains available at session capacity, and an explicit reset can discard a failed synthetic handshake.
 
 Android CI also runs `:app:testRealDebugUnitTest :app:testDemoDebugUnitTest`. The HTTP-boundary regression closes a real test server before a request and verifies a recoverable connection error; companion cases check successful responses and preserved gateway errors.

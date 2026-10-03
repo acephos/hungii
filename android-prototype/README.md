@@ -2,7 +2,7 @@
 
 Native Kotlin / Compose app using charcoal and electric lime, with check-in, swipe to three finalists, face-down shuffle/reveal, an offline tracker and consented local favorites.
 
-Version 0.7 has a `real` build with WorkOS staging email sign-in and approval-gated Swiggy setup, and a separately installed `demo` build with fictional meals served through a local MCP server. The Simulator is labeled, performs MCP cart/coupon/mock checkout calls and offers manual Swiggy checkout. In the real build, meals arrive only from Swiggy after approved setup. Targets are editable defaults; consumed food and spending start at zero. Room retains user-entered totals and favorites across restarts, separated by Hungii account.
+The current preview has a `real` build with WorkOS staging email sign-in and approval-gated Swiggy setup, and a separately installed `demo` build with fictional meals served through a local MCP server. The Simulator is labeled, performs MCP cart/coupon/mock checkout calls and offers manual Swiggy checkout. In the real build, meals arrive only from Swiggy after approved setup. Targets are editable defaults; consumed food and spending start at zero. Room retains user-entered totals and favorites across restarts, separated by Hungii account.
 
 ## Build
 
@@ -20,7 +20,7 @@ Email login uses hosted WorkOS AuthKit with PKCE; Swiggy connects through its ow
 
 The real build reads the existing live cart/offers and opens Swiggy for manual checkout; live cart writes stay approval-gated. The Simulator creates and edits a synthetic cart through MCP, checks final coupon totals, explicitly reviews UPI/QR/COD and confirms only successful mock payments. Order receipts use MCP details/status/tracking. Estimates enter consumption totals only on an explicit log action.
 
-The dedicated Assistant tab uses Google ADK + Groq Free cloud inference with opt-in and reviewable app actions. The key stays on the server; no model is installed locally. Speech recognition is on-device where available; typing always works. The orb has listening/thinking/idle animations, with reduced-motion support. Room/Keystore tracker and optional account sync behavior remain available.
+The Simulator’s dedicated Assistant tab uses Google ADK + Groq Free cloud inference with opt-in and reviewable app actions; the real build explains that cloud inference is available in Simulator. The key stays on the server; no model is installed locally. Speech recognition is on-device where available; typing always works. The orb has listening/thinking/idle animations, with reduced-motion support. Room/Keystore tracker and optional account sync behavior remain available.
 
 See [stack decision](../docs/adr/0003-workos-with-supabase.md), [MCP contract](../docs/swiggy-integration-contract.md) and [verification](../artifacts/swiggy-verification.md). Earlier screenshots document version 0.2, not a live connection.
 
@@ -30,4 +30,4 @@ Barlow Condensed Bold is from [Google Fonts](https://github.com/google/fonts/tre
 
 ## Local MCP simulator
 
-See [demo/README.md](../demo/README.md) for gateway, Tailscale, Groq setup and contract limits. Install `app/build/outputs/apk/demo/debug/app-demo-debug.apk`. Set `hungii.demoApiUrl` in local.properties for your phone/Tailscale address; the default uses emulator host 10.0.2.2. Both server processes must be running. No Swiggy approval or paid cloud plan is required for synthetic discovery and mock checkout.
+See [demo/README.md](../demo/README.md) for gateway, Tailscale, Groq setup and contract limits. Install `app/build/outputs/apk/demo/debug/app-demo-debug.apk`. Set `hungii.demoApiUrl` in local.properties for your phone/Tailscale address; the default uses emulator host 10.0.2.2. The gateway must be running for meal discovery/checkout; the agent process is needed only for the cloud Assistant. Install restartable services using the Simulator guide. No Swiggy approval or paid cloud plan is required for synthetic discovery and mock checkout.

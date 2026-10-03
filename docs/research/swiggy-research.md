@@ -1,5 +1,7 @@
 # Swiggy research for Hungii
 
+> Dated research. This preserves the original findings or correspondence; use [current status](../approval-readiness.md) and the [documentation index](../README.md) for today’s implementation and setup.
+
 Verified on 2026-10-01 against Swiggy Builders Club first-party documentation. This is documentation research, not a live authenticated MCP smoke test. The browser fetcher read `llms.txt` but rejected the Markdown content type for several page twins; those exact `.md` URLs were fetched directly over HTTPS instead.
 
 ## Smoke test and API scope

@@ -1,6 +1,6 @@
 # Hungii UI prototype
 
-Throwaway review artifact on branch `prototype/meal-lucky-draw`.
+Historical visual exploration, retained in the main repository. The native [Android app](../android-prototype/README.md) and [MCP Simulator](../demo/README.md) are the current implementation.
 
 **Question:** which layout makes the orb → top-three shortlist → face-down lucky draw → meal review journey easiest to complete?
 
@@ -35,7 +35,7 @@ The layout switcher appears on localhost/file previews or with an explicit `?rev
 
 All restaurant names, dish metadata, nutrition ranges, timing and offers are fictional fixtures. Stock food photographs illustrate visual hierarchy and are not photos of the named meals. The conversation uses a small local phrase parser, not an LLM. There are no Swiggy requests, real quotes, real orders or payments. Voice recognition and speech playback use browser capabilities only when requested, with text input always available; microphone input was not exercised during automated browser review.
 
-The prototype implements the user-approved two-stage journey and tests its usability question. No layout has been selected or validated by users yet. The prototype is not a production stack choice and should be rewritten when the design is accepted. There is no connected implementation issue; this file is the context pointer to the review branch.
+The prototype implements the user-approved two-stage journey and tests its usability question. No layout has been selected or validated by users yet. The prototype is not a production stack choice. There is no connected implementation issue; this file records the original design exploration.
 
 ## Verification record
 
