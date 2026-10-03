@@ -1,5 +1,7 @@
 # Staging onboarding email
 
+> Historical snapshot. This preserves the original findings or correspondence; use [current status](../approval-readiness.md) and the [documentation index](../README.md) for today’s implementation and setup.
+
 To: `builders@swiggy.in`
 
 Subject: Hungii — request for Food MCP seeded staging access and onboarding guidance

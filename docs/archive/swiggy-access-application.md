@@ -1,6 +1,8 @@
 # Hungii: Food staging access request
 
-Status update: [0.4 readiness evidence](approval-readiness.md) records the free Mumbai deployment, hardening and completed checks. The remaining text preserves the original early proposal; an updated draft is in [the review email](swiggy-review-email-draft.md), not sent.
+> Historical snapshot. This preserves the original findings or correspondence; use [current status](../approval-readiness.md) and the [documentation index](../README.md) for today’s implementation and setup.
+
+Status update: [0.4 readiness evidence](../approval-readiness.md) records the free Mumbai deployment, hardening and completed checks. The remaining text preserves the original early proposal; an updated draft is in [the review email](swiggy-review-email-draft.md), not sent.
 
 Prepared 2 October 2026 for the founder-authorized request to `builders@swiggy.in`. This is an early-stage onboarding request, not a production-access certification or a completed developer form. The [email text and send confirmation](swiggy-staging-email.md) record the Food seeded-staging request sent through the founder's connected Gmail account. Access remains pending Swiggy's response.
 

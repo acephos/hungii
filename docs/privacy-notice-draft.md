@@ -1,6 +1,6 @@
 # Hungii privacy notice — founder review draft
 
-Version 2026-10-02.3. Public publication is pending the founder's confirmed support contact and processor review. This notice describes the current implementation; it is not a legal certification or a statement that Swiggy has approved Hungii.
+Tracker/connection consent version 2026-10-02.3; this draft was updated 3 October 2026 to describe the Simulator Assistant's separate opt-in. Public publication is pending the founder's confirmed support contact and processor review. This notice describes the current implementation; it is not a legal certification or a statement that Swiggy has approved Hungii.
 
 Hungii helps you choose a meal and keep an entered food/spending tracker. App account login and optional Swiggy authorization are separate. You can use a local tracker without connecting Swiggy. Missing restaurant nutrition is displayed as unknown; orders are not automatically counted as food eaten.
 
@@ -24,7 +24,11 @@ Connection/session retention is bounded by the token expiry, capped at five days
 
 ## Voice, AI and diagnostics
 
-Tap-to-talk uses an available on-device Android recognizer; if unavailable, type instead. Hungii has no cloud speech or LLM service, advertising integration or training pipeline. It does not store audio recordings. The orb currently reacts to recognition levels and a local phrase parser.
+Tap-to-talk uses an available on-device Android recognizer; if unavailable, type instead. Hungii does not store audio recordings or operate a cloud speech service. The real-service build uses local interpretation and has no connected cloud Assistant.
+
+The separately installed Simulator offers an optional Google ADK Assistant using Groq Free cloud inference. It sends your typed or transcribed message, up to four recent conversation messages, and selected entered tracker/app context to Groq after you allow cloud processing. It can also read the authored synthetic MCP fixtures. This processing takes place outside India. The key stays on the computer; no model is installed on the phone. Conversations are not persisted by the Hungii Assistant server and are discarded after each turn; the app holds its short conversation in memory until restart. Groq's own processing and retention terms require review and are not controlled by Hungii's in-memory storage. Free inference availability and quotas are not guaranteed.
+
+The Simulator does not automatically send real Swiggy account credentials, returned provider payloads, real delivery addresses or payment credentials to inference. Free-text messages can still contain information you type yourself; avoid entering secrets or real provider records. There is no advertising or model-training integration in Hungii. Live provider-data inference remains a separate contractual and launch gate. Assistant changes are proposals; an explicit review/apply action changes the tracker, and ordering remains separate from logging food eaten.
 
 Food diagnostics are minimized to hashed user/session identifiers, tool name, elapsed time and outcome. Provider arguments/results, addresses, phone numbers and tokens are not logged by Hungii. WorkOS and Supabase's separate platform/authentication logging requires processor review before launch.
 

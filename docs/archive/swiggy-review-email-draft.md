@@ -1,5 +1,7 @@
 # Unsent Swiggy review email
 
+> Historical snapshot. This preserves the original findings or correspondence; use [current status](../approval-readiness.md) and the [documentation index](../README.md) for today’s implementation and setup.
+
 Status: draft only. This replaces the proposed follow-up wording; it does not alter the earlier sent email's history. No developer form or new email is sent.
 
 Saved to the connected Gmail account on 2 October 2026 as unsent draft `r-7378743094194602385`. Review it in [Gmail Drafts](https://mail.google.com/mail/u/0/#drafts). No send action was performed.

@@ -1,37 +1,43 @@
-<img src="assets/icon.svg" width="64" height="64" alt="">
+<img src="assets/icon.svg" width="64" height="64" alt="Hungii icon">
 
-# hungii
+# Hungii
 
-Created in [T3 Code](https://t3.codes).
+Hungii helps you choose your next meal within your remaining food allowance, entered nutrition goals and taste preferences. Shortlist three meals, shuffle them face down and reveal a winner. Choosing a meal, paying for it and logging it as eaten are separate actions.
 
-## Android prototype
+The current product is a native Kotlin / Jetpack Compose Android preview for Android 8+. Only the Food integration is implemented; Instamart, Dineout and Scenes remain future scope.
 
-The current prototype is a native Kotlin / Jetpack Compose Android app with charcoal surfaces, electric lime, an animated voice orb, swipe-to-shortlist meal cards, and a face-down lucky draw.
+| Build | What works | Connection required |
+| --- | --- | --- |
+| **Hungii preview** (`real`) | Encrypted local tracker, WorkOS staging email sign-in, optional cloud profile/preferences sync; prepared read-only Swiggy adapter | Local tracking works offline. Accounts/sync need the Mumbai backend. Live Swiggy access remains approval-gated. |
+| **Hungii Simulator** (`demo`) | Fictional meals, full MCP cart/coupon/mock payment/receipt flow, optional Google ADK + Groq Free Assistant | Phone on Tailscale; awake computer running the Simulator services. No real order or payment is created. |
 
-Build and run instructions: [android-prototype/README.md](android-prototype/README.md). Requires Android 8.0 or newer. The downloadable build is generated at `artifacts/hungii-android-prototype.apk`.
+Download the separately installed APKs and checksums from [GitHub Releases](https://github.com/acephos/hungii/releases). They are development-signed previews, not Play Store production releases. Published checkpoints are retained; use the newest preview for fixes.
 
-Version 0.7 has separate real-service and synthetic local-demo builds. Supabase Free is provisioned in Mumbai, with an authenticated API, backend-only encrypted tracker/credential/session storage, durable MCP session leases and scheduled expiry cleanup. WorkOS staging email sign-in is configured; Swiggy access remains pending; the real build never substitutes sample meals for provider results.
+## Run and build
 
-The first screen offers email sign-in or local-only use without an account. Profile/goals/preferences sync is optional after sign-in, restores across devices and prevents silent conflicting overwrites. Saved Swiggy meal shortcuts remain local.
+- [Android instructions](android-prototype/README.md): build both variants with JDK 17, SDK 35 and the Gradle wrapper.
+- [Simulator setup](demo/README.md): start the gateway, configure your phone endpoint, enable optional cloud inference and install services that restart after reboot.
+- [Real service setup](docs/swiggy-setup.md): public mobile settings, WorkOS/Supabase and remaining Swiggy access gates.
+- [Contributor checks](CONTRIBUTING.md): backend, Assistant, Android and repository hygiene commands. Tests use authored fixtures and no live inference.
 
-The Android tracker and consented meal shortcuts use AES-256-GCM with per-account Keystore keys. Voice uses an available on-device recognizer or typed input. The Simulator uses fictional MCP fixtures, labeled estimate ranges, full mock cart/coupon/payment/receipt flows and a dedicated Assistant tab backed by Google ADK + Groq Free cloud inference. No local model, real order or real payment is used. See [simulator setup](demo/README.md).
+The Simulator needs neither a Swiggy account nor paid inference. Its cloud Assistant requires a separate opt-in and a server-side Groq Free key. No model runs on the phone or computer. Inference availability depends on the free provider's quotas. Assistant actions require review before changing the tracker.
 
-See [readiness evidence](docs/approval-readiness.md), [service setup](docs/swiggy-setup.md), [stack decision](docs/adr/0003-workos-with-supabase.md) and [MCP contract](docs/swiggy-integration-contract.md). Local tests and deployed Supabase checks do not establish Swiggy approval or production certification.
+## Status and documentation
+
+Use the [documentation index](docs/README.md) for current guides, product requirements, architecture decisions, dated research and historical correspondence. [Readiness evidence](docs/approval-readiness.md) distinguishes implemented controls from external launch gates; [verification records](artifacts/README.md) record checks at specific versions.
+
+The real build never substitutes sample meals for provider results. It has no enabled live cart mutation, ordering or payment. Missing provider nutrition stays unknown; Simulator estimates are fictional. Server restarts clear synthetic carts/orders, and receipt/payment recovery after app/server restart remains unfinished.
+
+[Privacy draft](docs/privacy-notice-draft.md), [security reporting](SECURITY.md), [incident runbook](docs/incident-runbook.md) and [release process](docs/releases.md) describe data paths and maintenance. Provider access/agreements, production identity/signing, calibrated nutrition and operational readiness remain launch gates.
 
 ## Earlier web exploration
+
+The [web prototype](prototype/README.md) preserves the original design exploration with scripted conversation and fictional meals:
 
 ```sh
 python3 prototype/serve.py
 ```
 
-Open [Hungii](http://localhost:5173/prototype/?variant=a) to review the earlier Companion, Pocket, and Daybook layouts. The Android prototype supersedes these visual directions.
+Open [the local prototype](http://localhost:5173/prototype/?variant=a). The Android implementation supersedes it.
 
-Swipe to shortlist three meals, shuffle them face down, and pick a card. The orb supports scripted text updates and optional browser voice. Meals, nutrition, prices, coupons, and checkout are sample data; nothing is ordered.
-
-See [prototype notes](prototype/README.md) and the [product specification](docs/meal-planner-product.md).
-
-## Checkpoints and preview releases
-
-Public repository: [acephos/hungii](https://github.com/acephos/hungii). Main/PR checks type-check and test the backend, then build and lint both Android variants. Standard GitHub-hosted Linux runners are free for public repositories. No paid runner or store publication is enabled.
-
-Push an annotated `vX.Y.Z` tag from a tested main checkpoint to build and publish a GitHub prerelease with the phone preview, phone-ready simulator and SHA-256 checksums. The release uses the stable preview signing key held in GitHub Secrets and verifies its public certificate fingerprint before publication. [Release setup](docs/releases.md).
+Built in [T3 Code](https://t3.codes).

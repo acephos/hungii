@@ -1,5 +1,7 @@
 # FamApp reference and Hungii Android design direction
 
+> Dated research. This preserves the original findings or correspondence; use [current status](../approval-readiness.md) and the [documentation index](../README.md) for today’s implementation and setup.
+
 Checked 2 October 2026. Research uses the official FamApp website, developer-published Google Play screenshots and Android documentation. The app formerly called FamPay is listed as **FamApp by Trio**. These references establish a visual direction, not access to its source code, interaction timings or private design system. [Official site](https://www.famapp.in/), [official Android listing](https://play.google.com/store/apps/details?id=com.fampay.in)
 
 ## What the reference actually shows

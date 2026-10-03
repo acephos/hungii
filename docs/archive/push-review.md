@@ -1,5 +1,7 @@
 # Push operation review — 2 October 2026
 
+> Historical snapshot. This preserves the original findings or correspondence; use [current status](../approval-readiness.md) and the [documentation index](../README.md) for today’s implementation and setup.
+
 Scope: only the other agent’s push/merge and repository/CI configuration. This does not review the preceding WorkOS, optional-sync or app implementation against commit `71c92f4`.
 
 - Pushed checkpoint: `b54428fb2a64c7ffdd6a1e06f034b9f4eecac93a`.

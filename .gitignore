@@ -12,6 +12,8 @@ supabase/.temp/
 supabase/.branches/
 node_modules/
 .venv-agent/
+.venv-ci/
+release-artifacts/
 
 # Locally generated review recordings and device telemetry
 artifacts/*.mp4

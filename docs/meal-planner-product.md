@@ -1,6 +1,6 @@
 # Hungii: economic next-meal planner
 
-Status: proposed product specification for discussion, not an implemented app. The user has approved clearly labeled nutrition estimates for broader choice. Technology selection follows problem analysis.
+Product specification and roadmap. The Android preview and synthetic Simulator implement parts of this design; use [current status](approval-readiness.md) for available behavior and launch gates. Requirements below include future work and must not be presented as completed features. The user approved clearly labeled nutrition estimates for broader choice; current Simulator estimates are fictional rather than calibrated.
 
 ## Problem and promise
 
@@ -93,7 +93,7 @@ Hypothetical arithmetic, **not a real Swiggy offer**: items ₹280 + charges ₹
 
 Swiggy's coupon schema provides applicability and textual terms, not guaranteed structured numeric thresholds/caps. Parsed conditions are hypotheses until validated. Live payable totals require changes to the shared Food cart; there is no documented isolated quote endpoint. Therefore both selection rounds use labeled estimated prices until the chosen winner is validated through controlled, consented cart changes. Do not overwrite the person's existing Swiggy cart to test every swipe card or finalist. Recheck cart state because another device can change it; automatic rollback is not assumed safe.
 
-See [API feasibility](./meal-planner-api-feasibility.md) for verified schema limits and source links. These limits make exact global “cheapest possible” claims inappropriate. Optimize a bounded set of found candidates and explain what has been verified.
+See [API feasibility](research/meal-planner-api-feasibility.md) for verified schema limits and source links. These limits make exact global “cheapest possible” claims inappropriate. Optimize a bounded set of found candidates and explain what has been verified.
 
 ## Go-tos and history
 

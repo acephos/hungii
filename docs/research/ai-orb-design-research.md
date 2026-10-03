@@ -1,5 +1,7 @@
 # Hungii assistant orb: modern visual references and interaction
 
+> Dated research. This preserves the original findings or correspondence; use [current status](../approval-readiness.md) and the [documentation index](../README.md) for today’s implementation and setup.
+
 Checked 2 October 2026 using first-party visuals. The founder wants the assistant in its own tab, able to operate the rest of Hungii through natural-language requests. The recommendations below are Hungii design decisions, not claims that the reference products use the same rendering code or behavior.
 
 ## Primary visual references

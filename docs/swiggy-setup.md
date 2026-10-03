@@ -1,6 +1,6 @@
 # Hungii service setup
 
-Current project: **hungii-mumbai**, reference `qvqnzsqrxejdlvnbqwcs`, Supabase **Free**, specific Mumbai `ap-south-1`. GitHub dashboard sign-in is complete. [Dashboard](https://supabase.com/dashboard/project/qvqnzsqrxejdlvnbqwcs), [current validation evidence](approval-readiness.md).
+Real-service setup, separate from the [synthetic Simulator](../demo/README.md). Provisioned project: **hungii-mumbai**, reference `qvqnzsqrxejdlvnbqwcs`, Supabase **Free**, Mumbai `ap-south-1`. Deployment checks were recorded on 2 October 2026. [Dashboard](https://supabase.com/dashboard/project/qvqnzsqrxejdlvnbqwcs), [current status and evidence](approval-readiness.md).
 
 ## Already provisioned
 
@@ -14,7 +14,7 @@ Current project: **hungii-mumbai**, reference `qvqnzsqrxejdlvnbqwcs`, Supabase *
 
 ## Hungii user sign-in
 
-The opening screen offers Hungii email sign-in or local-only use without an account. Cloud profile/goals/meal-filter sync is optional after sign-in and can be stopped per device; saved provider meal shortcuts remain local. Changes sync automatically only after permission, and conflicting revisions require a choice. Version 0.6 uses WorkOS AuthKit with Supabase Postgres/Edge Functions. Supabase dashboard GitHub login and Hungii user login are independent. No Google OAuth configuration is needed for the selected email login. Android opens AuthKit with PKCE/state, exchanges the public authorization code, then uses the backend to refresh and authorize its session. Revoked sessions fail live checks. [Architecture](adr/0003-workos-with-supabase.md).
+The opening screen offers Hungii email sign-in or local-only use without an account. Cloud profile/goals/meal-filter sync is optional after sign-in and can be stopped per device; saved provider meal shortcuts remain local. Changes sync automatically only after permission, and conflicting revisions require a choice. The real preview uses WorkOS AuthKit with Supabase Postgres/Edge Functions. Supabase dashboard GitHub login and Hungii user login are independent. No Google OAuth configuration is needed for the selected email login. Android opens AuthKit with PKCE/state, exchanges the public authorization code, then uses the backend to refresh and authorize its session. Revoked sessions fail live checks. [Architecture](adr/0003-workos-with-supabase.md).
 
 Only public values go into gitignored `android-prototype/local.properties`:
 
@@ -29,7 +29,7 @@ Use Accounts → Continue with email, enter your email, then select Email sign-i
 
 ## Swiggy staging remains approval-gated
 
-Request **Food-only seeded staging**. Swiggy supplies reviewed access and test-account instructions; our local synthetic MCP demo is not a Swiggy sandbox. Do not infer production credentials work on staging or fabricate test tokens. [Testing options](swiggy-testing-options.md), [access](https://mcp.swiggy.com/builders/docs/operate/access.md).
+Request **Food-only seeded staging**. Swiggy supplies reviewed access and test-account instructions; our local synthetic MCP demo is not a Swiggy sandbox. Do not infer production credentials work on staging or fabricate test tokens. [Testing options](research/swiggy-testing-options.md), [access](https://mcp.swiggy.com/builders/docs/operate/access.md).
 
 Proposed hosted exact callback:
 
@@ -39,7 +39,7 @@ https://qvqnzsqrxejdlvnbqwcs.supabase.co/functions/v1/hungii-api/callback?forceF
 
 Obtain written confirmation/registration of the full URI, staging OAuth hosts, DCR client, seeded accounts, permissible personalized meal sorting/offer optimization/favorites retention, logical-session reuse across Edge workers and any egress requirements. Configure verified `SWIGGY_AUTH_BASE_URL`, `SWIGGY_FOOD_URL`, `SWIGGY_CLIENT_ID` and callback as server secrets. Swiggy phone/OTP entry happens only in its own browser UI. [Authentication](https://mcp.swiggy.com/builders/docs/start/authenticate.md).
 
-Run staging checks for real tools/list, output shapes, price units, stock races, address pagination, tool/HTTP errors, cooldowns, rejected credentials, callback replay/expiry/cancellation and logout. Only set `SWIGGY_SESSION_RESUME_VERIFIED=true` after cross-worker session persistence and request accounting pass against Swiggy and are accepted by the provider. No paid runtime is enabled as a fallback. See [runtime decision](adr/0002-durable-mumbai-mcp-session.md) and [sources](approval-technical-sources.md).
+Run staging checks for real tools/list, output shapes, price units, stock races, address pagination, tool/HTTP errors, cooldowns, rejected credentials, callback replay/expiry/cancellation and logout. Only set `SWIGGY_SESSION_RESUME_VERIFIED=true` after cross-worker session persistence and request accounting pass against Swiggy and are accepted by the provider. No paid runtime is enabled as a fallback. See [runtime decision](adr/0002-durable-mumbai-mcp-session.md) and [sources](research/approval-technical-sources.md).
 
 Native API calls and callback force Mumbai; the handler rejects other execution regions. Do not set `HUNGII_LOCAL_DEVELOPMENT` on hosted functions. Mumbai primary data/runtime checks do not certify every provider/subprocessor/egress path. [Regional invocation](https://supabase.com/docs/guides/functions/regional-invocation).
 
@@ -48,10 +48,10 @@ Cart writes, coupon application, order placement and payment are disabled. The e
 ## Local checks
 
 ```sh
-npx --yes deno check --config supabase/functions/deno.json supabase/functions/hungii-api/index.ts
-npx --yes deno test --config supabase/functions/deno.json --allow-env supabase/functions/_shared/
+npx --yes deno@2.9.6 check --config supabase/functions/deno.json supabase/functions/hungii-api/index.ts demo/gateway.ts
+npx --yes deno@2.9.6 test --config supabase/functions/deno.json --allow-env supabase/functions/_shared/ demo/simulator_test.ts
 ```
 
-The SQL tests in `supabase/tests/privacy-and-leases.sql` and `supabase/tests/workos-ownership.sql` uses rolled-back synthetic accounts on Hungii's own project. Never run it against a different production database. The `demo` Android flavor reaches a local read-only MCP server; the `real` flavor never substitutes fixtures. [Android build/demo guide](../android-prototype/README.md).
+The SQL tests in `supabase/tests/` include privacy/leases, WorkOS ownership and cloud-profile sync. Their recorded deployed checks used rolled-back synthetic accounts. Configure the intended database explicitly before running them; CI does not mutate a deployed database. The `demo` Android flavor reaches the authored synthetic MCP server with mock cart/payment writes; the `real` flavor never substitutes fixtures. [Android build/demo guide](../android-prototype/README.md).
 
 Before production: complete [external gates](approval-readiness.md#external-gates-before-production), including approved agreements/privacy contact, at least 48 hours green staging, explicit production access, support/alerts/recovery and staged rollout. A staging request can describe prepared controls; it cannot assert production approval.

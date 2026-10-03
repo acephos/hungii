@@ -2,6 +2,16 @@
 
 Prepared 2 October 2026 for a limited, approval-gated Food beta. Support/on-call ownership and active alert routing need founder confirmation before production; this document does not claim continuous support coverage.
 
+## Simulator phone cannot connect
+
+1. Check phone Tailscale is connected to the computer's tailnet. Wi-Fi/mobile internet alone does not reach the private gateway.
+2. Run `systemctl --user status hungii-simulator hungii-agent` on the computer. Restart installed services with `systemctl --user restart hungii-simulator hungii-agent`; install them using [Simulator setup](../demo/README.md) on a new machine. Do not run manual copies on occupied ports.
+3. Read the gateway address from the app error or local build settings. On the founder host, `curl --fail --max-time 5 http://100.103.202.33:8788/health` should return `status: ready`; substitute your own configured address elsewhere. Health proves gateway availability; address selection/discovery verifies MCP too.
+4. In Hungii, use Accounts → Refresh connection, then Home → Find my next meal. Synthetic sessions need no Swiggy login/retention consent.
+5. For Assistant-only failures, check `curl --fail --max-time 5 http://127.0.0.1:8789/health`. `configured: false` means the ignored Groq key file is missing; do not paste it into logs/chat. Busy/quota responses require waiting or manual filters. No paid fallback is configured.
+
+Reboots previously stopped manually started processes. Enabled user services now restart on failure and start with the user manager; the founder host already has lingering enabled for boot startup. The computer must stay awake. Server restart clears synthetic carts/orders; receipt/payment UI recovery remains unfinished. A full synthetic session table requires a controlled restart and loses in-memory state. These are demo limits, not provider incidents.
+
 ## Connection, rate or provider incident
 
 1. Stop Food calls when a connection is blocked or rejected. Keep the live gate false during investigation. Do not repeatedly initialize, reuse a rejected token or rotate accounts to bypass limits.

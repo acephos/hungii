@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -65,7 +66,7 @@ import kotlin.math.sin
             DisplayText("What sounds good?",26)
             FilledInput(model.query,{model.query=it},"Bowls, wraps, something spicy…",Modifier.fillMaxWidth())
             Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf("any" to "Anything","spicy" to "Spicy","light" to "Light","cheesy" to "Cheesy","sweet" to "Sweet").forEach{(value,label)->SmallChip(label,model.taste==value){model.taste=value}}}
-            LimeButton(if(model.loading)"Finding your meals…" else "Find my next meal",Icons.Outlined.ArrowForward,enabled=!model.loading&&model.opportunities>0){model.search()}
+            LimeButton(if(model.loading)"Finding your meals…" else "Find my next meal",Icons.AutoMirrored.Outlined.ArrowForward,enabled=!model.loading&&model.opportunities>0){model.search()}
         }
         Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.horizontalGradient(listOf(Raised,Color(0xFF252A22)))).clickable{model.screen=Screen.Assistant}.padding(16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp)) {
             GlassOrb(Modifier.size(54.dp),VoiceState(),false,true)
@@ -158,7 +159,7 @@ private fun openSwiggy(context:android.content.Context) {
             McpActivity(model);OutlineButton("Open Swiggy · build cart manually"){openSwiggy(context)}
             Text("These restaurants are invented for the simulator. In Swiggy, search for a similar meal and create your basket yourself.",color=Muted,fontSize=11.sp,lineHeight=17.sp);Spacer(Modifier.height(8.dp))
         }
-        Box(Modifier.padding(22.dp)){LimeButton("Choose payment · "+rupees(cart?.optDouble("payable")?:0.0),Icons.Outlined.ArrowForward,enabled=!model.loading&&(cart?.optJSONArray("items")?.length()?:0)>0){model.choosePayment()}}
+        Box(Modifier.padding(22.dp)){LimeButton("Choose payment · "+rupees(cart?.optDouble("payable")?:0.0),Icons.AutoMirrored.Outlined.ArrowForward,enabled=!model.loading&&(cart?.optJSONArray("items")?.length()?:0)>0){model.choosePayment()}}
     }
 }
 @Composable private fun CartItem(model:HungiiModel,item:JSONObject,restaurant:String) {

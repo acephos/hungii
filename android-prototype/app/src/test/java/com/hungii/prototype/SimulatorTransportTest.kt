@@ -43,4 +43,17 @@ class SimulatorTransportTest {
             assertEquals("Review the updated cart.", failure.message)
         }
     }
+
+    @Test fun unreadableGatewayResponseShowsRecoverableError() {
+        for (body in listOf("", "<html>Unavailable</html>", "[]")) {
+            MockWebServer().use { server ->
+                server.enqueue(MockResponse().setBody(body))
+                val failure = assertThrows(ApiFailure::class.java) {
+                    transport.execute(Request.Builder().url(server.url("/api")).build())
+                }
+                assertEquals("HUNGII_DEMO_RESPONSE", failure.code)
+                assertTrue(failure.message.contains("Refresh connection"))
+            }
+        }
+    }
 }

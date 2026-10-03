@@ -1,5 +1,7 @@
 # Local Food MCP contract research
 
+> Dated research. This preserves the original findings or correspondence; use [current status](../approval-readiness.md) and the [documentation index](../README.md) for today’s implementation and setup.
+
 Verified against Swiggy Builders Club on 2 October 2026. This is a design contract for Hungii's synthetic simulator, not a claim of live Swiggy access or payment processing. Every restaurant, address, price, coupon, nutritional value, payment and order in the simulator must be authored fixtures.
 
 ## Current scope

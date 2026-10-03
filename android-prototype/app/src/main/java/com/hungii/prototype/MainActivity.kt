@@ -30,6 +30,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.Login
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.automirrored.outlined.Undo
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -232,7 +237,7 @@ internal fun AccountEntry(model:HungiiModel) {
         Text("Keep your goals, food allowance and meal preferences together. Sign in to restore your profile across devices.",color=Muted,fontSize=16.sp,lineHeight=25.sp)
         Column(Modifier.fillMaxWidth().background(Surface,RoundedCornerShape(20.dp)).padding(18.dp)) {TradeLine(Icons.Outlined.Person,Lime,"Hungii account · your profile and cloud sync");Spacer(Modifier.height(12.dp));TradeLine(Icons.Outlined.Restaurant,Muted,"Connect Swiggy later to discover meals.")}
         Spacer(Modifier.height(12.dp))
-        LimeButton("Continue with email",Icons.Outlined.Login,enabled=BuildConfig.WORKOS_AUTH_READY&&!model.loading) {
+        LimeButton("Continue with email",Icons.AutoMirrored.Outlined.Login,enabled=BuildConfig.WORKOS_AUTH_READY&&!model.loading) {
             try {CustomTabsIntent.Builder().build().launchUrl(context,Uri.parse(model.signInUrl()))} catch(e:ApiFailure){model.connectionMessage=e.message} catch(_:Exception){model.connectionMessage="A browser is needed to sign in."}
         }
         Text("New here? The same email flow creates your account. Choose Email sign-in code if a password screen appears.",color=Muted,fontSize=12.sp,lineHeight=19.sp)
@@ -304,7 +309,7 @@ internal fun DiscoverScreen(model: HungiiModel,onDetails: (Meal)->Unit) {
                 if(like) model.like(meal) else model.pass(meal)
             })
             Row(Modifier.fillMaxWidth().padding(top=14.dp,bottom=8.dp),horizontalArrangement=Arrangement.spacedBy(18.dp,Alignment.CenterHorizontally),verticalAlignment=Alignment.CenterVertically) {
-                RoundAction(Icons.Outlined.Undo,"Undo swipe",Surface,Muted,{model.undoSwipe()},48)
+                RoundAction(Icons.AutoMirrored.Outlined.Undo,"Undo swipe",Surface,Muted,{model.undoSwipe()},48)
                 RoundAction(Icons.Outlined.Close,"Pass meal",Surface,White,{model.pass(meal)},60)
                 RoundAction(Icons.Outlined.FavoriteBorder,"Shortlist meal",Lime,Charcoal,{model.like(meal);haptic.performHapticFeedback(HapticFeedbackType.LongPress)},66)
             }
@@ -319,7 +324,7 @@ internal fun DiscoverScreen(model: HungiiModel,onDetails: (Meal)->Unit) {
                 Spacer(Modifier.height(18.dp))
                 Text(if(!model.connected) "Connect your account and choose a delivery address to see Swiggy meals." else "Try a different dish or choose an open restaurant below. Your dietary filters stay yours.",color=Muted,textAlign=TextAlign.Center,lineHeight=22.sp)
                 Spacer(Modifier.height(24.dp))
-                if(model.finalists.isNotEmpty()) LimeButton("See my finalists",Icons.Outlined.ArrowForward) {model.showFinalists()}
+                if(model.finalists.isNotEmpty()) LimeButton("See my finalists",Icons.AutoMirrored.Outlined.ArrowForward) {model.showFinalists()}
                 if(!model.connected||model.addressId==null) LimeButton("Connect Swiggy",Icons.Outlined.Link) {model.accountOpen=true}
                 Column(Modifier.heightIn(max=160.dp).verticalScroll(rememberScrollState())) {
                     model.restaurants.take(8).forEach {r->TextButton(onClick={model.restaurantMeals(r)}) {Text(r.name+(r.distanceKm?.let {" · $it km"} ?: "")+(r.etaMinutes?.let {" · ~$it min"} ?: ""),color=Lime,maxLines=2)}}
@@ -470,7 +475,7 @@ internal fun WinnerScreen(model: HungiiModel,onDetails: (Meal)->Unit) {
         Text("The draw never changes a cart or places an order.",color=Muted,fontSize=10.sp,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth().padding(bottom=20.dp))
     }
     Box(Modifier.fillMaxWidth().background(Charcoal).padding(horizontal=22.dp,vertical=12.dp)) {
-        LimeButton(if(BuildConfig.LOCAL_DEMO) "Add to mock cart" else "Review & open Swiggy",Icons.Outlined.ArrowForward) {model.review()}
+        LimeButton(if(BuildConfig.LOCAL_DEMO) "Add to mock cart" else "Review & open Swiggy",Icons.AutoMirrored.Outlined.ArrowForward) {model.review()}
     }
     }
 }
@@ -528,7 +533,7 @@ internal fun ReviewScreen(model: HungiiModel) {
             Spacer(Modifier.height(12.dp))
         }
         Box(Modifier.fillMaxWidth().background(Charcoal).padding(22.dp)) {
-            LimeButton(if(BuildConfig.LOCAL_DEMO) "Demo · checkout unavailable" else "Continue in Swiggy",Icons.Outlined.OpenInNew,enabled=!BuildConfig.LOCAL_DEMO) {context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://www.swiggy.com/")))}
+            LimeButton(if(BuildConfig.LOCAL_DEMO) "Demo · checkout unavailable" else "Continue in Swiggy",Icons.AutoMirrored.Outlined.OpenInNew,enabled=!BuildConfig.LOCAL_DEMO) {context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://www.swiggy.com/")))}
         }
     }
 }
@@ -597,7 +602,7 @@ internal fun MetricTile(label: String,value: String,note: String,color: Color,mo
 }
 @Composable
 internal fun FocusHeader(label: String,onBack: ()->Unit) {
-    Row(Modifier.fillMaxWidth().height(62.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {IconButton(onClick=onBack,modifier=Modifier.size(40.dp).border(1.dp,Line,CircleShape)) {Icon(Icons.Outlined.ArrowBack,"Back",tint=White,modifier=Modifier.size(20.dp))};Eyebrow(label,Muted);Spacer(Modifier.weight(1f));Badge("HUNGII",Muted,Surface)}
+    Row(Modifier.fillMaxWidth().height(62.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {IconButton(onClick=onBack,modifier=Modifier.size(40.dp).border(1.dp,Line,CircleShape)) {Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back",tint=White,modifier=Modifier.size(20.dp))};Eyebrow(label,Muted);Spacer(Modifier.weight(1f));Badge("HUNGII",Muted,Surface)}
 }
 @Composable
 internal fun DisplayText(text: String,size: Int,color: Color=White,maxLines: Int=Int.MAX_VALUE) {Text(text,color=color,fontFamily=Display,fontSize=size.sp,lineHeight=(size*1.12f).sp,fontWeight=FontWeight.Bold,letterSpacing=(-.4).sp,maxLines=maxLines,overflow=TextOverflow.Ellipsis)}
@@ -671,7 +676,7 @@ internal fun AccountDialog(model: HungiiModel,onClose: ()->Unit) {
             Text(if(BuildConfig.LOCAL_DEMO) "This simulator uses fictional meals and addresses. Its cart, payment and order states are synthetic; no real money or Swiggy account is used." else "Your device tracker is encrypted. Cloud sync is optional. Swiggy supplies meals for the address you choose after separate authorization.",color=Muted,fontSize=13.sp,lineHeight=20.sp)
             Text(if(BuildConfig.LOCAL_DEMO) "PRIVACY · ${model.privacyVersion}\nYour tracker stays encrypted on this device. Synthetic carts and orders live in the local server’s memory until restart. Saved shortcuts expire after 30 days. The optional cloud Assistant sends your submitted text and selected tracker values to Groq outside India, after opt-in. No real Swiggy login, address or payment credential is sent. Voice transcription is on-device where available; typing works everywhere." else "PRIVACY · ${model.privacyVersion}\nWorkOS handles email sign-in; Supabase hosts synced account data in Mumbai. On-device voice uses typed fallback. Cloud totals expire after 90 days without updates; saved shortcuts after 30 days. Connection credentials expire within five days. The selected address is used for meal searches. Live ordering remains disabled.",color=Muted,fontSize=11.sp,lineHeight=18.sp)
             if(!model.configured) Text("The live connection is not available in this build yet. You can keep using your offline tracker while account setup is completed.",color=Coral,fontSize=13.sp,lineHeight=20.sp)
-            if(!model.signedIn) LimeButton(if(BuildConfig.WORKOS_AUTH_READY) "Continue with email" else "Email sign-in · setup pending",Icons.Outlined.Login,enabled=model.configured&&BuildConfig.WORKOS_AUTH_READY&&!model.loading) {
+            if(!model.signedIn) LimeButton(if(BuildConfig.WORKOS_AUTH_READY) "Continue with email" else "Email sign-in · setup pending",Icons.AutoMirrored.Outlined.Login,enabled=model.configured&&BuildConfig.WORKOS_AUTH_READY&&!model.loading) {
                 try {browse(model.signInUrl())} catch(e: ApiFailure) {model.connectionMessage=e.message}
             } else {
                 Text(if(BuildConfig.LOCAL_DEMO) "Local demo session" else "Signed in to Hungii",color=Lime,fontSize=13.sp)
