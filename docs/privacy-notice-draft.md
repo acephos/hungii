@@ -18,7 +18,7 @@ Saving a meal asks separate permission to retain its name, restaurant and menu i
 
 The selected Supabase primary database is Mumbai. API processing is forced and checked in Mumbai. Additional provider/subprocessor and egress assessment remains a launch gate; region choice alone is not a blanket residency guarantee.
 
-Hungii-controlled tracker, connection, selected-address, verifier and session payloads use AES-256-GCM. Device data uses per-owner Keystore keys; account identifiers in the device database are hashed. Android backup is disabled. Photos loaded for the task have app disk/memory caching disabled.
+Hungii-controlled tracker, connection, selected-address, verifier and session payloads use AES-256-GCM. Device data uses per-owner Keystore keys; account identifiers in the device database are hashed. From preview 0.7.4, Android backup is disabled and explicit exclusion rules cover cloud backup and device-to-device transfer, including shared preferences, databases and device-protected storage. Optional Hungii cloud sync is a separate explicit choice. Photos loaded for the task have app disk/memory caching disabled.
 
 Connection/session retention is bounded by the token expiry, capped at five days. Pending OAuth states expire in ten minutes. Inactive cloud tracker copies expire after 90 days without an update. Consented local meal shortcuts expire after 30 days. Database cleanup runs every ten minutes and on API access. A paused Supabase Free project cannot execute scheduled cleanup; access cleanup resumes with the service. Local expiry is applied when stored data is loaded by the app. Device data otherwise stays until erased or the app is removed.
 
