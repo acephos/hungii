@@ -109,6 +109,9 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
     private val trackedOrders=mutableSetOf<String>()
     private val eatenOrders=mutableSetOf<String>()
     var loading by mutableStateOf(false); var connectionMessage by mutableStateOf("")
+    var cartRefreshRequired by mutableStateOf(false)
+    var discoveryAttempted by mutableStateOf(false)
+    var discoveryError by mutableStateOf<String?>(null)
     var accountOpen by mutableStateOf(false); var connected by mutableStateOf(false)
     var signedIn by mutableStateOf(api.signedIn); val configured get() = api.configured
     var environment by mutableStateOf(""); var addressId by mutableStateOf<String?>(null)
@@ -244,19 +247,19 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
         cloudRevision=response.getString("updatedAt");lastSyncedState=current;cloudReady=true;cloudConflict=false
         cloudSyncEnabled=true;cloudDecisionMade=true;cloudSetupPending=false;cloudSyncMessage="Profile and preferences synced."
     }
-    private fun run(block: suspend () -> Unit) {
+    private fun run(onFailure: ((String) -> Unit)? = null, block: suspend () -> Unit) {
         if(loading) return
         viewModelScope.launch {
             loading=true; connectionMessage=""
             try { block() } catch(e: ApiFailure) {
-                connectionMessage=e.message
+                connectionMessage=e.message; onFailure?.invoke(e.message)
                 if(e.code=="HUNGII_SYNC_CONFLICT") {cloudConflict=true;cloudReady=false;cloudSyncMessage=e.message}
                 if(e.code=="HUNGII_LOGIN_REQUIRED") {
                     resetCloud();api.clearSession(); signedIn=false; clearProviderData()
                     persistenceJob?.cancelAndJoin(); ready=false; owner="device"; resetTracker(); loadLocal(); ready=true; startPersistence()
                 }
                 if(e.code=="HUNGII_RECONNECT") { connected=false; addressId=null; meals.clear(); finalists.clear(); winner=null; restaurants.clear(); cart=null; coupons=null }
-            } catch (_: Exception) { connectionMessage="Could not complete this request. Try again." }
+            } catch (_: Exception) { connectionMessage="Could not complete this request. Try again."; onFailure?.invoke(connectionMessage) }
             finally { loading=false; accountLoading=false }
         }
     }
@@ -304,8 +307,9 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
     fun search() {
         screen=Screen.Discover
         if(!signedIn||!connected||addressId==null) { accountOpen=true; return }
-        run {
-            finalists.clear(); passed.clear(); winner=null; cart=null; coupons=null
+        run(onFailure = { discoveryError = it }) {
+            discoveryError=null; discoveryAttempted=true
+            finalists.clear(); passed.clear(); lastPassed=null; winner=null; cart=null; coupons=null
             val args=JSONObject().put("query",query)
             if(highProtein) args.put("collection","EATRIGHT") else if(fast) args.put("collection","BOLT")
             val result=api.action("discover",args); meals.clear(); restaurants.clear();if(result.optBoolean("expandedQuery"))connectionMessage="Added nearby alternatives for your shortlist. Craving and macro trade-offs stay visible."
@@ -313,15 +317,16 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
             val rs=result.getJSONArray("restaurants"); for(i in 0 until rs.length()) { val r=rs.getJSONObject(i); restaurants.add(Restaurant(r.getString("id"),r.getString("name"),if(r.isNull("etaMinutes")) null else r.getInt("etaMinutes"),if(r.isNull("distanceKm")) null else r.getDouble("distanceKm"))) }
         }
     }
-    fun restaurantMeals(restaurant: Restaurant) = run {
+    fun restaurantMeals(restaurant: Restaurant) = run(onFailure = { discoveryError = it }) {
+        discoveryError=null; discoveryAttempted=true
         val result=api.action("menu",JSONObject().put("query",query).put("restaurantId",restaurant.id).put("vegOnly",vegOnly))
-        meals.clear(); passed.clear()
+        meals.clear(); passed.clear(); lastPassed=null
         val a=result.getJSONArray("meals"); for(i in 0 until a.length()) meals.add(Meal.from(a.getJSONObject(i)).copy(etaMinutes=restaurant.etaMinutes,distanceKm=restaurant.distanceKm))
     }
     fun review(replace:Boolean=false) {
         screen=Screen.Review; coupons=null
         val meal=winner ?: return
-        run {
+        run(onFailure = { cartRefreshRequired = true }) {
             if(BuildConfig.LOCAL_DEMO) {
                 try {applyCart(api.action("cart_create",JSONObject().put("dishId",meal.dishId).put("restaurantId",meal.restaurantId).put("replace",replace)))}
                 catch(e:ApiFailure){if(e.code=="HUNGII_REPLACE_CART"){replaceCartPending=true;return@run}else throw e}
@@ -333,14 +338,14 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
         }
     }
     private fun trace(result:JSONObject){result.optJSONArray("mcpTrace")?.let {a->mcpTrace=(0 until a.length()).map {a.getString(it)}}}
-    private fun applyCart(result:JSONObject){cart=result.optJSONObject("cart")?:result;trace(result)}
-    fun refreshCart()=run {applyCart(api.action("cart"))}
-    fun changeQuantity(id:String,quantity:Int)=run {applyCart(api.action("cart_quantity",JSONObject().put("dishId",id).put("quantity",quantity)))}
-    fun changeVariant(id:String,group:String,variant:String)=run {applyCart(api.action("cart_variant",JSONObject().put("dishId",id).put("groupId",group).put("variationId",variant)))}
-    fun changeAddons(id:String,addons:JSONArray)=run {applyCart(api.action("cart_addons",JSONObject().put("dishId",id).put("addons",addons)))}
-    fun addSide(id:String)=run {applyCart(api.action("cart_add_side",JSONObject().put("dishId",id)))}
-    fun applyCoupon(code:String)=run {applyCart(api.action("cart_coupon",JSONObject().put("couponCode",code)))}
-    fun choosePayment(){payment=null;paymentStage="choose";screen=Screen.Payment;run {val result=api.action("payment_options");paymentOptions=result.getJSONObject("paymentOptions");applyCart(result)}}
+    private fun applyCart(result:JSONObject){cartRefreshRequired=false;cart=result.optJSONObject("cart")?:result;trace(result)}
+    fun refreshCart()=run(onFailure = { cartRefreshRequired = true }) {applyCart(api.action("cart"))}
+    fun changeQuantity(id:String,quantity:Int)=run(onFailure = { cartRefreshRequired = true }) {applyCart(api.action("cart_quantity",JSONObject().put("dishId",id).put("quantity",quantity)))}
+    fun changeVariant(id:String,group:String,variant:String)=run(onFailure = { cartRefreshRequired = true }) {applyCart(api.action("cart_variant",JSONObject().put("dishId",id).put("groupId",group).put("variationId",variant)))}
+    fun changeAddons(id:String,addons:JSONArray)=run(onFailure = { cartRefreshRequired = true }) {applyCart(api.action("cart_addons",JSONObject().put("dishId",id).put("addons",addons)))}
+    fun addSide(id:String)=run(onFailure = { cartRefreshRequired = true }) {applyCart(api.action("cart_add_side",JSONObject().put("dishId",id)))}
+    fun applyCoupon(code:String)=run(onFailure = { cartRefreshRequired = true }) {applyCart(api.action("cart_coupon",JSONObject().put("couponCode",code)))}
+    fun choosePayment(){paymentOptions=null;payment=null;paymentStage="choose";screen=Screen.Payment;run(onFailure = { cartRefreshRequired = true }) {val result=api.action("payment_options");paymentOptions=result.getJSONObject("paymentOptions");applyCart(result)}}
     fun beginPayment()=run {
         val c=cart?:return@run
         val result=api.action("checkout",JSONObject().put("confirm",true).put("requestId",java.util.UUID.randomUUID().toString()).put("revision",c.getInt("revision")).put("payable",c.getDouble("payable")).put("methodId",selectedMethodId).put("note",checkoutNote))
@@ -360,7 +365,7 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
     fun acceptAssistant(){assistantConsent=true;assistantConsentPending=false;val text=pendingAssistantText;pendingAssistantText="";sendAssistantMessage(text)}
     fun applyAssistantAction(){val (action,value)=assistantAction?:return;assistantAction=null;val n=value.toIntOrNull();when(action){"search"->{query=value.take(120);search()};"set_allowance"->if(n!=null&&n in 0..100000)allowance=n;"set_opportunities"->if(n!=null&&n in 0..8)opportunities=n;"set_calorie_goal"->if(n!=null&&n in 500..10000)calorieGoal=n;"log_calories"->if(n!=null&&n in 0..10000)intake=intake.copy(calories=intake.calories+Span(n,n));"set_protein_goal"->if(n!=null&&n in 1..1000)proteinGoal=n;"set_carb_goal"->if(n!=null&&n in 1..1500)carbGoal=n;"set_fat_goal"->if(n!=null&&n in 1..1000)fatGoal=n;"log_carbs"->if(n!=null&&n in 0..1500)intake=intake.copy(carbs=intake.carbs+Span(n,n));"log_fat"->if(n!=null&&n in 0..1000)intake=intake.copy(fat=intake.fat+Span(n,n));"log_spending"->if(n!=null&&n in 0..100000)spent+=n;"log_protein"->if(n!=null&&n in 0..1000)intake=intake.copy(protein=intake.protein+Span(n,n));"set_taste"->if(value in listOf("any","spicy","cheesy","sweet","bland","light","filling"))taste=value;"navigate_home"->screen=Screen.Home;"navigate_day"->screen=Screen.Day;"navigate_saved"->screen=Screen.Saved;"review_cart"->if(winner!=null)review();"save_winner"->winner?.let {toggleSaved(it)}};receipt="Assistant change confirmed."}
     private fun clearSaved() {savedMeals.clear();savedConsent=false;savedConsentAt=0}
-    private fun clearProviderData() {connected=false;addressId=null;meals.clear();finalists.clear();winner=null;restaurants.clear();cart=null;coupons=null;addresses.clear();drawOrder=emptyList();passed.clear();lastPassed=null;pendingSave=null;clearSaved()}
+    private fun clearProviderData() {cartRefreshRequired=false;discoveryAttempted=false;discoveryError=null;connected=false;addressId=null;meals.clear();finalists.clear();winner=null;restaurants.clear();cart=null;coupons=null;addresses.clear();drawOrder=emptyList();passed.clear();lastPassed=null;pendingSave=null;clearSaved()}
     fun disconnect() = run {
         val result=api.action("disconnect",JSONObject().put("confirm",true))
         persistenceJob?.cancelAndJoin();ready=false;clearProviderData();db.erase(owner);db.save(TrackerRecord(owner,snapshot().toString()));ready=true;startPersistence()
@@ -414,7 +419,7 @@ class HungiiModel(application: Application) : AndroidViewModel(application) {
     fun showFinalists() {if(finalists.isNotEmpty())screen=Screen.Finalists}
     fun startDraw() {if(finalists.size!=3||shuffling)return;drawOrder=finalists.shuffled(SecureRandom());winner=null;pickedIndex=null;canPick=false;shuffling=true;screen=Screen.Draw}
     fun pick(i: Int) {if(canPick&&!shuffling&&pickedIndex==null&&i in drawOrder.indices){pickedIndex=i;canPick=false;winner=drawOrder[i]}}
-    fun goBack() {shuffling=false;screen=when(screen){Screen.Draw,Screen.Winner->Screen.Finalists;Screen.Review->Screen.Winner;Screen.Payment->Screen.Review;Screen.Order->Screen.Home;Screen.Finalists->Screen.Discover;else->Screen.Home}}
+    fun goBack() {shuffling=false;screen=when(screen){Screen.Draw,Screen.Winner->Screen.Finalists;Screen.Review->Screen.Winner;Screen.Payment->Screen.Review;Screen.Order->Screen.Home;Screen.Finalists,Screen.Saved->Screen.Discover;else->Screen.Home}}
     fun invalidateCheckInUndo() {undoUpdate=null}
     fun update(input: String) {
         val oldAllowance=allowance;val oldOpportunities=opportunities;val oldTaste=taste;val oldQuery=query

@@ -58,6 +58,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -71,7 +72,7 @@ internal val Surface=Color(0xFF1B1F1D)
 internal val Raised=Color(0xFF232925)
 internal val Lime=Color(0xFFCAFF48)
 internal val White=Color(0xFFF5F7EE)
-internal val Muted=Color(0xFF99A29B)
+internal val Muted=Color(0xFFAFB7B0)
 internal val Line=Color(0xFF303831)
 internal val Coral=Color(0xFFFF9A82)
 internal val Cyan=Color(0xFF90DAD7)
@@ -92,7 +93,7 @@ class MainActivity: ComponentActivity() {
         enableEdgeToEdge(statusBarStyle=SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),navigationBarStyle=SystemBarStyle.dark(android.graphics.Color.rgb(16,18,17)))
         intent.data?.let(model::handleCallback)
         setContent {
-            MaterialTheme(colorScheme=darkColorScheme(primary=Lime,onPrimary=Charcoal,background=Charcoal,surface=Surface,onSurface=White,onBackground=White,outline=Line)) {
+            MaterialTheme(colorScheme=darkColorScheme(primary=Lime,onPrimary=Charcoal,background=Charcoal,surface=Surface,onSurface=White,onBackground=White,onSurfaceVariant=Muted,surfaceVariant=Raised,secondary=Lime,onSecondary=Charcoal,error=Coral,onError=Charcoal,outline=Line)) {
                 onWords={ model.sendAssistantMessage(it) }
                 HungiiApp(model,voice.value,::requestVoice)
             }
@@ -179,7 +180,7 @@ internal fun HungiiApp(model: HungiiModel,voice: VoiceState,onVoice: ()->Unit) {
         bottomBar={ if(!focused) ModernTabs(model) }
     ) { insets ->
         Column(Modifier.fillMaxSize().padding(insets).imePadding()) {
-            if(BuildConfig.LOCAL_DEMO) Text("Simulator · no real orders or money",color=Lime,fontSize=10.sp,modifier=Modifier.fillMaxWidth().background(Surface).padding(8.dp),textAlign=TextAlign.Center)
+            if(BuildConfig.LOCAL_DEMO) Text("Simulator · no real orders or money",color=Muted,fontSize=12.sp,modifier=Modifier.fillMaxWidth().background(Surface).padding(8.dp),textAlign=TextAlign.Center)
             Box(Modifier.weight(1f)) {
             AnimatedContent(targetState=model.screen,transitionSpec={fadeIn(tween(if(reduceMotion)0 else 220))+slideInVertically(tween(if(reduceMotion)0 else 220)){it/30} togetherWith fadeOut(tween(if(reduceMotion)0 else 120))},label="screen") { screen ->
             when(screen) {
@@ -213,10 +214,12 @@ internal fun HungiiApp(model: HungiiModel,voice: VoiceState,onVoice: ()->Unit) {
     }
     if(goalsOpen) GoalsDialog(model) { goalsOpen=false }
     detailMeal?.let { meal ->
-        ModalBottomSheet(onDismissRequest={detailMeal=null},containerColor=Surface) {
-            Column(Modifier.padding(24.dp).navigationBarsPadding(),verticalArrangement=Arrangement.spacedBy(16.dp)) {
+        ModalBottomSheet(onDismissRequest={detailMeal=null},sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Surface) {
+            Column(Modifier.heightIn(max=650.dp).verticalScroll(rememberScrollState()).padding(24.dp).navigationBarsPadding(),verticalArrangement=Arrangement.spacedBy(16.dp)) {
                 Eyebrow("THE WHOLE PICTURE",Lime)
-                DisplayText(meal.name,34)
+                DisplayText(meal.name,28)
+                MacroStats(meal.nutrition)
+                AllowanceContext(meal,model)
                 Text(meal.benefit,color=White,fontSize=15.sp)
                 Text(meal.compromise,color=Coral,fontSize=15.sp)
                 Text("${meal.priceLabel} is the menu price. Delivery, taxes and offers can change the final cart bill. "+if(meal.nutrition!=null) "Nutrition ranges are Hungii-owned synthetic estimates; photos are representative." else "Nutrition is not published for this item in the connected menu.",color=Muted,lineHeight=23.sp)
@@ -229,21 +232,25 @@ internal fun HungiiApp(model: HungiiModel,voice: VoiceState,onVoice: ()->Unit) {
 @Composable
 internal fun AccountEntry(model:HungiiModel) {
     val context=LocalContext.current
-    Column(Modifier.fillMaxSize().background(Charcoal).safeDrawingPadding().verticalScroll(rememberScrollState()).padding(28.dp),verticalArrangement=Arrangement.spacedBy(22.dp)) {
-        Spacer(Modifier.height(36.dp))
-        Text("hungii.",color=Lime,fontSize=42.sp,fontWeight=FontWeight.Black)
-        Eyebrow("YOUR ACCOUNT. YOUR FUEL.",Muted)
-        DisplayText("Your day.\nYour fuel.\nYour choice.",38)
-        Text("Keep your goals, food allowance and meal preferences together. Sign in to restore your profile across devices.",color=Muted,fontSize=16.sp,lineHeight=25.sp)
-        Column(Modifier.fillMaxWidth().background(Surface,RoundedCornerShape(20.dp)).padding(18.dp)) {TradeLine(Icons.Outlined.Person,Lime,"Hungii account · your profile and cloud sync");Spacer(Modifier.height(12.dp));TradeLine(Icons.Outlined.Restaurant,Muted,"Connect Swiggy later to discover meals.")}
-        Spacer(Modifier.height(12.dp))
-        LimeButton("Continue with email",Icons.AutoMirrored.Outlined.Login,enabled=BuildConfig.WORKOS_AUTH_READY&&!model.loading) {
-            try {CustomTabsIntent.Builder().build().launchUrl(context,Uri.parse(model.signInUrl()))} catch(e:ApiFailure){model.connectionMessage=e.message} catch(_:Exception){model.connectionMessage="A browser is needed to sign in."}
+    Column(Modifier.fillMaxSize().background(Charcoal).safeDrawingPadding().verticalScroll(rememberScrollState()).padding(24.dp),verticalArrangement=Arrangement.spacedBy(24.dp)) {
+        Spacer(Modifier.height(16.dp))
+        Text("hungii",color=Lime,fontSize=32.sp,fontWeight=FontWeight.ExtraBold)
+        DisplayText("Your day.\nYour next meal.",36)
+        Text("Start with your food allowance, goals and cravings. Keep your plan on this device, and sign in whenever you want to sync.",color=Muted,fontSize=16.sp,lineHeight=24.sp)
+        Column(Modifier.fillMaxWidth().background(Surface,RoundedCornerShape(24.dp)).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
+            Text("Your starting plan",color=Muted,fontSize=14.sp)
+            DisplayText("₹${model.allowance}",40)
+            Text("${model.opportunities} meals · ${model.calorieGoal} kcal target",color=White,fontSize=16.sp)
+            Text("Adjust these starting values to suit your day.",color=Muted,fontSize=14.sp,lineHeight=20.sp)
         }
-        Text("New here? The same email flow creates your account. Choose Email sign-in code if a password screen appears.",color=Muted,fontSize=12.sp,lineHeight=19.sp)
-        TextButton(onClick={model.useOffline()}) {Text("Use locally without an account",color=Muted)}
-        if(model.connectionMessage.isNotBlank())Text(model.connectionMessage,color=Coral,fontSize=13.sp)
-        Text("WorkOS handles email sign-in. Cloud sync is your choice after sign-in. No Swiggy login is needed to save your goals.",color=Muted,fontSize=11.sp,lineHeight=18.sp)
+        LimeButton("Start planning",Icons.AutoMirrored.Outlined.ArrowForward) {model.useOffline()}
+        OutlinedButton(onClick={
+            try {CustomTabsIntent.Builder().build().launchUrl(context,Uri.parse(model.signInUrl()))} catch(e:ApiFailure){model.connectionMessage=e.message} catch(_:Exception){model.connectionMessage="A browser is needed to sign in."}
+        },enabled=BuildConfig.WORKOS_AUTH_READY&&!model.loading,modifier=Modifier.fillMaxWidth().heightIn(min=56.dp),border=BorderStroke(1.dp,Line)) {
+            Text("Sign in to sync",color=if(BuildConfig.WORKOS_AUTH_READY)White else Muted,fontSize=16.sp)
+        }
+        Text("Local planning needs no account. Meal discovery requires a separate Swiggy connection; live access remains approval-gated.",color=Muted,fontSize=14.sp,lineHeight=20.sp)
+        if(model.connectionMessage.isNotBlank())Text(model.connectionMessage,color=Coral,fontSize=14.sp,lineHeight=20.sp)
     }
 }
 
@@ -280,127 +287,26 @@ internal fun BrandHeader(onDay: ()->Unit) {
 }
 
 @Composable
-internal fun DiscoverScreen(model: HungiiModel,onDetails: (Meal)->Unit) {
-    val haptic=LocalHapticFeedback.current
-    val meal=model.pool.firstOrNull()
-    Column(Modifier.fillMaxSize().padding(horizontal=20.dp)) {
-        Row(Modifier.fillMaxWidth().height(54.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
-            DisplayText("Find your three.",25)
-            Badge("${model.finalists.size} / 3 PICKED",Lime,Raised)
-        }
-        Row(Modifier.fillMaxWidth().padding(bottom=12.dp),horizontalArrangement=Arrangement.SpaceBetween) {
-            Text("₹${model.moneyLeft} left",color=White,fontSize=12.sp,lineHeight=16.sp,fontWeight=FontWeight.SemiBold)
-            Text("${model.caloriesLeft.label} kcal",color=Muted,fontSize=12.sp,lineHeight=16.sp)
-            Text("${model.opportunities} meals left",color=Muted,fontSize=12.sp,lineHeight=16.sp)
-        }
-        Row(Modifier.horizontalScroll(rememberScrollState()).padding(bottom=12.dp),horizontalArrangement=Arrangement.spacedBy(7.dp)) {
-            SmallChip("Spicy",model.taste=="spicy") { model.taste=if(model.taste=="spicy") "any" else "spicy" }
-            SmallChip("Health menus",model.highProtein) { model.highProtein=!model.highProtein }
-            SmallChip("Under ₹250",model.budgetOnly) { model.budgetOnly=!model.budgetOnly }
-            SmallChip("Veg only",model.vegOnly) { model.vegOnly=!model.vegOnly }
-            SmallChip("Fast",model.fast) { model.fast=!model.fast }
-        }
-
-        if(model.loading) LinearProgressIndicator(modifier=Modifier.fillMaxWidth(),color=Lime)
-        if(model.connectionMessage.isNotBlank()) Text(model.connectionMessage,color=Coral,fontSize=12.sp,lineHeight=18.sp)
-        if(meal!=null) {
-            MealProfile(meal,model,Modifier.weight(1f),onDetails,onSwipe={ like ->
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                if(like) model.like(meal) else model.pass(meal)
-            })
-            Row(Modifier.fillMaxWidth().padding(top=14.dp,bottom=8.dp),horizontalArrangement=Arrangement.spacedBy(18.dp,Alignment.CenterHorizontally),verticalAlignment=Alignment.CenterVertically) {
-                RoundAction(Icons.AutoMirrored.Outlined.Undo,"Undo swipe",Surface,Muted,{model.undoSwipe()},48)
-                RoundAction(Icons.Outlined.Close,"Pass meal",Surface,White,{model.pass(meal)},60)
-                RoundAction(Icons.Outlined.FavoriteBorder,"Shortlist meal",Lime,Charcoal,{model.like(meal);haptic.performHapticFeedback(HapticFeedbackType.LongPress)},66)
-            }
-            Row(Modifier.fillMaxWidth().padding(bottom=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
-                Text("Swipe left to pass. Right to keep.",color=Muted,fontSize=10.sp,lineHeight=14.sp)
-                if(model.finalists.isNotEmpty()) TextButton(onClick={model.showFinalists()},contentPadding=PaddingValues(0.dp)) { Text("See ${model.finalists.size} finalist${if(model.finalists.size>1)"s" else ""} →",fontSize=11.sp,color=Lime) }
-                else Text("${model.pool.size} in this batch",color=Muted,fontSize=10.sp,lineHeight=14.sp)
-            }
-        } else {
-            Column(Modifier.weight(1f).fillMaxWidth(),verticalArrangement=Arrangement.Center,horizontalAlignment=Alignment.CenterHorizontally) {
-                DisplayText(if(!model.connected) "CONNECT.\nTHEN DISCOVER." else "NO MORE IN\nTHIS BATCH.",44)
-                Spacer(Modifier.height(18.dp))
-                Text(if(!model.connected) "Connect your account and choose a delivery address to see Swiggy meals." else "Try a different dish or choose an open restaurant below. Your dietary filters stay yours.",color=Muted,textAlign=TextAlign.Center,lineHeight=22.sp)
-                Spacer(Modifier.height(24.dp))
-                if(model.finalists.isNotEmpty()) LimeButton("See my finalists",Icons.AutoMirrored.Outlined.ArrowForward) {model.showFinalists()}
-                if(!model.connected||model.addressId==null) LimeButton("Connect Swiggy",Icons.Outlined.Link) {model.accountOpen=true}
-                Column(Modifier.heightIn(max=160.dp).verticalScroll(rememberScrollState())) {
-                    model.restaurants.take(8).forEach {r->TextButton(onClick={model.restaurantMeals(r)}) {Text(r.name+(r.distanceKm?.let {" · $it km"} ?: "")+(r.etaMinutes?.let {" · ~$it min"} ?: ""),color=Lime,maxLines=2)}}
-                }
-                TextButton(onClick={model.screen=Screen.Home}) {Text("Change craving",color=Lime)}
-                TextButton(onClick={model.passed.clear()}) {Text("Revisit passed meals",color=Lime)}
-            }
-        }
-    }
-}
-
-@Composable
-internal fun MealProfile(meal: Meal,model: HungiiModel,modifier: Modifier,onDetails: (Meal)->Unit,onSwipe: (Boolean)->Unit) {
-    var drag by remember(meal.id) { mutableFloatStateOf(0f) }
-    val n=meal.nutrition
-    val restingDrag by animateFloatAsState(drag,spring(dampingRatio=.75f,stiffness=500f),label="card drag")
-    Column(modifier.graphicsLayer { translationX=restingDrag;rotationZ=restingDrag/35f }.clip(RoundedCornerShape(26.dp)).background(Surface)
-        .pointerInput(meal.id) {
-            detectHorizontalDragGestures(onDragEnd={ if(abs(drag)>100.dp.toPx()) onSwipe(drag>0);drag=0f },onDragCancel={drag=0f}) { change, amount -> change.consume(); drag+=amount }
-        }) {
-        Box(Modifier.weight(1f).fillMaxWidth()) {
-            MealImage(meal,Modifier.fillMaxSize())
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent,Color.Black.copy(alpha=.25f)))))
-            Row(Modifier.fillMaxWidth().padding(14.dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
-                Badge(meal.badge,Charcoal,Lime)
-                IconButton(onClick={model.toggleSaved(meal)},modifier=Modifier.size(38.dp).background(Charcoal.copy(alpha=.7f),CircleShape)) {
-                    Icon(if(meal.id in model.saved) Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,"Save ${meal.name}",tint=if(meal.id in model.saved)Lime else White,modifier=Modifier.size(20.dp))
-                }
-            }
-            if(abs(drag)>30) Badge(if(drag>0) "KEEP" else "PASS",if(drag>0)Charcoal else White,if(drag>0)Lime else Color.Black.copy(alpha=.7f),Modifier.align(Alignment.Center).graphicsLayer { rotationZ=if(drag>0)-12f else 12f })
-
-        }
-        Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(6.dp)) {
-
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {
-                Text(meal.restaurant,color=Muted,fontSize=11.sp,lineHeight=16.sp)
-                Text(if(meal.veg==true) "● VEG" else if(meal.veg==false) "● NON-VEG" else "DIET UNKNOWN",color=if(meal.veg==true)Lime else Coral,fontSize=9.sp,lineHeight=12.sp,fontWeight=FontWeight.Bold)
-            }
-            DisplayText(meal.name,23,maxLines=2)
-            Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
-                Row(verticalAlignment=Alignment.Bottom) {DisplayText(meal.priceLabel,if(meal.itemPrice==null)18 else 25);Text("  menu price",color=Muted,fontSize=10.sp,modifier=Modifier.padding(bottom=4.dp))}
-                Row(verticalAlignment=Alignment.CenterVertically) {Icon(Icons.Outlined.Schedule,null,tint=Muted,modifier=Modifier.size(13.dp));Spacer(Modifier.width(4.dp));Text(meal.etaLabel,color=White,fontSize=11.sp)}
-            }
-            MacroStats(n)
-
-            TradeLine(Icons.Outlined.Add,Lime,if(n!=null) "About ${n.protein.mid.toInt()}g protein · ₹${model.mealMoneyGuide} meal allowance" else meal.etaLabel)
-            TradeLine(Icons.Outlined.Remove,Coral,if(meal.estimatedPayable!=null&&meal.estimatedPayable>model.moneyLeft) "About ${rupees(meal.estimatedPayable-model.moneyLeft)} over today’s remaining allowance." else if(n!=null&&n.calories.high>model.caloriesLeft.mid/model.opportunities.coerceAtLeast(1)) "Uses more calories than an even split across remaining meals." else "Estimated macros. Basket extras can unlock better offers.",maxLines=2)
-            Row(Modifier.fillMaxWidth().clickable { onDetails(meal) },horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically) {
-                Text(meal.estimatedPayable?.let { "~${rupees(it)} basket · offers checked at checkout" } ?: "Final bill checked in Swiggy cart",fontSize=10.sp,lineHeight=14.sp,color=Muted)
-                Icon(Icons.Outlined.ArrowOutward,"Meal trade-off details",tint=Lime,modifier=Modifier.size(16.dp))
-            }
-        }
-    }
-}
-
-@Composable
 internal fun FinalistsScreen(model: HungiiModel) {
-    Column(Modifier.fillMaxSize().padding(horizontal=22.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal=24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
         FocusHeader("YOUR FINALISTS") {model.goBack()}
         DisplayText(if(model.finalists.size==3) "Three good choices." else "Your shortlist.",30)
         Text("All of these got a yes. The last choice can be the easy one.",color=Muted,lineHeight=23.sp)
-        Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(12.dp,Alignment.CenterVertically)) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
             model.finalists.toList().forEachIndexed { i,m ->
-                Row(Modifier.fillMaxWidth().height(100.dp).clip(RoundedCornerShape(20.dp)).background(Surface),verticalAlignment=Alignment.CenterVertically) {
-                    MealImage(m,Modifier.width(105.dp).fillMaxHeight())
+                Row(Modifier.fillMaxWidth().heightIn(min=144.dp).clip(RoundedCornerShape(24.dp)).background(Surface),verticalAlignment=Alignment.CenterVertically) {
+                    MealImage(m,Modifier.size(88.dp).padding(start=12.dp).clip(RoundedCornerShape(16.dp)))
                     Column(Modifier.weight(1f).padding(13.dp),verticalArrangement=Arrangement.spacedBy(5.dp)) {
                         Eyebrow("FINALIST 0${i+1}",Lime)
-                        Text(m.name,color=White,fontSize=15.sp,lineHeight=18.sp,fontWeight=FontWeight.SemiBold,maxLines=2)
-                        Text("${m.priceLabel} · ${m.etaLabel}",color=Muted,fontSize=10.sp,lineHeight=14.sp)
+                        Text(m.name,color=White,fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold)
+                        Text("${m.priceLabel} · ${m.etaLabel}",color=Muted,fontSize=12.sp,lineHeight=16.sp)
                     }
-                    IconButton(onClick={model.remove(m)},modifier=Modifier.size(36.dp)) {Icon(Icons.Outlined.Close,"Remove ${m.name}",tint=Muted,modifier=Modifier.size(16.dp))}
+                    IconButton(onClick={model.remove(m)},modifier=Modifier.size(48.dp)) {Icon(Icons.Outlined.Close,"Remove ${m.name}",tint=Muted,modifier=Modifier.size(16.dp))}
                 }
             }
         }
         if(model.finalists.size==3) LimeButton("Turn over & shuffle",Icons.Outlined.Shuffle) {model.startDraw()} else LimeButton("Keep ${3-model.finalists.size} more meal${if(model.finalists.size==2) "" else "s"}",Icons.Outlined.Add) {model.screen=Screen.Discover}
-        Text("Same meals. Equal chances. Nothing ordered.",color=Muted,fontSize=11.sp,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth().padding(bottom=24.dp))
+        Text("Same meals. Equal chances. Nothing ordered.",color=Muted,fontSize=12.sp,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth().padding(bottom=24.dp))
     }
 }
 
@@ -410,7 +316,7 @@ internal fun DrawScreen(model: HungiiModel,reduceMotion: Boolean) {
     LaunchedEffect(Unit) { backsUp=true }
     val infinite=rememberInfiniteTransition(label="shuffle")
     val phase by infinite.animateFloat(0f,1f,infiniteRepeatable(tween(850,easing=LinearEasing)),label="mix")
-    Column(Modifier.fillMaxSize().padding(horizontal=22.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal=24.dp)) {
         FocusHeader("THE LUCKY DRAW") {model.goBack()}
         Spacer(Modifier.height(28.dp))
         Eyebrow("ROUND TWO",Lime)
@@ -436,10 +342,10 @@ internal fun DrawScreen(model: HungiiModel,reduceMotion: Boolean) {
                         .semantics {contentDescription=if(picked) "Revealed ${m.name}" else "Pick card ${i+1}"},contentAlignment=Alignment.Center) {
                         if(turned<90) Column(Modifier.fillMaxSize()) {
                             MealImage(m,Modifier.weight(1f).fillMaxWidth())
-                            Text(m.name,color=White,fontSize=11.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(10.dp),maxLines=3)
+                            Text(m.name,color=White,fontSize=12.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(10.dp),maxLines=3)
                         } else Column(Modifier.fillMaxSize().graphicsLayer {rotationY=180f}.padding(10.dp).border(1.dp,Charcoal.copy(alpha=.25f),RoundedCornerShape(10.dp)),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center) {
                             Text("h.",fontSize=54.sp,fontWeight=FontWeight.Black,letterSpacing=(-3).sp,color=Charcoal)
-                            Spacer(Modifier.height(15.dp));Text("FUEL YOUR DAY",fontSize=7.sp,color=Charcoal,letterSpacing=1.sp,fontWeight=FontWeight.Bold)
+                            Spacer(Modifier.height(15.dp));Text("FUEL YOUR DAY",fontSize=12.sp,color=Charcoal,letterSpacing=1.sp,fontWeight=FontWeight.Bold)
                         }
                     }
                 }
@@ -457,22 +363,23 @@ internal fun DrawScreen(model: HungiiModel,reduceMotion: Boolean) {
 internal fun WinnerScreen(model: HungiiModel,onDetails: (Meal)->Unit) {
     val meal=model.winner ?: return
     Column(Modifier.fillMaxSize()) {
-    Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal=22.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
+    Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal=24.dp),verticalArrangement=Arrangement.spacedBy(14.dp)) {
         FocusHeader("YOUR LUCKY PICK") {model.goBack()}
         Row(verticalAlignment=Alignment.CenterVertically) {Icon(Icons.Outlined.AutoAwesome,null,tint=Lime,modifier=Modifier.size(22.dp));Spacer(Modifier.width(10.dp));DisplayText("Your lucky pick.",32)}
         Box(Modifier.fillMaxWidth().height(245.dp).clip(RoundedCornerShape(26.dp))) {
             MealImage(meal,Modifier.fillMaxSize())
             Badge(meal.badge,Charcoal,Lime,Modifier.align(Alignment.TopStart).padding(15.dp))
         }
-        DisplayText(meal.name,30)
+        DisplayText(meal.name,28)
+        Text(meal.priceLabel+" menu price · fees extra",color=White,fontSize=18.sp)
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {Text(meal.restaurant,color=Muted,fontSize=12.sp);Text(meal.etaLabel,color=Muted,fontSize=12.sp)}
         MacroStats(meal.nutrition)
-        Text(if(meal.nutrition!=null) "Estimated nutrition · synthetic demo" else "Nutrition not published · calories and macros unknown",color=Muted,fontSize=10.sp)
+        AllowanceContext(meal,model)
+        Text(if(meal.nutrition!=null) "Estimated nutrition · synthetic demo" else "Nutrition not published · calories and macros unknown",color=Muted,fontSize=12.sp)
         TradeLine(Icons.Outlined.Add,Lime,meal.benefit)
         TradeLine(Icons.Outlined.Remove,Coral,meal.compromise,maxLines=3)
-        Row(Modifier.fillMaxWidth().padding(vertical=8.dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.Bottom) {DisplayText(meal.priceLabel,if(meal.itemPrice==null)22 else 37);Text("menu price · fees extra",color=Muted,fontSize=11.sp)}
         TextButton(onClick={onDetails(meal)},modifier=Modifier.fillMaxWidth()) {Text("See what this leaves for later",color=Muted,fontSize=12.sp)}
-        Text("The draw never changes a cart or places an order.",color=Muted,fontSize=10.sp,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth().padding(bottom=20.dp))
+        Text("The draw never changes a cart or places an order.",color=Muted,fontSize=12.sp,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth().padding(bottom=20.dp))
     }
     Box(Modifier.fillMaxWidth().background(Charcoal).padding(horizontal=22.dp,vertical=12.dp)) {
         LimeButton(if(BuildConfig.LOCAL_DEMO) "Add to mock cart" else "Review & open Swiggy",Icons.AutoMirrored.Outlined.ArrowForward) {model.review()}
@@ -485,7 +392,7 @@ internal fun ReviewScreen(model: HungiiModel) {
     val meal=model.winner ?: return
     val context=LocalContext.current
     Column(Modifier.fillMaxSize()) {
-        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal=22.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal=24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
             FocusHeader("MEAL REVIEW") {model.goBack()}
             DisplayText("Your pick.\nYour Swiggy cart.",32)
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Surface).padding(12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
@@ -524,7 +431,7 @@ internal fun ReviewScreen(model: HungiiModel) {
                         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Surface).padding(14.dp),verticalArrangement=Arrangement.spacedBy(5.dp)) {
                             Text(offer.optString("title","Offer"),color=Lime,fontWeight=FontWeight.Bold)
                             Text(offer.optString("description").ifBlank {offer.optString("subtitle")},color=Muted,fontSize=12.sp,lineHeight=18.sp)
-                            Text("Eligibility depends on your current cart and payment method. This offer has not been applied.",color=Muted,fontSize=10.sp,lineHeight=16.sp)
+                            Text("Eligibility depends on your current cart and payment method. This offer has not been applied.",color=Muted,fontSize=12.sp,lineHeight=16.sp)
                         }
                     }
                 }
@@ -532,7 +439,7 @@ internal fun ReviewScreen(model: HungiiModel) {
             TextButton(onClick={model.review()}) {Text("Refresh cart & offers",color=Lime)}
             Spacer(Modifier.height(12.dp))
         }
-        Box(Modifier.fillMaxWidth().background(Charcoal).padding(22.dp)) {
+        Box(Modifier.fillMaxWidth().background(Charcoal).padding(24.dp)) {
             LimeButton(if(BuildConfig.LOCAL_DEMO) "Demo · checkout unavailable" else "Continue in Swiggy",Icons.AutoMirrored.Outlined.OpenInNew,enabled=!BuildConfig.LOCAL_DEMO) {context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://www.swiggy.com/")))}
         }
     }
@@ -540,40 +447,43 @@ internal fun ReviewScreen(model: HungiiModel) {
 
 @Composable
 internal fun SavedScreen(model: HungiiModel) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=22.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
-        BrandHeader {model.screen=Screen.Day}
-        DisplayText("Your go-to meals.",30)
-        Text("Saved on this device with your permission. Search again to check today's availability and price.",color=Muted,fontSize=13.sp,lineHeight=22.sp)
-        model.savedMeals.toList().forEach {meal ->
-            Row(Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(22.dp)).background(Surface),verticalAlignment=Alignment.CenterVertically) {
-                MealImage(meal,Modifier.width(115.dp).fillMaxHeight())
-                Column(Modifier.weight(1f).padding(13.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                    Text(meal.name,color=White,fontWeight=FontWeight.Bold,fontSize=15.sp,lineHeight=19.sp,maxLines=2)
-                    Text(meal.restaurant,color=Muted,fontSize=10.sp,lineHeight=14.sp,maxLines=2)
-                    Row(verticalAlignment=Alignment.CenterVertically) {
-                        TextButton(onClick={model.query=meal.name;model.search()},contentPadding=PaddingValues(0.dp)) {Text("Find again →",color=Lime,fontSize=12.sp)}
-                        IconButton(onClick={model.toggleSaved(meal)},modifier=Modifier.size(35.dp)) {Icon(Icons.Outlined.Favorite,"Unsave ${meal.name}",tint=Lime,modifier=Modifier.size(17.dp))}
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
+        FocusHeader("Saved meals") {model.screen=Screen.Discover}
+        if(model.savedMeals.isEmpty()) {
+            MealEmptyState(Icons.Outlined.Bookmarks,"Keep your favourites close","Tap the bookmark on a meal to save it here. We'll ask before keeping it on this device.","Explore meals",{model.screen=Screen.Discover})
+        } else {
+            DisplayText("Your go-to meals",28)
+            Text("Search again to check today's availability and price.",color=Muted,fontSize=16.sp,lineHeight=24.sp)
+            model.savedMeals.toList().forEach {meal ->
+                Row(Modifier.fillMaxWidth().heightIn(min=144.dp).clip(RoundedCornerShape(24.dp)).background(Surface).padding(16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(16.dp)) {
+                    MealImage(meal,Modifier.size(80.dp).clip(RoundedCornerShape(16.dp)))
+                    Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)) {
+                        Text(meal.name,color=White,fontWeight=FontWeight.SemiBold,fontSize=16.sp,lineHeight=22.sp)
+                        Text(meal.restaurant,color=Muted,fontSize=14.sp,lineHeight=20.sp)
+                        Row(verticalAlignment=Alignment.CenterVertically) {
+                            TextButton(onClick={model.query=meal.name;model.search()},modifier=Modifier.weight(1f)) {Text("Find again",color=Lime,fontSize=14.sp)}
+                            IconButton(onClick={model.toggleSaved(meal)}) {Icon(Icons.Outlined.Bookmark,"Unsave ${meal.name}",tint=Muted)}
+                        }
                     }
                 }
             }
         }
-        if(model.saved.isEmpty()) Text("Tap the heart on a live meal to make it a go-to.",color=Muted)
-        if(model.savedConsent) TextButton(onClick={model.forgetSaved()}) {Text("Delete saved meals & withdraw saving permission",color=Coral,fontSize=12.sp)}
-        Spacer(Modifier.height(15.dp))
+        if(model.savedConsent) TextButton(onClick={model.forgetSaved()}) {Text("Delete saved meals & withdraw saving permission",color=Coral,fontSize=14.sp)}
+        Spacer(Modifier.height(16.dp))
     }
 }
 
 @Composable
 internal fun DayScreen(model: HungiiModel,onEdit: ()->Unit) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=22.dp),verticalArrangement=Arrangement.spacedBy(18.dp)) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=24.dp),verticalArrangement=Arrangement.spacedBy(18.dp)) {
         BrandHeader(onEdit)
         DisplayText("No fixed schedule.\nStill on track.",30)
-        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Surface).padding(22.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(24.dp)) {
+        Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Surface).padding(24.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(24.dp)) {
             Box(Modifier.size(120.dp),contentAlignment=Alignment.Center) {
                 Canvas(Modifier.fillMaxSize()) {drawCircle(Line,style=Stroke(8.dp.toPx()));drawArc(Lime,-90f,(model.intake.calories.mid/model.calorieGoal).coerceIn(0f,1f)*360,false,style=Stroke(8.dp.toPx(),cap=StrokeCap.Round))}
-                Column(horizontalAlignment=Alignment.CenterHorizontally) {DisplayText(model.caloriesLeft.label,37,Lime);Text("KCAL LEFT",color=Muted,fontSize=9.sp,letterSpacing=1.sp)}
+                Column(horizontalAlignment=Alignment.CenterHorizontally) {DisplayText(model.caloriesLeft.label,37,Lime);Text("KCAL LEFT",color=Muted,fontSize=12.sp,letterSpacing=1.sp)}
             }
-            Column(verticalArrangement=Arrangement.spacedBy(9.dp)) {Text("${model.intake.calories.label} consumed",color=White,fontSize=13.sp);Text("${model.calorieGoal} daily target",color=Muted,fontSize=12.sp);Text("${model.opportunities} opportunities left",color=Muted,fontSize=12.sp)}
+            Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(9.dp)) {Text("${model.intake.calories.label} consumed",color=White,fontSize=13.sp);Text("${model.calorieGoal} daily target",color=Muted,fontSize=12.sp);Text("${model.opportunities} opportunities left",color=Muted,fontSize=12.sp)}
         }
         listOf(Triple("PROTEIN",model.intake.protein,model.proteinGoal),Triple("CARBS",model.intake.carbs,model.carbGoal),Triple("FAT",model.intake.fat,model.fatGoal)).forEachIndexed {i,(label,n,goal)->
             val color=listOf(Lime,Cyan,Coral)[i]
@@ -584,47 +494,68 @@ internal fun DayScreen(model: HungiiModel,onEdit: ()->Unit) {
         }
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)) {MetricTile("ALLOWANCE LEFT","₹${model.moneyLeft}","₹${model.spent} spent / ₹${model.allowance}",Lime,Modifier.weight(1f));MetricTile("RESERVED FOOD",model.reservedCalories.label,"kcal not yet eaten",White,Modifier.weight(1f))}
         OutlineButton("Edit my targets & allowance") {onEdit()}
-        Text("Your food log. Orders are not automatically counted as eaten. Nutrition totals contain only what you entered.",color=Muted,fontSize=11.sp,lineHeight=19.sp,modifier=Modifier.padding(bottom=20.dp))
+        Text("Your food log. Orders are not automatically counted as eaten. Nutrition totals contain only what you entered.",color=Muted,fontSize=12.sp,lineHeight=19.sp,modifier=Modifier.padding(bottom=20.dp))
     }
 }
 
 @Composable
 internal fun MacroStats(n: Nutrition?) {
-    Row(Modifier.fillMaxWidth().border(1.dp,Line,RoundedCornerShape(14.dp)).padding(horizontal=12.dp,vertical=12.dp),horizontalArrangement=Arrangement.SpaceBetween) {
-        listOf(Triple((n?.calories?.label ?: "—"),"KCAL",White),Triple((n?.protein?.label ?: "—"),"PROTEIN · G",Lime),Triple((n?.carbs?.label ?: "—"),"CARBS · G",Cyan),Triple((n?.fat?.label ?: "—"),"FAT · G",Coral)).forEach { (value,label,color) ->
-            Column {DisplayText(value,17,color);Text(label,color=Muted,fontSize=9.sp,lineHeight=10.sp,letterSpacing=.4.sp)}
+    val values = listOf(
+        Triple(n?.calories?.label ?: "—", "Calories · kcal", White),
+        Triple(n?.protein?.label ?: "—", "Protein · g", White),
+        Triple(n?.carbs?.label ?: "—", "Carbs · g", White),
+        Triple(n?.fat?.label ?: "—", "Fat · g", White),
+    )
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        values.chunked(2).forEach { pair ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                pair.forEach { (value, label, color) ->
+                    Column(Modifier.weight(1f)) {
+                        DisplayText(value, 20, color)
+                        Text(label, color = Muted, fontSize = 12.sp, lineHeight = 16.sp)
+                    }
+                }
+            }
         }
     }
 }
 @Composable
 internal fun MetricTile(label: String,value: String,note: String,color: Color,modifier: Modifier=Modifier) {
-    Column(modifier.clip(RoundedCornerShape(20.dp)).background(Surface).padding(17.dp),verticalArrangement=Arrangement.spacedBy(7.dp)) {Eyebrow(label,Muted);DisplayText(value,if(value.length>7)34 else 42,color);Text(note,color=Muted,fontSize=10.sp,lineHeight=14.sp,maxLines=1,overflow=TextOverflow.Ellipsis)}
+    Column(modifier.clip(RoundedCornerShape(20.dp)).background(Surface).padding(17.dp),verticalArrangement=Arrangement.spacedBy(7.dp)) {Eyebrow(label,Muted);DisplayText(value,if(value.length>7)28 else 36,color);Text(note,color=Muted,fontSize=12.sp,lineHeight=18.sp)}
 }
 @Composable
 internal fun FocusHeader(label: String,onBack: ()->Unit) {
-    Row(Modifier.fillMaxWidth().height(62.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {IconButton(onClick=onBack,modifier=Modifier.size(40.dp).border(1.dp,Line,CircleShape)) {Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back",tint=White,modifier=Modifier.size(20.dp))};Eyebrow(label,Muted);Spacer(Modifier.weight(1f));Badge("HUNGII",Muted,Surface)}
+    Row(Modifier.fillMaxWidth().heightIn(min=64.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+        IconButton(onClick=onBack,modifier=Modifier.size(48.dp).border(1.dp,Line,CircleShape)) {Icon(Icons.AutoMirrored.Outlined.ArrowBack,"Back",tint=White,modifier=Modifier.size(24.dp))}
+        Text(label.lowercase().replaceFirstChar { it.titlecase() }, color=Muted, fontSize=14.sp)
+    }
 }
 @Composable
-internal fun DisplayText(text: String,size: Int,color: Color=White,maxLines: Int=Int.MAX_VALUE) {Text(text,color=color,fontFamily=Display,fontSize=size.sp,lineHeight=(size*1.12f).sp,fontWeight=FontWeight.Bold,letterSpacing=(-.4).sp,maxLines=maxLines,overflow=TextOverflow.Ellipsis)}
+internal fun DisplayText(text: String,size: Int,color: Color=White,maxLines: Int=Int.MAX_VALUE,modifier: Modifier=Modifier) {Text(text,modifier=modifier,color=color,fontFamily=Display,fontSize=size.sp,lineHeight=(size*1.2f).sp,fontWeight=FontWeight.Bold,letterSpacing=(-.4).sp,maxLines=maxLines,overflow=TextOverflow.Ellipsis)}
 @Composable
-internal fun Eyebrow(text: String,color: Color) {Text(text,color=color,fontSize=11.sp,lineHeight=16.sp,fontWeight=FontWeight.Medium,letterSpacing=.4.sp)}
+internal fun Eyebrow(text: String,color: Color) {Text(text,color=color,fontSize=12.sp,lineHeight=18.sp,fontWeight=FontWeight.Medium)}
 @Composable
-internal fun Badge(text: String,color: Color,bg: Color,modifier: Modifier=Modifier) {Box(modifier.clip(RoundedCornerShape(7.dp)).background(bg).padding(horizontal=9.dp,vertical=6.dp)) {Text(text,color=color,fontSize=8.sp,lineHeight=11.sp,fontWeight=FontWeight.Bold,letterSpacing=.5.sp)}}
+internal fun Badge(text: String,color: Color,bg: Color,modifier: Modifier=Modifier) {Box(modifier.clip(RoundedCornerShape(8.dp)).background(bg).padding(horizontal=10.dp,vertical=6.dp)) {Text(text,color=color,fontSize=12.sp,lineHeight=16.sp,fontWeight=FontWeight.SemiBold)}}
 @Composable
-internal fun SmallChip(text: String,selected: Boolean,onClick: ()->Unit) {Box(Modifier.clip(CircleShape).background(if(selected)Lime else Surface).border(1.dp,if(selected)Lime else Line,CircleShape).clickable(onClick=onClick).padding(horizontal=14.dp,vertical=10.dp)) {Text(text,color=if(selected)Charcoal else Muted,fontSize=11.sp,lineHeight=16.sp,fontWeight=FontWeight.Medium)}}
+internal fun SmallChip(text: String,selected: Boolean,enabled: Boolean=true,onClick: ()->Unit) {
+    FilterChip(selected=selected,onClick=onClick,enabled=enabled,modifier=Modifier.heightIn(min=48.dp),
+        label={Text(text,fontSize=14.sp)},
+        colors=FilterChipDefaults.filterChipColors(containerColor=Surface,labelColor=Muted,selectedContainerColor=Lime,selectedLabelColor=Charcoal))
+}
 @Composable
-internal fun LimeButton(text: String,icon: ImageVector,enabled: Boolean=true,onClick: ()->Unit) {Button(onClick=onClick,enabled=enabled,modifier=Modifier.fillMaxWidth().height(57.dp),shape=RoundedCornerShape(30.dp),colors=ButtonDefaults.buttonColors(containerColor=Lime,contentColor=Charcoal),contentPadding=PaddingValues(horizontal=19.dp)) {Text(text,fontSize=15.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));Icon(icon,null,modifier=Modifier.size(21.dp))}}
+internal fun LimeButton(text: String,icon: ImageVector,enabled: Boolean=true,onClick: ()->Unit) {Button(onClick=onClick,enabled=enabled,modifier=Modifier.fillMaxWidth().heightIn(min=56.dp),shape=RoundedCornerShape(28.dp),colors=ButtonDefaults.buttonColors(containerColor=Lime,contentColor=Charcoal),contentPadding=PaddingValues(horizontal=20.dp,vertical=12.dp)) {Text(text,fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));Spacer(Modifier.width(12.dp));Icon(icon,null,modifier=Modifier.size(24.dp))}}
 @Composable
-internal fun OutlineButton(text: String,onClick: ()->Unit) {OutlinedButton(onClick=onClick,modifier=Modifier.fillMaxWidth().height(53.dp),shape=RoundedCornerShape(30.dp),border=BorderStroke(1.dp,Line)) {Text(text,color=White,fontSize=14.sp)}}
+internal fun OutlineButton(text: String,onClick: ()->Unit) {OutlinedButton(onClick=onClick,modifier=Modifier.fillMaxWidth().heightIn(min=56.dp),shape=RoundedCornerShape(28.dp),border=BorderStroke(1.dp,Line),contentPadding=PaddingValues(horizontal=20.dp,vertical=12.dp)) {Text(text,color=White,fontSize=16.sp,lineHeight=22.sp)}}
 @Composable
-internal fun RoundAction(icon: ImageVector,label: String,bg: Color,tint: Color,onClick: ()->Unit,size: Int=53) {IconButton(onClick=onClick,modifier=Modifier.size(size.dp).background(bg,CircleShape)) {Icon(icon,label,tint=tint,modifier=Modifier.size(if(size>=60)27.dp else 22.dp))}}
+internal fun RoundAction(icon: ImageVector,label: String,bg: Color,tint: Color,onClick: ()->Unit,size: Int=53) {IconButton(onClick=onClick,modifier=Modifier.size(size.coerceAtLeast(48).dp).background(bg,CircleShape)) {Icon(icon,label,tint=tint,modifier=Modifier.size(if(size>=60)27.dp else 24.dp))}}
 @Composable
-internal fun TradeLine(icon: ImageVector,color: Color,text: String,maxLines: Int=2) {Row(horizontalArrangement=Arrangement.spacedBy(7.dp),verticalAlignment=Alignment.Top) {Icon(icon,null,tint=color,modifier=Modifier.size(15.dp));Text(text,color=Muted,fontSize=11.sp,lineHeight=17.sp,maxLines=maxLines,overflow=TextOverflow.Ellipsis)}}
+internal fun TradeLine(icon: ImageVector,color: Color,text: String,maxLines: Int=2) {Row(horizontalArrangement=Arrangement.spacedBy(7.dp),verticalAlignment=Alignment.Top) {Icon(icon,null,tint=color,modifier=Modifier.size(15.dp));Text(text,color=Muted,fontSize=14.sp,lineHeight=20.sp,maxLines=maxLines,overflow=TextOverflow.Ellipsis)}}
 @Composable
 internal fun BillLine(label: String,value: String,color: Color=White) {Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween) {Text(label,color=Muted,fontSize=13.sp);Text(value,color=color,fontSize=14.sp,fontWeight=FontWeight.Medium)}}
 @Composable
-internal fun Receipt(text: String,onUndo: ()->Unit) {Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp)).background(Raised).padding(12.dp),verticalAlignment=Alignment.CenterVertically) {Text(text,color=Muted,fontSize=11.sp,lineHeight=17.sp,modifier=Modifier.weight(1f));TextButton(onClick=onUndo) {Text("Undo",color=Lime,fontSize=11.sp)}}}
+internal fun Receipt(text: String,onUndo: ()->Unit) {Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp)).background(Raised).padding(12.dp),verticalAlignment=Alignment.CenterVertically) {Text(text,color=Muted,fontSize=12.sp,lineHeight=17.sp,modifier=Modifier.weight(1f));TextButton(onClick=onUndo) {Text("Undo",color=Lime,fontSize=12.sp)}}}
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun GoalsDialog(model: HungiiModel,onClose: ()->Unit) {
     var name by remember {mutableStateOf(model.displayName)}
@@ -634,18 +565,39 @@ internal fun GoalsDialog(model: HungiiModel,onClose: ()->Unit) {
     var eatenCal by remember {mutableStateOf(model.intake.calories.low.toString())};var eatenP by remember {mutableStateOf(model.intake.protein.low.toString())}
     var eatenC by remember {mutableStateOf(model.intake.carbs.low.toString())};var eatenF by remember {mutableStateOf(model.intake.fat.low.toString())}
     var spent by remember {mutableStateOf(model.spent.toString())}
+    var totalsOpen by remember {mutableStateOf(false)}
+    var nameOpen by remember {mutableStateOf(model.displayName.isNotBlank())}
     val valid=listOf(cal,protein,carbs,fat,allowance).all { (it.toIntOrNull()?:0)>0 } && (opportunities.toIntOrNull()?:-1) in 0..8 && listOf(eatenCal,eatenP,eatenC,eatenF,spent).all { (it.toIntOrNull()?:-1)>=0 }
-    AlertDialog(onDismissRequest=onClose,containerColor=Surface,title={DisplayText("Your day, your rules.",26)},text={
-        Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)) {
-            FilledInput(name,onValueChange={name=it.take(60)},placeholder="Your name (optional)",modifier=Modifier.fillMaxWidth(),showLabel=true)
-            listOf(Triple("Daily calories",cal,{v:String->cal=v}),Triple("Protein goal (g)",protein,{v:String->protein=v}),Triple("Carbs goal (g)",carbs,{v:String->carbs=v}),Triple("Fat goal (g)",fat,{v:String->fat=v}),Triple("Food allowance (₹)",allowance,{v:String->allowance=v}),Triple("Opportunities left",opportunities,{v:String->opportunities=v}),Triple("Calories eaten today",eatenCal,{v:String->eatenCal=v}),Triple("Protein eaten (g)",eatenP,{v:String->eatenP=v}),Triple("Carbs eaten (g)",eatenC,{v:String->eatenC=v}),Triple("Fat eaten (g)",eatenF,{v:String->eatenF=v}),Triple("Money spent today (₹)",spent,{v:String->spent=v})).forEach { (label,value,update) ->
-                FilledInput(value,onValueChange={v->update(v.filter {it.isDigit()})},placeholder=label,modifier=Modifier.fillMaxWidth(),showLabel=true)
+    ModalBottomSheet(onDismissRequest=onClose, sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true), containerColor=Surface) {
+        Column(Modifier.fillMaxWidth().heightIn(max=720.dp).imePadding()) {
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal=24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
+                DisplayText("Your day, your rules",28)
+                Text("Goals & allowance",color=Muted,fontSize=16.sp)
+                if(nameOpen) FilledInput(name,{name=it.take(60)},"Your name (optional)",Modifier.fillMaxWidth(),showLabel=true)
+                else TextButton(onClick={nameOpen=true}) {Text("Add your name (optional)",color=Muted,fontSize=14.sp)}
+                val goals=listOf(Triple("Daily calories",cal,{v:String->cal=v}),Triple("Protein goal (g)",protein,{v:String->protein=v}),Triple("Carbs goal (g)",carbs,{v:String->carbs=v}),Triple("Fat goal (g)",fat,{v:String->fat=v}),Triple("Food allowance (₹)",allowance,{v:String->allowance=v}),Triple("Meals left",opportunities,{v:String->opportunities=v}))
+                val totals=listOf(Triple("Calories eaten today",eatenCal,{v:String->eatenCal=v}),Triple("Protein eaten (g)",eatenP,{v:String->eatenP=v}),Triple("Carbs eaten (g)",eatenC,{v:String->eatenC=v}),Triple("Fat eaten (g)",eatenF,{v:String->eatenF=v}),Triple("Money spent today (₹)",spent,{v:String->spent=v}))
+                listOf(goals,totals).forEachIndexed { index, fields ->
+                    if(index==1) {
+                        TextButton(onClick={totalsOpen=!totalsOpen}) {
+                            Text(if(totalsOpen) "Hide today's food & spending" else "Edit today's food & spending",color=White,fontSize=16.sp)
+                        }
+                        if(totalsOpen) Text("Enter only what you've eaten or spent. Orders aren't logged automatically.",color=Muted,fontSize=14.sp,lineHeight=20.sp)
+                    }
+                    if(index==0 || totalsOpen) fields.forEach { (label,value,update) -> FilledInput(value,{v->update(v.filter {it.isDigit()})},label,Modifier.fillMaxWidth(),showLabel=true,keyboardType=KeyboardType.Number) }
+                }
+                if(!valid) Text("Use positive goals, 0–8 meals left, and non-negative food and spending totals.",color=Coral,fontSize=14.sp,lineHeight=20.sp)
+                Spacer(Modifier.height(8.dp))
             }
-            Text("Enter your actual daily totals. Swiggy orders do not automatically become consumed nutrition.",color=Muted,fontSize=11.sp,lineHeight=18.sp)
+            Column(Modifier.fillMaxWidth().padding(horizontal=24.dp,vertical=12.dp).navigationBarsPadding()) {
+                LimeButton("Save my day",Icons.Outlined.Check,enabled=valid) {
+                    model.invalidateCheckInUndo();model.displayName=name;model.calorieGoal=cal.toInt();model.proteinGoal=protein.toInt();model.carbGoal=carbs.toInt();model.fatGoal=fat.toInt();model.allowance=allowance.toInt();model.opportunities=opportunities.toInt();model.spent=spent.toInt();model.intake=Nutrition(Span(eatenCal.toInt(),eatenCal.toInt()),Span(eatenP.toInt(),eatenP.toInt()),Span(eatenC.toInt(),eatenC.toInt()),Span(eatenF.toInt(),eatenF.toInt()));onClose()
+                }
+                TextButton(onClick=onClose,modifier=Modifier.fillMaxWidth()) {Text("Cancel",color=Muted,fontSize=14.sp)}
+            }
         }
-    },confirmButton={TextButton(enabled=valid,onClick={model.invalidateCheckInUndo();model.displayName=name;model.calorieGoal=cal.toInt();model.proteinGoal=protein.toInt();model.carbGoal=carbs.toInt();model.fatGoal=fat.toInt();model.allowance=allowance.toInt();model.opportunities=opportunities.toInt();model.spent=spent.toInt();model.intake=Nutrition(Span(eatenCal.toInt(),eatenCal.toInt()),Span(eatenP.toInt(),eatenP.toInt()),Span(eatenC.toInt(),eatenC.toInt()),Span(eatenF.toInt(),eatenF.toInt()));onClose()}) {Text("Update my day",color=if(valid)Lime else Muted)}},dismissButton={TextButton(onClick=onClose) {Text("Cancel",color=Muted)}})
+    }
 }
-
 
 internal fun rupees(value: Double) = if(value==value.toInt().toDouble()) "₹${value.toInt()}" else "₹"+"%.2f".format(java.util.Locale.ROOT,value)
 
@@ -661,8 +613,8 @@ internal fun MealImage(meal: Meal,modifier: Modifier=Modifier) {
 @Composable
 internal fun ConnectionStrip(model: HungiiModel) {
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface).clickable {model.accountOpen=true}.padding(12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
-        Text(if(BuildConfig.LOCAL_DEMO) "SYNTHETIC LOCAL MCP" else if(model.connected) "Powered by Swiggy · ${model.environment}" else "CONNECT SWIGGY",color=if(model.connected)Lime else Muted,fontSize=10.sp,fontWeight=FontWeight.Bold)
-        Text(if(model.connected&&model.addressId!=null) "Change address →" else "Accounts →",color=Lime,fontSize=10.sp)
+        Text(if(BuildConfig.LOCAL_DEMO) "SYNTHETIC LOCAL MCP" else if(model.connected) "Powered by Swiggy · ${model.environment}" else "CONNECT SWIGGY",color=if(model.connected)Lime else Muted,fontSize=12.sp,fontWeight=FontWeight.Bold)
+        Text(if(model.connected&&model.addressId!=null) "Change address →" else "Accounts →",color=Lime,fontSize=12.sp)
     }
 }
 
@@ -674,7 +626,7 @@ internal fun AccountDialog(model: HungiiModel,onClose: ()->Unit) {
     AlertDialog(onDismissRequest=onClose,containerColor=Surface,title={DisplayText("Accounts",28)},text={
         Column(Modifier.heightIn(max=460.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
             Text(if(BuildConfig.LOCAL_DEMO) "This simulator uses fictional meals and addresses. Its cart, payment and order states are synthetic; no real money or Swiggy account is used." else "Your device tracker is encrypted. Cloud sync is optional. Swiggy supplies meals for the address you choose after separate authorization.",color=Muted,fontSize=13.sp,lineHeight=20.sp)
-            Text(if(BuildConfig.LOCAL_DEMO) "PRIVACY · ${model.privacyVersion}\nYour tracker stays encrypted on this device. Synthetic carts and orders live in the local server’s memory until restart. Saved shortcuts expire after 30 days. The optional cloud Assistant sends your submitted text and selected tracker values to Groq outside India, after opt-in. No real Swiggy login, address or payment credential is sent. Voice transcription is on-device where available; typing works everywhere." else "PRIVACY · ${model.privacyVersion}\nWorkOS handles email sign-in; Supabase hosts synced account data in Mumbai. On-device voice uses typed fallback. Cloud totals expire after 90 days without updates; saved shortcuts after 30 days. Connection credentials expire within five days. The selected address is used for meal searches. Live ordering remains disabled.",color=Muted,fontSize=11.sp,lineHeight=18.sp)
+            Text(if(BuildConfig.LOCAL_DEMO) "PRIVACY · ${model.privacyVersion}\nYour tracker stays encrypted on this device. Synthetic carts and orders live in the local server’s memory until restart. Saved shortcuts expire after 30 days. The optional cloud Assistant sends your submitted text and selected tracker values to Groq outside India, after opt-in. No real Swiggy login, address or payment credential is sent. Voice transcription is on-device where available; typing works everywhere." else "PRIVACY · ${model.privacyVersion}\nWorkOS handles email sign-in; Supabase hosts synced account data in Mumbai. On-device voice uses typed fallback. Cloud totals expire after 90 days without updates; saved shortcuts after 30 days. Connection credentials expire within five days. The selected address is used for meal searches. Live ordering remains disabled.",color=Muted,fontSize=12.sp,lineHeight=18.sp)
             if(!model.configured) Text("The live connection is not available in this build yet. You can keep using your offline tracker while account setup is completed.",color=Coral,fontSize=13.sp,lineHeight=20.sp)
             if(!model.signedIn) LimeButton(if(BuildConfig.WORKOS_AUTH_READY) "Continue with email" else "Email sign-in · setup pending",Icons.AutoMirrored.Outlined.Login,enabled=model.configured&&BuildConfig.WORKOS_AUTH_READY&&!model.loading) {
                 try {browse(model.signInUrl())} catch(e: ApiFailure) {model.connectionMessage=e.message}
@@ -700,7 +652,7 @@ internal fun AccountDialog(model: HungiiModel,onClose: ()->Unit) {
                         Text("Allow Hungii to encrypt and retain my Swiggy token, chosen address identifier and Food session for up to five days, to perform my requested meal searches. Disconnect to erase them. Notice ${model.privacyVersion}.",color=Muted,fontSize=12.sp,lineHeight=18.sp,modifier=Modifier.padding(top=10.dp))
                     }
                     LimeButton(if(BuildConfig.LOCAL_DEMO) "Reconnect simulator" else "Connect Swiggy",Icons.Outlined.Link,enabled=(BuildConfig.LOCAL_DEMO||consent)&&!model.loading) {model.connect(::browse)}
-                    if(!BuildConfig.LOCAL_DEMO) TextButton(onClick={model.privacyAction="disconnect"}) {Text("Erase previous connection before reconnecting",color=Muted,fontSize=11.sp)}
+                    if(!BuildConfig.LOCAL_DEMO) TextButton(onClick={model.privacyAction="disconnect"}) {Text("Erase previous connection before reconnecting",color=Muted,fontSize=12.sp)}
                 } else {
                     Text(if(BuildConfig.LOCAL_DEMO) "Local demo connected" else "Swiggy connected · ${model.environment}",color=Lime,fontSize=12.sp)
                     TextButton(onClick={model.addressList()}) {Text("Choose delivery address",color=Lime)}
