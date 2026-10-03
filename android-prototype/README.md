@@ -24,6 +24,12 @@ The Simulator’s dedicated Assistant tab uses Google ADK + Groq Free cloud infe
 
 See [stack decision](../docs/adr/0003-workos-with-supabase.md), [MCP contract](../docs/swiggy-integration-contract.md) and [verification](../artifacts/swiggy-verification.md). Earlier screenshots document version 0.2, not a live connection.
 
+## Current design
+
+Preview 0.7.5 applies the [mobile UI](../docs/research/mobile-ui-video-research.md), [UX psychology](../docs/research/ux-psychology-design-research.md) and [product-page](../docs/research/product-page-design-research.md) transcript guidance. Four primary destinations keep Saved under Meals. Home prioritizes discovery; filters and day edits use contextual sheets. Controls use 48 dp targets and readable supporting text. Discovery distinguishes connection, first-use, loading, failed search, no matches and exhausted batches; Pass/Keep/Undo remain available alongside swiping.
+
+The real build offers useful local planning before optional sign-in. Starting targets stay editable; profile personalization and saving retain their existing permissions. Shortlist progress counts actual choices. Meal prices distinguish menu-only amounts from basket estimates and show their impact on the remaining allowance; unknown costs stay unknown. Basket quantity shortcuts and the returned total sit close to checkout actions. Provider names/images remain intact; no ratings or urgency are fabricated.
+
 ## Assets
 
 Barlow Condensed Bold is from [Google Fonts](https://github.com/google/fonts/tree/main/ofl/barlowcondensed), under the included [SIL Open Font License](BARLOW-OFL.txt). Food photos load from returned HTTPS URLs with disk/memory caching disabled; missing photos show a neutral icon. Material icons come from AndroidX Compose.
