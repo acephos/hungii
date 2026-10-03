@@ -4,6 +4,7 @@ These are dated implementation checks and prototype screenshots. They do not est
 
 | Record | Scope |
 | --- | --- |
+| [Crimson design verification](crimson-design-verification.md) | v0.7.6 field labels, calorie ring, finite shuffle and crimson dark theme |
 | [Mobile design verification](mobile-ui-verification.md) | v0.7.5 transcript-guided navigation, meal selection, sheets and basket checks |
 | [Repository hardening](repository-hardening.md) | Current cleanup, regression checks and remaining limits |
 | [Service recovery](simulator-service-recovery.md) | Host reboot diagnosis, automatic startup and connection smoke test |

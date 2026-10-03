@@ -1,6 +1,6 @@
 # Hungii Android
 
-Native Kotlin / Compose app using charcoal and electric lime, with check-in, swipe to three finalists, face-down shuffle/reveal, an offline tracker and consented local favorites.
+Native Kotlin / Compose app using near-black, crimson and rose, with check-in, swipe to three finalists, face-down shuffle/reveal, an offline tracker and consented local favorites.
 
 The current preview has a `real` build with WorkOS staging email sign-in and approval-gated Swiggy setup, and a separately installed `demo` build with fictional meals served through a local MCP server. The Simulator is labeled, performs MCP cart/coupon/mock checkout calls and offers manual Swiggy checkout. In the real build, meals arrive only from Swiggy after approved setup. Targets are editable defaults; consumed food and spending start at zero. Room retains user-entered totals and favorites across restarts, separated by Hungii account.
 
@@ -25,6 +25,8 @@ The Simulator’s dedicated Assistant tab uses Google ADK + Groq Free cloud infe
 See [stack decision](../docs/adr/0003-workos-with-supabase.md), [MCP contract](../docs/swiggy-integration-contract.md) and [verification](../artifacts/swiggy-verification.md). Earlier screenshots document version 0.2, not a live connection.
 
 ## Current design
+
+Preview 0.7.6’s crimson design pass uses continuous rounded filled fields with integrated labels, matching panel edges and animated focus/selection/pressed shades. My day centers a responsive calorie ring with fitted range text. Lucky draw turns cards before a finite mix that settles before selection, with subtle motion blur on Android 12+ and a static reduced-motion path.
 
 Preview 0.7.5 applies the [mobile UI](../docs/research/mobile-ui-video-research.md), [UX psychology](../docs/research/ux-psychology-design-research.md) and [product-page](../docs/research/product-page-design-research.md) transcript guidance. Four primary destinations keep Saved under Meals. Home prioritizes discovery; filters and day edits use contextual sheets. Controls use 48 dp targets and readable supporting text. Discovery distinguishes connection, first-use, loading, failed search, no matches and exhausted batches; Pass/Keep/Undo remain available alongside swiping.
 

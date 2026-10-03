@@ -52,11 +52,11 @@ internal fun DiscoverScreen(model: HungiiModel, onDetails: (Meal) -> Unit) {
                 Text(if (filterCount == 0) "Filters" else "Filters · $filterCount", color = White, fontSize = 14.sp)
             }
         }
-        LinearProgressIndicator(progress={model.finalists.size/3f},modifier=Modifier.fillMaxWidth().height(4.dp),color=Lime,trackColor=Line)
+        LinearProgressIndicator(progress={model.finalists.size/3f},modifier=Modifier.fillMaxWidth().height(4.dp),color=Accent,trackColor=Line)
         Spacer(Modifier.height(12.dp))
         when {
             model.loading -> Column(Modifier.weight(1f).fillMaxWidth(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-                CircularProgressIndicator(color = Lime, modifier = Modifier.size(40.dp))
+                CircularProgressIndicator(color = Accent, modifier = Modifier.size(40.dp))
                 Spacer(Modifier.height(24.dp))
                 DisplayText("Finding your meals…", 26)
                 Text("Checking a fresh batch for your day.", color = Muted, fontSize = 16.sp, modifier = Modifier.padding(top = 12.dp))
@@ -82,13 +82,13 @@ internal fun DiscoverScreen(model: HungiiModel, onDetails: (Meal) -> Unit) {
                     OutlinedButton(onClick = { model.pass(meal) }, modifier = Modifier.weight(1f).heightIn(min = 52.dp), border = BorderStroke(1.dp, Line)) {
                         Text("Pass", color = White, fontSize = 16.sp)
                     }
-                    Button(onClick = { model.like(meal) }, modifier = Modifier.weight(1f).heightIn(min = 52.dp), colors = ButtonDefaults.buttonColors(containerColor = Lime, contentColor = Charcoal)) {
+                    Button(onClick = { model.like(meal) }, modifier = Modifier.weight(1f).heightIn(min = 52.dp), colors = ButtonDefaults.buttonColors(containerColor = Accent, contentColor = Charcoal)) {
                         Text("Keep", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                 }
                 Text("Swipe left to pass · right to keep", color = Muted, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp))
                 if (model.finalists.isNotEmpty()) TextButton(onClick = model::showFinalists, modifier = Modifier.fillMaxWidth()) {
-                    Text("Review shortlist (${model.finalists.size}/3)", color = Lime, fontSize = 14.sp)
+                    Text("Review shortlist (${model.finalists.size}/3)", color = Accent, fontSize = 14.sp)
                 }
             }
             else -> {
@@ -152,12 +152,12 @@ internal fun MealEmptyState(
 ) {
     Column(modifier.fillMaxWidth().padding(vertical = 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Box(Modifier.size(80.dp).background(Surface, CircleShape), contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = Lime, modifier = Modifier.size(32.dp))
+            Icon(icon, null, tint = Accent, modifier = Modifier.size(32.dp))
         }
         Spacer(Modifier.height(24.dp))
         Text(title, color = White, fontSize = 28.sp, lineHeight = 34.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
         Text(description, color = Muted, fontSize = 16.sp, lineHeight = 24.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 12.dp, bottom = 24.dp))
-        LimeButton(primaryLabel, Icons.AutoMirrored.Outlined.ArrowForward, onClick = onPrimary)
+        PrimaryButton(primaryLabel, Icons.AutoMirrored.Outlined.ArrowForward, onClick = onPrimary)
         secondary()
     }
 }
@@ -182,7 +182,7 @@ private fun MealFiltersSheet(model: HungiiModel, onClose: () -> Unit) {
             FilterPreference("Prefer protein", "Prioritize meals with known nutrition", highProtein) { highProtein = it }
             FilterPreference("Prefer faster delivery", "Use available delivery estimates", fast) { fast = it }
             if (model.finalists.isNotEmpty()) Text("Finding a new batch starts a new shortlist.", color = Muted, fontSize = 14.sp)
-            LimeButton("Find matching meals", Icons.AutoMirrored.Outlined.ArrowForward, enabled = !model.loading) {
+            PrimaryButton("Find matching meals", Icons.AutoMirrored.Outlined.ArrowForward, enabled = !model.loading) {
                 model.taste = taste; model.highProtein = highProtein; model.vegOnly = vegOnly; model.budgetOnly = budgetOnly; model.fast = fast
                 onClose(); model.search()
             }
@@ -199,7 +199,7 @@ private fun FilterPreference(title: String, note: String, checked: Boolean, onCh
             Text(title, color = White, fontSize = 16.sp)
             Text(note, color = Muted, fontSize = 14.sp, lineHeight = 20.sp)
         }
-        Switch(checked, onCheckedChange = null, colors = SwitchDefaults.colors(checkedThumbColor = Charcoal, checkedTrackColor = Lime, uncheckedThumbColor=Muted, uncheckedTrackColor=Raised, uncheckedBorderColor=Line))
+        Switch(checked, onCheckedChange = null, colors = SwitchDefaults.colors(checkedThumbColor = Charcoal, checkedTrackColor = Accent, uncheckedThumbColor=Muted, uncheckedTrackColor=Raised, uncheckedBorderColor=Line))
     }
 }
 
@@ -216,12 +216,12 @@ internal fun MealProfile(meal: Meal, model: HungiiModel, modifier: Modifier, onD
             Box(Modifier.fillMaxWidth().height(180.dp)) {
                 MealImage(meal, Modifier.fillMaxSize())
                 Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Badge(meal.badge, Charcoal, Lime)
+                    Badge(meal.badge, Charcoal, Accent)
                     IconButton(onClick = { model.toggleSaved(meal) }, modifier = Modifier.size(48.dp).background(Charcoal, CircleShape).border(1.dp,Line,CircleShape)) {
-                        Icon(if (meal.id in model.saved) Icons.Outlined.Bookmark else Icons.Outlined.BookmarkBorder, "Save ${meal.name}", tint = if (meal.id in model.saved) Lime else White)
+                        Icon(if (meal.id in model.saved) Icons.Outlined.Bookmark else Icons.Outlined.BookmarkBorder, "Save ${meal.name}", tint = if (meal.id in model.saved) Accent else White)
                     }
                 }
-                if (abs(drag) > 30) Badge(if (drag > 0) "Keep" else "Pass", if (drag > 0) Charcoal else White, if (drag > 0) Lime else Charcoal, Modifier.align(Alignment.Center))
+                if (abs(drag) > 30) Badge(if (drag > 0) "Keep" else "Pass", if (drag > 0) Charcoal else White, if (drag > 0) Accent else Charcoal, Modifier.align(Alignment.Center))
             }
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(meal.restaurant, color = Muted, fontSize = 14.sp, lineHeight = 20.sp)
@@ -235,7 +235,7 @@ internal fun MealProfile(meal: Meal, model: HungiiModel, modifier: Modifier, onD
                 Text(if (meal.nutrition != null) "Estimated nutrition" else "Nutrition unavailable", color = Muted, fontSize = 12.sp)
                 MacroStats(meal.nutrition)
                 TextButton(onClick = { onDetails(meal) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Details & trade-offs", color = Lime, fontSize = 14.sp)
+                    Text("Details & trade-offs", color = Accent, fontSize = 14.sp)
                     Spacer(Modifier.width(8.dp)); Icon(Icons.AutoMirrored.Outlined.ArrowForward, null, modifier = Modifier.size(18.dp))
                 }
             }
@@ -250,6 +250,6 @@ internal fun AllowanceContext(meal: Meal, model: HungiiModel) {
         val portion=impact.percentage?.let { " · $it% of today's remaining allowance" } ?: ""
         Text((if(impact.estimatedBasket) "~${rupees(impact.total)} estimated basket" else "${rupees(impact.total)} before fees")+portion,color=Muted,fontSize=14.sp,lineHeight=20.sp)
         val remaining=if(impact.remaining>=0) "Leaves ${if(impact.estimatedBasket) "about " else ""}${rupees(impact.remaining)} of today's allowance" else "${rupees(-impact.remaining)} over today's remaining allowance"
-        Text(remaining+(if(impact.estimatedBasket) ". Final total checked at checkout." else ", before delivery and fees."),color=if(impact.remaining<0)Coral else Muted,fontSize=14.sp,lineHeight=20.sp)
+        Text(remaining+(if(impact.estimatedBasket) ". Final total checked at checkout." else ", before delivery and fees."),color=if(impact.remaining<0)SoftCrimson else Muted,fontSize=14.sp,lineHeight=20.sp)
     }
 }

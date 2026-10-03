@@ -10,7 +10,7 @@ Source and local checks updated 3 October 2026. Deployed WorkOS, Mumbai database
 | Android Simulator | Synthetic meal discovery, three finalists and lucky draw, cart/coupon/mock payment/receipt flow; optional Groq Free Assistant | Requires the awake computer and phone Tailscale connection. Server restart clears carts/orders. Receipts and payment state are not recovered after app/server restart. Estimates are fictional. |
 | Earlier web prototype | Scripted visual exploration with fictional data | Historical design artifact; does not use Swiggy or cloud inference. |
 
-The latest published preview and checks are linked from [releases](https://github.com/acephos/hungii/releases) and [Actions](https://github.com/acephos/hungii/actions). Build versions live in [Gradle](../android-prototype/app/build.gradle.kts). See [documentation index](README.md), [simulator setup](../demo/README.md) and [dated verification records](../artifacts/README.md).
+The latest published preview and checks are linked from [releases](https://github.com/acephos/hungii/releases) and [Actions](https://github.com/acephos/hungii/actions). The local 0.7.6 crimson design preview is documented in [design verification](../artifacts/crimson-design-verification.md). Build versions live in [Gradle](../android-prototype/app/build.gradle.kts). See [documentation index](README.md), [simulator setup](../demo/README.md) and [dated verification records](../artifacts/README.md).
 
 ## Provisioned at no charge
 
