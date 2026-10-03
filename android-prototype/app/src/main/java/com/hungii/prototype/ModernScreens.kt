@@ -4,6 +4,13 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import androidx.compose.animation.core.*
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -47,23 +54,31 @@ import kotlin.math.sin
     keyboardType: KeyboardType = KeyboardType.Text,
     onSubmit: (() -> Unit)? = null,
 ) {
-    OutlinedTextField(
-        value, onValueChange, modifier = modifier, singleLine = true,
-        shape = RoundedCornerShape(20.dp),
-        label = if (showLabel || label != null) {{ Text(label ?: placeholder, fontSize = 14.sp) }} else null,
-        placeholder = { Text(placeholder, fontSize = 16.sp) },
-        textStyle = LocalTextStyle.current.copy(fontSize = 16.sp),
+    val interactions = remember { MutableInteractionSource() }
+    val focused by interactions.collectIsFocusedAsState()
+    val edge by animateColorAsState(if (focused) Accent else Line, tween(220), label = "field edge")
+    val tint by animateColorAsState(if (focused) AccentWash else Raised, tween(220), label = "field surface")
+    val caption by animateColorAsState(if (focused) Rose else Muted, tween(220), label = "field caption")
+    TextField(
+        value, onValueChange,
+        modifier = modifier.heightIn(min = 60.dp).border(1.dp, edge, RoundedCornerShape(20.dp)),
+        singleLine = true, shape = RoundedCornerShape(20.dp),
+        label = if (showLabel || label != null) {{ Text(label ?: placeholder, fontSize = 12.sp, color = caption, maxLines = 1, overflow = TextOverflow.Ellipsis) }} else null,
+        placeholder = { Text(placeholder, fontSize = 16.sp, color = Muted, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        textStyle = LocalTextStyle.current.copy(fontSize = 16.sp, color = White),
+        interactionSource = interactions,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType, imeAction = if (onSubmit != null) ImeAction.Search else ImeAction.Done),
         keyboardActions = KeyboardActions(onSearch = { onSubmit?.invoke() }),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = Raised, unfocusedContainerColor = Raised,
-            focusedBorderColor = Lime, unfocusedBorderColor = Line,
-            focusedLabelColor = Lime, unfocusedLabelColor = Muted,
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = tint, unfocusedContainerColor = tint,
+            focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent, cursorColor = Accent,
         ),
     )
 }
+
 @Composable private fun Panel(modifier:Modifier=Modifier,content:@Composable ColumnScope.()->Unit) {
-    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Surface).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp),content=content)
+    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Brush.verticalGradient(listOf(Raised.copy(alpha=.65f),Surface))).border(1.dp,Line.copy(alpha=.55f),RoundedCornerShape(24.dp)).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp),content=content)
 }
 @Composable internal fun ModernTabs(model: HungiiModel) {
     NavigationBar(containerColor = Surface, contentColor = Muted, tonalElevation = 0.dp) {
@@ -73,17 +88,29 @@ import kotlin.math.sin
             Triple(Screen.Assistant, "Assistant", Icons.Outlined.AutoAwesome),
             Triple(Screen.Day, "My day", Icons.Outlined.BarChart),
         ).forEach { (screen, label, icon) ->
+            val selected = model.screen == screen || (screen == Screen.Discover && model.screen == Screen.Saved)
+            val indicator by animateColorAsState(if (selected) AccentWash else Color.Transparent, tween(260), label = "tab surface")
+            val foreground by animateColorAsState(if (selected) Rose else Muted, tween(260), label = "tab ink")
             NavigationBarItem(
-                selected = model.screen == screen || (screen == Screen.Discover && model.screen == Screen.Saved),
+                selected = selected,
                 onClick = { model.screen = screen },
                 icon = { Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp)) },
-                label = { Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium) },
+                label = { TabLabel(label) },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = Charcoal, selectedTextColor = Lime, indicatorColor = Lime,
+                    selectedIconColor = foreground, selectedTextColor = foreground, indicatorColor = indicator,
                     unselectedIconColor = Muted, unselectedTextColor = Muted,
                 ),
             )
         }
+    }
+}
+@Composable private fun TabLabel(label: String) {
+    val measurer=rememberTextMeasurer()
+    val density=LocalDensity.current
+    BoxWithConstraints(Modifier.fillMaxWidth(),contentAlignment=Alignment.Center) {
+        val width=measurer.measure(label,style=TextStyle(fontSize=12.sp,fontWeight=FontWeight.Medium),softWrap=false).size.width
+        val fit=(with(density){maxWidth.toPx()}/width.coerceAtLeast(1)).coerceAtMost(1f)
+        Text(label,fontSize=(12*fit).sp,lineHeight=(16*fit).sp,fontWeight=FontWeight.Medium,maxLines=1,softWrap=false)
     }
 }
 @Composable internal fun ModernHomeScreen(model: HungiiModel, onEdit: () -> Unit) {
@@ -93,7 +120,7 @@ import kotlin.math.sin
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("hungii", color = Lime, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp)
+                Text("hungii", color = Accent, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp)
                 Text(if(model.displayName.isBlank()) "Your next meal, made easy." else "Hey, ${model.displayName}. What sounds good?", color = Muted, fontSize = 14.sp, lineHeight = 20.sp)
             }
             RoundAction(Icons.Outlined.Person, "Accounts", Raised, White, { model.accountOpen = true }, 48)
@@ -105,7 +132,7 @@ import kotlin.math.sin
                     DisplayText("₹${model.moneyLeft}", 44)
                     Text("left today · ${model.opportunities} meals left", color = Muted, fontSize = 14.sp, lineHeight = 20.sp)
                 }
-                TextButton(onClick = onEdit) { Text("Edit day", color = Lime, fontSize = 14.sp) }
+                TextButton(onClick = onEdit) { Text("Edit day", color = Accent, fontSize = 14.sp) }
             }
         }
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -115,18 +142,18 @@ import kotlin.math.sin
                 Modifier.fillMaxWidth(), label = "Your craving",
                 onSubmit = { if (!model.loading && model.opportunities > 0) model.search() },
             )
-            LimeButton(if (model.loading) "Finding your meals…" else "Find my next meal", Icons.AutoMirrored.Outlined.ArrowForward,
+            PrimaryButton(if (model.loading) "Finding your meals…" else "Find my next meal", Icons.AutoMirrored.Outlined.ArrowForward,
                 enabled = !model.loading && model.opportunities > 0) { model.search() }
             if (model.opportunities == 0) Text("No meals left today. Edit your day to plan another.", color = Muted, fontSize = 14.sp)
-            if (model.connectionMessage.isNotBlank()) Text(model.connectionMessage, color = Coral, fontSize = 14.sp, lineHeight = 20.sp)
+            if (model.connectionMessage.isNotBlank()) Text(model.connectionMessage, color = SoftCrimson, fontSize = 14.sp, lineHeight = 20.sp)
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Panel(Modifier.weight(1f)) {
+        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Panel(Modifier.weight(1f).fillMaxHeight()) {
                 Text("Calories left", color = Muted, fontSize = 14.sp)
                 DisplayText(model.caloriesLeft.label, 28)
                 Text("of ${model.calorieGoal} kcal", color = Muted, fontSize = 12.sp)
             }
-            Panel(Modifier.weight(1f)) {
+            Panel(Modifier.weight(1f).fillMaxHeight()) {
                 Text("Protein left", color = Muted, fontSize = 14.sp)
                 DisplayText("${model.proteinLeft.mid.toInt()}g", 28)
                 Text("of ${model.proteinGoal}g", color = Muted, fontSize = 12.sp)
@@ -153,16 +180,16 @@ import kotlin.math.sin
     val amplitude=if(voice.listening)voice.level else if(thinking).45f else .12f
     Canvas(modifier.semantics{contentDescription=if(voice.listening)"Listening orb" else if(thinking)"Thinking orb" else "Hungii assistant orb"}) {
         val c=center;val r=size.minDimension*.34f
-        drawCircle(Brush.radialGradient(listOf(Cyan.copy(alpha=.15f+amplitude*.08f),Color(0xFFBEA9FF).copy(alpha=.06f),Color.Transparent),c,r*1.48f),r*1.48f,c)
-        drawCircle(Brush.radialGradient(listOf(Color(0xFF344544),Color(0xFF182426),Color(0xFF0C1116)),Offset(c.x-r*.25f,c.y-r*.3f),r*1.5f),r,c)
-        drawCircle(Brush.radialGradient(listOf(Cyan.copy(alpha=.22f),Color.Transparent),Offset(c.x-r*.35f,c.y-r*.45f),r*.7f),r*.7f,Offset(c.x-r*.35f,c.y-r*.45f))
+        drawCircle(Brush.radialGradient(listOf(Rose.copy(alpha=.15f+amplitude*.08f),SoftCrimson.copy(alpha=.06f),Color.Transparent),c,r*1.48f),r*1.48f,c)
+        drawCircle(Brush.radialGradient(listOf(Raised,AccentWash,Charcoal),Offset(c.x-r*.25f,c.y-r*.3f),r*1.5f),r,c)
+        drawCircle(Brush.radialGradient(listOf(Rose.copy(alpha=.22f),Color.Transparent),Offset(c.x-r*.35f,c.y-r*.45f),r*.7f),r*.7f,Offset(c.x-r*.35f,c.y-r*.45f))
         for(i in 0..2){
             val wave=sin(phase+i*1.8f)*r*.18f
             val ribbon=Path().apply{moveTo(c.x-r*.86f,c.y+wave);cubicTo(c.x-r*.3f,c.y-r*.85f,c.x+r*.35f,c.y+r*.72f,c.x+r*.86f,c.y-wave);cubicTo(c.x+r*.36f,c.y+r*.95f,c.x-r*.34f,c.y-r*.5f,c.x-r*.86f,c.y+wave)}
-            drawPath(ribbon,Brush.linearGradient(listOf(Cyan.copy(alpha=.06f),Color(0xFFB8B3FF).copy(alpha=.28f),White.copy(alpha=.25f),Lime.copy(alpha=.04f)),Offset(c.x-r,c.y-r),Offset(c.x+r,c.y+r)))
+            drawPath(ribbon,Brush.linearGradient(listOf(Rose.copy(alpha=.06f),Accent.copy(alpha=.28f),White.copy(alpha=.25f),Accent.copy(alpha=.04f)),Offset(c.x-r,c.y-r),Offset(c.x+r,c.y+r)))
         }
-        for(i in 0..4){val a=phase+i*.67f;val path=Path();val y=c.y+sin(a)*r*.2f;path.moveTo(c.x-r*.88f,y);path.cubicTo(c.x-r*.38f,c.y-r*(.9f+amplitude*.3f),c.x+r*.36f,c.y+r*.8f,c.x+r*.88f,y);drawPath(path,Brush.linearGradient(listOf(Cyan.copy(alpha=.1f),Color(0xFFC8B4FF).copy(alpha=.7f),White.copy(alpha=.65f),Lime.copy(alpha=.25f)),Offset(c.x-r,c.y-r),Offset(c.x+r,c.y+r)),style=Stroke(r*(.012f+i*.003f)))}
-        drawCircle(Brush.sweepGradient(listOf(Cyan.copy(alpha=.25f),Color(0xFFC2ABFF),White.copy(alpha=.85f),Cyan.copy(alpha=.16f),Lime.copy(alpha=.4f),Cyan.copy(alpha=.25f)),c),r,c,style=Stroke(r*.025f))
+        for(i in 0..4){val a=phase+i*.67f;val path=Path();val y=c.y+sin(a)*r*.2f;path.moveTo(c.x-r*.88f,y);path.cubicTo(c.x-r*.38f,c.y-r*(.9f+amplitude*.3f),c.x+r*.36f,c.y+r*.8f,c.x+r*.88f,y);drawPath(path,Brush.linearGradient(listOf(Rose.copy(alpha=.1f),Rose.copy(alpha=.7f),White.copy(alpha=.65f),Accent.copy(alpha=.25f)),Offset(c.x-r,c.y-r),Offset(c.x+r,c.y+r)),style=Stroke(r*(.012f+i*.003f)))}
+        drawCircle(Brush.sweepGradient(listOf(Rose.copy(alpha=.25f),SoftCrimson,White.copy(alpha=.85f),Rose.copy(alpha=.16f),Accent.copy(alpha=.4f),Rose.copy(alpha=.25f)),c),r,c,style=Stroke(r*.025f))
         drawArc(White.copy(alpha=.6f),215f,65f,false,Offset(c.x-r*.92f,c.y-r*.92f),Size(r*1.84f,r*1.84f),style=Stroke(r*.018f))
         drawCircle(White.copy(alpha=.55f),r*.035f,Offset(c.x-r*.54f,c.y-r*.66f))
     }
@@ -170,26 +197,26 @@ import kotlin.math.sin
 @Composable internal fun ThinkingDots() {
     val context=LocalContext.current;val reduced=remember{Settings.Global.getFloat(context.contentResolver,Settings.Global.ANIMATOR_DURATION_SCALE,1f)==0f}
     val transition=rememberInfiniteTransition(label="loading");val phase by transition.animateFloat(0f,6.283f,infiniteRepeatable(tween(1500,easing=LinearEasing)),label="dots")
-    Row(horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.CenterVertically){repeat(3){i->Box(Modifier.size(7.dp).graphicsLayer{alpha=if(reduced).65f else .35f+.65f*((sin(phase-i)+1)/2);translationY=if(reduced)0f else -3f*sin(phase-i)}.background(Lime,CircleShape))};Spacer(Modifier.width(8.dp));Text("Thinking…",color=Muted,fontSize=13.sp)}
+    Row(horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.CenterVertically){repeat(3){i->Box(Modifier.size(7.dp).graphicsLayer{alpha=if(reduced).65f else .35f+.65f*((sin(phase-i)+1)/2);translationY=if(reduced)0f else -3f*sin(phase-i)}.background(Accent,CircleShape))};Spacer(Modifier.width(8.dp));Text("Thinking…",color=Muted,fontSize=13.sp)}
 }
 @Composable internal fun AssistantScreen(model:HungiiModel,voice:VoiceState,onVoice:()->Unit,reduceMotion:Boolean) {
     if(!BuildConfig.LOCAL_DEMO){
-        Column(Modifier.fillMaxSize().padding(24.dp),verticalArrangement=Arrangement.spacedBy(20.dp),horizontalAlignment=Alignment.CenterHorizontally){DisplayText("Your Hungii companion.",28);GlassOrb(Modifier.size(220.dp),VoiceState(),false,reduceMotion);Panel{Text("Try the cloud Assistant in Simulator",color=White,fontSize=18.sp,fontWeight=FontWeight.Bold);Text("The Simulator preview connects Google ADK and Groq Free to synthetic MCP data. This account build keeps your local tracker and optional cloud sync available.",color=Muted,fontSize=14.sp,lineHeight=22.sp);LimeButton("View my day",Icons.Outlined.BarChart){model.screen=Screen.Day};OutlineButton("Find a meal"){model.screen=Screen.Home}}}
+        Column(Modifier.fillMaxSize().padding(24.dp),verticalArrangement=Arrangement.spacedBy(20.dp),horizontalAlignment=Alignment.CenterHorizontally){DisplayText("Your Hungii companion.",28);GlassOrb(Modifier.size(220.dp),VoiceState(),false,reduceMotion);Panel{Text("Try the cloud Assistant in Simulator",color=White,fontSize=18.sp,fontWeight=FontWeight.Bold);Text("The Simulator preview connects Google ADK and Groq Free to synthetic MCP data. This account build keeps your local tracker and optional cloud sync available.",color=Muted,fontSize=14.sp,lineHeight=22.sp);PrimaryButton("View my day",Icons.Outlined.BarChart){model.screen=Screen.Day};OutlineButton("Find a meal"){model.screen=Screen.Home}}}
         return
     }
     var input by remember{mutableStateOf("")};val list=androidx.compose.foundation.lazy.rememberLazyListState()
     LaunchedEffect(model.chatMessages.size,model.assistantLoading){if(model.chatMessages.isNotEmpty())list.animateScrollToItem(model.chatMessages.size)}
     Column(Modifier.fillMaxSize().padding(horizontal=24.dp)) {
-        Row(Modifier.fillMaxWidth().padding(top=18.dp),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){DisplayText("A little less thinking.",25);Text("Your whole day, in one conversation.",color=Muted,fontSize=12.sp)};Icon(Icons.Outlined.AutoAwesome,null,tint=Lime,modifier=Modifier.size(22.dp))}
+        Row(Modifier.fillMaxWidth().padding(top=18.dp),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){DisplayText("A little less thinking.",25);Text("Your whole day, in one conversation.",color=Muted,fontSize=12.sp)};Icon(Icons.Outlined.AutoAwesome,null,tint=Accent,modifier=Modifier.size(22.dp))}
         LazyColumn(Modifier.weight(1f).fillMaxWidth(),state=list,verticalArrangement=Arrangement.spacedBy(14.dp),contentPadding=PaddingValues(vertical=12.dp)) {
             item{Column(Modifier.fillMaxWidth(),horizontalAlignment=Alignment.CenterHorizontally){GlassOrb(Modifier.size(if(model.chatMessages.isEmpty())220.dp else 126.dp),voice,model.assistantLoading,reduceMotion);Text(if(voice.listening)"Listening to you" else if(model.assistantLoading)"Connecting the dots" else "Hey. What do you need?",color=White,fontSize=17.sp,fontWeight=FontWeight.Medium);Text("₹${model.moneyLeft} · ${model.caloriesLeft.label} kcal · ${model.opportunities} meals left",color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=7.dp))}}
             if(model.chatMessages.isEmpty())item{Column(verticalArrangement=Arrangement.spacedBy(8.dp)){listOf("Find a spicy, protein-rich meal","Set my food allowance to ₹350","Show my daily tracker").forEach{prompt->Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Surface).clickable{model.sendAssistantMessage(prompt)}.padding(16.dp),verticalAlignment=Alignment.CenterVertically){Text(prompt,color=White,fontSize=14.sp,modifier=Modifier.weight(1f));Icon(Icons.Outlined.ArrowOutward,null,tint=Muted,modifier=Modifier.size(16.dp))}}}}
-            items(model.chatMessages){message->Column(Modifier.fillMaxWidth(),horizontalAlignment=if(message.fromUser)Alignment.End else Alignment.Start){Column(Modifier.widthIn(max=320.dp).clip(RoundedCornerShape(22.dp)).background(if(message.fromUser)Raised else Surface).padding(16.dp),verticalArrangement=Arrangement.spacedBy(9.dp)){Text(message.text,color=White,fontSize=15.sp,lineHeight=23.sp);message.actions.forEach{action->OutlinedButton(onClick={model.assistantAction=action},shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,Lime.copy(alpha=.4f))){Text("Review: "+action.first.replace('_',' '),color=Lime,fontSize=12.sp)}}}}}
+            items(model.chatMessages){message->Column(Modifier.fillMaxWidth(),horizontalAlignment=if(message.fromUser)Alignment.End else Alignment.Start){Column(Modifier.widthIn(max=320.dp).clip(RoundedCornerShape(22.dp)).background(if(message.fromUser)Raised else Surface).padding(16.dp),verticalArrangement=Arrangement.spacedBy(9.dp)){Text(message.text,color=White,fontSize=15.sp,lineHeight=23.sp);message.actions.forEach{action->OutlinedButton(onClick={model.assistantAction=action},shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,Accent.copy(alpha=.4f))){Text("Review: "+action.first.replace('_',' '),color=Accent,fontSize=12.sp)}}}}}
             if(model.assistantLoading)item{ThinkingDots()}
         }
         Row(Modifier.fillMaxWidth().padding(vertical=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
             FilledInput(input,{input=it},"Ask Hungii anything…",Modifier.weight(1f))
-            RoundAction(if(input.isBlank())Icons.Outlined.Mic else Icons.Outlined.ArrowUpward,if(input.isBlank())"Speak to Hungii" else "Send message",if(voice.listening)Coral else Lime,Charcoal,{if(!model.assistantLoading){if(input.isBlank())onVoice()else{model.sendAssistantMessage(input);input=""}}},52)
+            RoundAction(if(input.isBlank())Icons.Outlined.Mic else Icons.Outlined.ArrowUpward,if(input.isBlank())"Speak to Hungii" else "Send message",if(voice.listening)SoftCrimson else Accent,Charcoal,{if(!model.assistantLoading){if(input.isBlank())onVoice()else{model.sendAssistantMessage(input);input=""}}},52)
         }
         Text(if(BuildConfig.LOCAL_DEMO)if(model.assistantConsent) "Cloud assistant enabled" else "Cloud assistant · optional" else "Cloud assistant available in Simulator",color=Muted,fontSize=12.sp,modifier=Modifier.fillMaxWidth().padding(bottom=6.dp),textAlign=TextAlign.Center)
     }
@@ -198,7 +225,7 @@ import kotlin.math.sin
     var expanded by remember{mutableStateOf(false)}
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Surface).padding(16.dp)){
         Row(Modifier.fillMaxWidth().clickable{expanded=!expanded},verticalAlignment=Alignment.CenterVertically){Icon(Icons.Outlined.Terminal,null,tint=Muted,modifier=Modifier.size(18.dp));Text("MCP activity",color=Muted,fontSize=13.sp,modifier=Modifier.weight(1f).padding(start=10.dp));Icon(if(expanded)Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,"Toggle MCP activity",tint=Muted)}
-        if(expanded)model.mcpTrace.takeLast(12).forEach{Text(it,color=Cyan,fontSize=12.sp,modifier=Modifier.padding(top=6.dp))}
+        if(expanded)model.mcpTrace.takeLast(12).forEach{Text(it,color=Rose,fontSize=12.sp,modifier=Modifier.padding(top=6.dp))}
     }
 }
 private fun openSwiggy(context:android.content.Context) {
@@ -211,17 +238,17 @@ private fun openSwiggy(context:android.content.Context) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal=24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
             FocusHeader("Your basket"){model.goBack()};DisplayText("Good food.\nBetter value.",32)
             if(model.loading)ThinkingDots()
-            if(model.connectionMessage.isNotBlank())Text(model.connectionMessage,color=Coral,fontSize=13.sp)
+            if(model.connectionMessage.isNotBlank())Text(model.connectionMessage,color=SoftCrimson,fontSize=13.sp)
             if(cart!=null){
-                Panel{Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){Icon(Icons.Outlined.LocationOn,null,tint=Lime);Column{Text("Deliver to",color=Muted,fontSize=12.sp);Text(cart.optString("address"),color=White,fontSize=14.sp,lineHeight=20.sp)}}}
+                Panel{Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){Icon(Icons.Outlined.LocationOn,null,tint=Accent);Column{Text("Deliver to",color=Muted,fontSize=12.sp);Text(cart.optString("address"),color=White,fontSize=14.sp,lineHeight=20.sp)}}}
                 val items=cart.optJSONArray("items")?:JSONArray()
                 for(i in 0 until items.length())CartItem(model,items.getJSONObject(i),cart.optString("restaurant"))
-                cart.optJSONObject("nudge")?.let{n->Panel{Row(horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Outlined.LocalOffer,null,tint=Lime);Text("Add a little. Pay less.",color=Lime,fontSize=16.sp,fontWeight=FontWeight.Bold)};Text("${n.getString("name")} costs ${rupees(n.getDouble("price"))} and unlocks ${n.getString("coupon")}. Your final bill drops by ${rupees(n.getDouble("saving"))}.",color=White,fontSize=14.sp,lineHeight=21.sp);val cal=n.getJSONObject("nutrition").getJSONArray("calories");Text("Trade-off: ${cal.getInt(0)}–${cal.getInt(1)} extra kcal, estimated.",color=Coral,fontSize=12.sp);OutlineButton("Add side · new total ${rupees(n.getDouble("newPayable"))}"){if(!model.loading)model.addSide(n.getString("dishId"))}}}
+                cart.optJSONObject("nudge")?.let{n->Panel{Row(horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Outlined.LocalOffer,null,tint=Accent);Text("Add a little. Pay less.",color=Accent,fontSize=16.sp,fontWeight=FontWeight.Bold)};Text("${n.getString("name")} costs ${rupees(n.getDouble("price"))} and unlocks ${n.getString("coupon")}. Your final bill drops by ${rupees(n.getDouble("saving"))}.",color=White,fontSize=14.sp,lineHeight=21.sp);val cal=n.getJSONObject("nutrition").getJSONArray("calories");Text("Trade-off: ${cal.getInt(0)}–${cal.getInt(1)} extra kcal, estimated.",color=SoftCrimson,fontSize=12.sp);OutlineButton("Add side · new total ${rupees(n.getDouble("newPayable"))}"){if(!model.loading)model.addSide(n.getString("dishId"))}}}
                 if(items.length()>0)Panel{
                     Text("Bill details",color=White,fontSize=17.sp,fontWeight=FontWeight.SemiBold);BillLine("Food",rupees(cart.optDouble("itemTotal")));BillLine("Delivery",rupees(cart.optDouble("deliveryCharge")))
                     val fees=cart.optJSONObject("fees")?:JSONObject();BillLine("Packaging",rupees(fees.optDouble("packaging")));BillLine("Platform",rupees(fees.optDouble("platform")));BillLine("Tax",rupees(fees.optDouble("tax")))
-                    if(cart.optDouble("couponDiscount")>0)BillLine(cart.optString("appliedCoupon"),"−"+rupees(cart.optDouble("couponDiscount")),Lime)
-                    HorizontalDivider(color=Line);BillLine("To pay",rupees(cart.optDouble("payable")),Lime);Text("All amounts are synthetic INR. No real charge.",color=Muted,fontSize=12.sp)
+                    if(cart.optDouble("couponDiscount")>0)BillLine(cart.optString("appliedCoupon"),"−"+rupees(cart.optDouble("couponDiscount")),Accent)
+                    HorizontalDivider(color=Line);BillLine("To pay",rupees(cart.optDouble("payable")),Accent);Text("All amounts are synthetic INR. No real charge.",color=Muted,fontSize=12.sp)
                 }
                 if(items.length()==0)Text("Your basket is empty. Pick a meal to start again.",color=Muted)
             }
@@ -233,7 +260,7 @@ private fun openSwiggy(context:android.content.Context) {
             val count=cart?.optJSONArray("items")?.let {items->(0 until items.length()).sumOf {items.getJSONObject(it).optInt("quantity")}} ?: 0
             if(total!=null && !model.loading && !model.cartRefreshRequired) Text("$count item${if(count==1) "" else "s"} · ${if(total<=model.moneyLeft) "${rupees(model.moneyLeft-total)} allowance left" else "${rupees(total-model.moneyLeft)} over allowance"}",color=Muted,fontSize=14.sp)
             if(model.cartRefreshRequired) Text("Refresh to confirm your current basket and total.",color=Muted,fontSize=14.sp)
-            LimeButton(if(model.loading) "Updating your basket…" else if(model.cartRefreshRequired) "Refresh basket" else total?.let {"Choose payment · ${rupees(it)}"} ?: "Choose payment",Icons.AutoMirrored.Outlined.ArrowForward,enabled=!model.loading&&(model.cartRefreshRequired || (count>0&&total!=null))){if(model.cartRefreshRequired)model.refreshCart() else model.choosePayment()}
+            PrimaryButton(if(model.loading) "Updating your basket…" else if(model.cartRefreshRequired) "Refresh basket" else total?.let {"Choose payment · ${rupees(it)}"} ?: "Choose payment",Icons.AutoMirrored.Outlined.ArrowForward,enabled=!model.loading&&(model.cartRefreshRequired || (count>0&&total!=null))){if(model.cartRefreshRequired)model.refreshCart() else model.choosePayment()}
         }
     }
 }
@@ -249,7 +276,7 @@ private fun openSwiggy(context:android.content.Context) {
                 item.optDouble("total",Double.NaN).takeIf {it.isFinite() && it>=0}?.let {Text(rupees(it)+" · $quantity item${if(quantity==1) "" else "s"}",color=White,fontSize=16.sp)}
             }
         }
-        Row(verticalAlignment=Alignment.CenterVertically){Text("Quantity",color=Muted,fontSize=13.sp,modifier=Modifier.weight(1f));IconButton(onClick={model.changeQuantity(id,quantity-1)},enabled=!model.loading){Icon(Icons.Outlined.Remove,"Remove one",tint=Muted)};Text("$quantity",color=White,fontSize=17.sp);IconButton(onClick={model.changeQuantity(id,quantity+1)},enabled=!model.loading&&quantity<10){Icon(Icons.Outlined.Add,"Add one",tint=Lime)}}
+        Row(verticalAlignment=Alignment.CenterVertically){Text("Quantity",color=Muted,fontSize=13.sp,modifier=Modifier.weight(1f));IconButton(onClick={model.changeQuantity(id,quantity-1)},enabled=!model.loading){Icon(Icons.Outlined.Remove,"Remove one",tint=Muted)};Text("$quantity",color=White,fontSize=17.sp);IconButton(onClick={model.changeQuantity(id,quantity+1)},enabled=!model.loading&&quantity<10){Icon(Icons.Outlined.Add,"Add one",tint=Accent)}}
         Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
             listOf(1,2,3).forEach {count->SmallChip("${count}×",quantity==count,enabled=!model.loading){model.changeQuantity(id,count)}}
         }
@@ -263,30 +290,30 @@ private fun openSwiggy(context:android.content.Context) {
 @Composable internal fun PaymentScreen(model:HungiiModel) {
     var confirm by remember{mutableStateOf(false)};val c=model.cart;val pending=model.paymentStage in listOf("pending","unresolved")
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
-        FocusHeader("Mock payment"){if(!pending)model.goBack()};Text("${c?.optString("restaurant")?:"Your basket"}",color=Muted,fontSize=14.sp);DisplayText(rupees(c?.optDouble("payable")?:0.0),48);Text("Simulator only. No money leaves your account.",color=Lime,fontSize=12.sp)
+        FocusHeader("Mock payment"){if(!pending)model.goBack()};Text("${c?.optString("restaurant")?:"Your basket"}",color=Muted,fontSize=14.sp);DisplayText(rupees(c?.optDouble("payable")?:0.0),48);Text("Simulator only. No money leaves your account.",color=Accent,fontSize=12.sp)
         if(model.loading)ThinkingDots()
-        if(model.connectionMessage.isNotBlank())Text(model.connectionMessage,color=Coral,fontSize=13.sp)
+        if(model.connectionMessage.isNotBlank())Text(model.connectionMessage,color=SoftCrimson,fontSize=13.sp)
         if(model.paymentStage=="choose"){
             Panel{
                 Text("Pay using",color=White,fontSize=17.sp,fontWeight=FontWeight.SemiBold);val methods=model.paymentOptions?.optJSONArray("allMethods")?:JSONArray()
                 for(i in 0 until methods.length()){val m=methods.getJSONObject(i);Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Raised).clickable{model.selectedMethodId=m.getString("id")}.padding(12.dp),verticalAlignment=Alignment.CenterVertically){Icon(if(m.optString("groupName")=="UPI")Icons.Outlined.QrCode2 else Icons.Outlined.Payments,null,tint=White,modifier=Modifier.size(24.dp));Text(m.getString("displayName"),color=White,fontSize=14.sp,modifier=Modifier.weight(1f).padding(horizontal=12.dp));RadioButton(model.selectedMethodId==m.getString("id"),onClick={model.selectedMethodId=m.getString("id")})}}
             }
-            FilledInput(model.checkoutNote,{model.checkoutNote=it.take(200)},"Note to kitchen (optional)",Modifier.fillMaxWidth());LimeButton("Review mock order · "+rupees(c?.optDouble("payable")?:0.0),Icons.Outlined.Lock,enabled=!model.loading&&!model.cartRefreshRequired&&model.paymentOptions!=null){confirm=true}
+            FilledInput(model.checkoutNote,{model.checkoutNote=it.take(200)},"Note to kitchen (optional)",Modifier.fillMaxWidth());PrimaryButton("Review mock order · "+rupees(c?.optDouble("payable")?:0.0),Icons.Outlined.Lock,enabled=!model.loading&&!model.cartRefreshRequired&&model.paymentOptions!=null){confirm=true}
         }else if(pending){
             Panel{
-                Icon(Icons.Outlined.HourglassTop,null,tint=Lime,modifier=Modifier.size(32.dp));DisplayText("Payment pending",26);Text("Your order has not been placed. Choose a mock outcome below; Hungii checks status through MCP and confirms only after success.",color=Muted,fontSize=14.sp,lineHeight=21.sp)
+                Icon(Icons.Outlined.HourglassTop,null,tint=Accent,modifier=Modifier.size(32.dp));DisplayText("Payment pending",26);Text("Your order has not been placed. Choose a mock outcome below; Hungii checks status through MCP and confirms only after success.",color=Muted,fontSize=14.sp,lineHeight=21.sp)
                 if(model.selectedMethodId=="mock-qr")Box(Modifier.fillMaxWidth().height(120.dp).background(Raised,RoundedCornerShape(20.dp)),contentAlignment=Alignment.Center){Column(horizontalAlignment=Alignment.CenterHorizontally){Icon(Icons.Outlined.QrCode2,"Decorative mock QR, not scannable",tint=White,modifier=Modifier.size(64.dp));Text("Mock QR · do not scan",color=Muted,fontSize=12.sp)}}
-                LimeButton("Simulate success",Icons.Outlined.Check,enabled=!model.loading){model.simulatePayment("SUCCESS")};OutlineButton("Simulate failure"){if(!model.loading)model.simulatePayment("FAILED")};TextButton(onClick={if(!model.loading)model.simulatePayment("CANCELLED")}){Text("Cancel mock payment",color=Coral)};TextButton(onClick=model::refreshPayment){Text("Refresh payment status",color=Lime)}
+                PrimaryButton("Simulate success",Icons.Outlined.Check,enabled=!model.loading){model.simulatePayment("SUCCESS")};OutlineButton("Simulate failure"){if(!model.loading)model.simulatePayment("FAILED")};TextButton(onClick={if(!model.loading)model.simulatePayment("CANCELLED")}){Text("Cancel mock payment",color=SoftCrimson)};TextButton(onClick=model::refreshPayment){Text("Refresh payment status",color=Accent)}
             }
-        }else if(model.paymentStage=="failed")Panel{DisplayText("Let’s try again.",27);Text("Your cart is saved. No order was placed.",color=Muted,fontSize=14.sp);LimeButton("Choose payment again",Icons.Outlined.Refresh,enabled=!model.loading){model.retryPayment()}}
+        }else if(model.paymentStage=="failed")Panel{DisplayText("Let’s try again.",27);Text("Your cart is saved. No order was placed.",color=Muted,fontSize=14.sp);PrimaryButton("Choose payment again",Icons.Outlined.Refresh,enabled=!model.loading){model.retryPayment()}}
         McpActivity(model);Spacer(Modifier.height(20.dp))
     }
-    if(confirm)AlertDialog(onDismissRequest={confirm=false},containerColor=Surface,title={Text("Confirm the mock order")},text={Column(verticalArrangement=Arrangement.spacedBy(12.dp)){Text("${c?.optString("restaurant")}\n${c?.optString("address")}");val items=c?.optJSONArray("items")?:JSONArray();for(i in 0 until items.length()){val item=items.getJSONObject(i);Text("${item.optInt("quantity")} × ${item.optString("name")}")};Text("${rupees(c?.optDouble("payable")?:0.0)} · ${model.selectedMethodId}",color=Lime);Text("This creates a synthetic payment or COD order. No real money or order.",color=Muted,fontSize=12.sp)}},confirmButton={TextButton(onClick={confirm=false;model.beginPayment()}){Text("Confirm")}},dismissButton={TextButton(onClick={confirm=false}){Text("Back to review")}})
+    if(confirm)AlertDialog(onDismissRequest={confirm=false},containerColor=Surface,title={Text("Confirm the mock order")},text={Column(verticalArrangement=Arrangement.spacedBy(12.dp)){Text("${c?.optString("restaurant")}\n${c?.optString("address")}");val items=c?.optJSONArray("items")?:JSONArray();for(i in 0 until items.length()){val item=items.getJSONObject(i);Text("${item.optInt("quantity")} × ${item.optString("name")}")};Text("${rupees(c?.optDouble("payable")?:0.0)} · ${model.selectedMethodId}",color=Accent);Text("This creates a synthetic payment or COD order. No real money or order.",color=Muted,fontSize=12.sp)}},confirmButton={TextButton(onClick={confirm=false;model.beginPayment()}){Text("Confirm")}},dismissButton={TextButton(onClick={confirm=false}){Text("Back to review")}})
 }
 @Composable internal fun OrderScreen(model:HungiiModel) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(20.dp)){
-        Box(Modifier.size(90.dp).background(Lime,CircleShape),contentAlignment=Alignment.Center){Icon(Icons.Outlined.Check,"Mock order confirmed",tint=Charcoal,modifier=Modifier.size(42.dp))};DisplayText("Food is on its way.*",30);Text("*In our little simulator world.",color=Muted,fontSize=13.sp)
-        Panel{Text("Mock order confirmed",color=Lime,fontSize=17.sp,fontWeight=FontWeight.Bold);val details=model.order?.optJSONObject("details")?.optJSONObject("order");Text("Order #${details?.optString("order_id")?:model.payment?.optString("orderId")}",color=Muted,fontSize=12.sp);Text(model.checkoutCart?.optString("restaurant")?:"",color=White,fontSize=19.sp,fontWeight=FontWeight.Bold);BillLine("Total",rupees(model.checkoutCart?.optDouble("payable")?:0.0));HorizontalDivider(color=Line);listOf("✓ Order received","● Kitchen is preparing","○ Rider pickup","○ Delivered").forEach{Text(it,color=if(it.startsWith("●"))Lime else Muted,fontSize=14.sp)};Text("Synthetic delivery estimate: 20–25 min",color=Muted,fontSize=12.sp)}
-        Text("Ordering isn’t eating. Log the meal when you eat it to update your remaining macros.",color=Muted,fontSize=14.sp,lineHeight=21.sp);LimeButton("Log as eaten · estimated macros",Icons.Outlined.Restaurant){model.logOrderAsEaten()};OutlineButton("Back to my day"){model.screen=Screen.Home};McpActivity(model)
+        Box(Modifier.size(90.dp).background(Accent,CircleShape),contentAlignment=Alignment.Center){Icon(Icons.Outlined.Check,"Mock order confirmed",tint=Charcoal,modifier=Modifier.size(42.dp))};DisplayText("Food is on its way.*",30);Text("*In our little simulator world.",color=Muted,fontSize=13.sp)
+        Panel{Text("Mock order confirmed",color=Accent,fontSize=17.sp,fontWeight=FontWeight.Bold);val details=model.order?.optJSONObject("details")?.optJSONObject("order");Text("Order #${details?.optString("order_id")?:model.payment?.optString("orderId")}",color=Muted,fontSize=12.sp);Text(model.checkoutCart?.optString("restaurant")?:"",color=White,fontSize=19.sp,fontWeight=FontWeight.Bold);BillLine("Total",rupees(model.checkoutCart?.optDouble("payable")?:0.0));HorizontalDivider(color=Line);listOf("✓ Order received","● Kitchen is preparing","○ Rider pickup","○ Delivered").forEach{Text(it,color=if(it.startsWith("●"))Accent else Muted,fontSize=14.sp)};Text("Synthetic delivery estimate: 20–25 min",color=Muted,fontSize=12.sp)}
+        Text("Ordering isn’t eating. Log the meal when you eat it to update your remaining macros.",color=Muted,fontSize=14.sp,lineHeight=21.sp);PrimaryButton("Log as eaten · estimated macros",Icons.Outlined.Restaurant){model.logOrderAsEaten()};OutlineButton("Back to my day"){model.screen=Screen.Home};McpActivity(model)
     }
 }
