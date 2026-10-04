@@ -6,12 +6,9 @@ Hungii helps you choose your next meal within your remaining food allowance, ent
 
 The current product is a native Kotlin / Jetpack Compose Android preview for Android 8+. Only the Food integration is implemented; Instamart, Dineout and Scenes remain future scope.
 
-| Build | What works | Connection required |
-| --- | --- | --- |
-| **Hungii preview** (`real`) | Encrypted local tracker, WorkOS staging email sign-in, optional cloud profile/preferences sync; prepared read-only Swiggy adapter | Local tracking works offline. Accounts/sync need the Mumbai backend. Live Swiggy access remains approval-gated. |
-| **Hungii Simulator** (`demo`) | Fictional meals, full MCP cart/coupon/mock payment/receipt flow, optional Google ADK + Groq Free Assistant | Phone on Tailscale; awake computer running the Simulator services. No real order or payment is created. |
+Download **hungii.apk**, the single user-facing Android app, from [GitHub Releases](https://github.com/acephos/hungii/releases). It has an encrypted offline tracker, optional profile sync, simplified delivery settings and a prepared Swiggy basket/payment/tracking flow. **Live ordering remains gated on Swiggy access and staging verification.** These are development-signed previews, not Play Store production releases.
 
-Download the separately installed APKs and checksums from [GitHub Releases](https://github.com/acephos/hungii/releases). They are development-signed previews, not Play Store production releases. Published checkpoints are retained; use the newest preview for fixes.
+The Simulator (`demo` flavor) is a developer-only testing build with fictional meals and payments, not a second app users need to install. It is not published in new releases. Historical preview and Simulator APKs remain unchanged.
 
 ## Run and build
 
@@ -26,7 +23,7 @@ The Simulator needs neither a Swiggy account nor paid inference. Its cloud Assis
 
 Use the [documentation index](docs/README.md) for current guides, product requirements, architecture decisions, dated research and historical correspondence. [Readiness evidence](docs/approval-readiness.md) distinguishes implemented controls from external launch gates; [verification records](artifacts/README.md) record checks at specific versions.
 
-The real build never substitutes sample meals for provider results. It has no enabled live cart mutation, ordering or payment. Missing provider nutrition stays unknown; Simulator estimates are fictional. Server restarts clear synthetic carts/orders, and receipt/payment recovery after app/server restart remains unfinished.
+The real build never substitutes sample meals for provider results. It has no enabled live cart mutation, ordering or payment. The prepared coordinator and remaining contract gaps are described in [checkout preparation](docs/swiggy-ordering-preparation.md). Missing provider nutrition stays unknown; Simulator estimates are fictional. Server restarts clear synthetic carts/orders. Real checkout recovery uses an encrypted backend ledger and device request ID; its provider behavior still needs staging verification.
 
 [Privacy draft](docs/privacy-notice-draft.md), [security reporting](SECURITY.md), [incident runbook](docs/incident-runbook.md) and [release process](docs/releases.md) describe data paths and maintenance. Provider access/agreements, production identity/signing, calibrated nutrition and operational readiness remain launch gates.
 

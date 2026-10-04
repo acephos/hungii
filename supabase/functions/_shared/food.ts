@@ -17,9 +17,10 @@ export function payload(result: Json): Json {
 }
 
 // Exact names verified against Builders Club. No arbitrary proxy, ordering or OTP endpoints.
-const READ_TOOLS = new Set(["get_addresses", "search_restaurants", "search_menu", "get_restaurant_menu", "get_food_cart", "fetch_food_coupons", "get_food_orders", "get_food_order_details", "get_payment_options"]);
+const READ_TOOLS = new Set(["get_addresses", "search_restaurants", "search_menu", "get_restaurant_menu", "get_food_cart", "fetch_food_coupons", "get_food_orders", "get_food_order_details", "get_payment_options", "track_food_order", "check_payment_status"]);
+const WRITE_TOOLS = new Set(["update_food_cart", "apply_food_coupon", "place_food_order", "confirm_order"]);
 export const foodSessions = new FoodSessions();
-export async function withFood<T>(url: string, token: string, run: (call: ToolCall) => Promise<T>, user: string, localDemo = false, sessions: Pick<FoodSessions,"run"> = foodSessions): Promise<T> {
+export async function withFood<T>(url: string, token: string, run: (call: ToolCall) => Promise<T>, user: string, localDemo = false, sessions: Pick<FoodSessions,"run"> = foodSessions, approvedWrites = false): Promise<T> {
   const endpoint = new URL(url);
   const demo = localDemo && endpoint.protocol === "http:" && ["127.0.0.1", "localhost"].includes(endpoint.hostname) && endpoint.pathname === "/food";
   if (!demo && (endpoint.protocol !== "https:" || !["mcp.swiggy.com", "mcp-staging.swiggy.com"].includes(endpoint.hostname) || endpoint.pathname !== "/food")) {
@@ -29,7 +30,7 @@ export async function withFood<T>(url: string, token: string, run: (call: ToolCa
     const tools = connection.tools;
     const ajv = new Ajv({ strict: false, allErrors: true });
     return await run(async (name, args) => {
-      if (!READ_TOOLS.has(name) && !demo) throw new HungiiError("HUNGII_WRITE_DISABLED", "Cart writes need an approved, verified item contract before they can be enabled.", 409);
+      if (!READ_TOOLS.has(name) && !demo && !(approvedWrites && WRITE_TOOLS.has(name))) throw new HungiiError("HUNGII_WRITE_DISABLED", "Cart writes need an approved, verified item contract before they can be enabled.", 409);
       const tool = tools.find(t => t.name === name);
       if (!tool) throw new HungiiError("HUNGII_TOOL_UNAVAILABLE", "This feature is unavailable for the connected Swiggy account.", 409);
       if (!ajv.compile(tool.inputSchema)(args)) throw new HungiiError("HUNGII_SCHEMA_CHANGED", "Swiggy's current request format differs from the verified integration. Please update Hungii.", 409);

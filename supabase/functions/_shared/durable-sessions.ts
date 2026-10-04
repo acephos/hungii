@@ -78,7 +78,7 @@ export class DurableFoodSessions {
       const remaining = deadline - Date.now();
       if (remaining <= 0) throw new HungiiError("HUNGII_TIMEOUT", "This search took too long. Try again later.", 504);
       const id = crypto.randomUUID();
-      const response = await this.network(url, { method: "POST", redirect: "error", signal: AbortSignal.timeout(Math.min(8000, remaining)),
+      const response = await this.network(url, { method: "POST", redirect: "error", signal: AbortSignal.timeout(Math.min(method === "tools/call" && params?.name === "check_payment_status" ? 24000 : 8000, remaining)),
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json", Accept: "application/json, text/event-stream",
           ...(metadata ? { "Mcp-Session-Id": metadata.sessionId, "MCP-Protocol-Version": metadata.protocol } : {}) },
         body: JSON.stringify({ jsonrpc: "2.0", ...(notification ? {} : {id}), method, ...(params ? {params} : {}) }),

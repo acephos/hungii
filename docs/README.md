@@ -22,10 +22,13 @@ Start with [current status and launch gates](approval-readiness.md). The reposit
 - [Privacy notice draft](privacy-notice-draft.md): current data paths; publication still requires founder contact and processor review.
 - Architecture decisions: [native Android and Mumbai backend](adr/0001-native-android-and-mumbai-backend.md), [durable MCP session](adr/0002-durable-mumbai-mcp-session.md), [WorkOS identity](adr/0003-workos-with-supabase.md).
 
+- [Checkout preparation](swiggy-ordering-preparation.md) and [developer application draft](swiggy-developer-application.md): prepared ordering flow, remaining gates and demo script.
+
 ## Research and historical evidence
 
 Research is dated, informs decisions and does not certify current vendor behavior. Reverify its primary sources before implementation or spending decisions.
 
+- Public alternatives: [public food services](research/public-food-services-research.md), including the corrected Swiggy developer route.
 - API research: [initial Swiggy inventory](research/swiggy-research.md), [meal feasibility](research/meal-planner-api-feasibility.md), [testing options](research/swiggy-testing-options.md), [synthetic MCP contract](research/mock-mcp-contract-research.md), [protocol/security sources](research/approval-technical-sources.md).
 - Design videos: [mobile UI fundamentals](research/mobile-ui-video-research.md), [UX psychology](research/ux-psychology-design-research.md), [product-page redesign](research/product-page-design-research.md). Timestamped guidance is mapped to Hungii choices; empirical video claims are not independently verified.
 - Design and stack research: [FamApp direction](research/famapp-design-research.md), [Assistant orb](research/ai-orb-design-research.md), [free cloud inference](research/free-agent-inference-research.md), [free stack](research/stack-free-tier-research.md).

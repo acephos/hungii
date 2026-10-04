@@ -1,3 +1,5 @@
+> From 0.8.0, new releases publish one user APK: **hungii.apk** (`real`). The `demo` flavor remains developer-only. See [checkout preparation](../docs/swiggy-ordering-preparation.md).
+
 # Hungii Android
 
 Native Kotlin / Compose app using near-black, crimson and rose, with check-in, swipe to three finalists, face-down shuffle/reveal, an offline tracker and consented local favorites.
