@@ -1,5 +1,5 @@
 import { HungiiError, type Json } from "./errors.ts";
-export const PRIVACY_VERSION = "2026-10-02.3";
+export const PRIVACY_VERSION = "2026-10-04.1";
 export function trackerState(value: unknown): Json {
   const fail = () => { throw new HungiiError("HUNGII_BAD_INPUT", "Only valid user-entered tracker totals can be synced."); };
   if (!value || typeof value !== "object" || Array.isArray(value)) return fail();

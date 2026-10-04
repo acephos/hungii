@@ -189,7 +189,7 @@ internal fun HungiiApp(model: HungiiModel,voice: VoiceState,onVoice: ()->Unit) {
                 Screen.Finalists -> FinalistsScreen(model)
                 Screen.Draw -> DrawScreen(model,reduceMotion)
                 Screen.Winner -> WinnerScreen(model,{detailMeal=it})
-                Screen.Review -> if(BuildConfig.LOCAL_DEMO) CheckoutScreen(model) else ReviewScreen(model)
+                Screen.Review -> CheckoutScreen(model)
                 Screen.Payment -> PaymentScreen(model)
                 Screen.Order -> OrderScreen(model)
                 Screen.Saved -> SavedScreen(model)
@@ -201,14 +201,14 @@ internal fun HungiiApp(model: HungiiModel,voice: VoiceState,onVoice: ()->Unit) {
     }
     if(model.assistantConsentPending) AlertDialog(onDismissRequest={model.assistantConsentPending=false},containerColor=Surface,title={Text("Enable the cloud assistant?")},text={Text("Your typed or transcribed messages and selected tracker values are sent through this demo server to Groq's free cloud inference, processed outside India. No Swiggy login, real orders or payment credentials are shared. You can keep using manual filters without it.")},confirmButton={TextButton(onClick=model::acceptAssistant){Text("Enable assistant")}},dismissButton={TextButton(onClick={model.assistantConsentPending=false}){Text("Use manual filters")}})
     model.assistantAction?.let { action -> AlertDialog(onDismissRequest={model.assistantAction=null},containerColor=Surface,title={Text("Apply this change?")},text={Text(action.first.replace('_',' ')+if(action.second.isBlank()) "" else " → ${action.second}")},confirmButton={TextButton(onClick=model::applyAssistantAction){Text("Apply")}},dismissButton={TextButton(onClick={model.assistantAction=null}){Text("Cancel")}}) }
-    if(model.replaceCartPending) AlertDialog(onDismissRequest={model.replaceCartPending=false;model.goBack()},containerColor=Surface,title={Text("Replace your mock cart?")},text={Text("This pick comes from another restaurant. Replace the existing basket to continue.")},confirmButton={TextButton(onClick={model.replaceCartPending=false;model.review(true)}){Text("Replace cart")}},dismissButton={TextButton(onClick={model.replaceCartPending=false;model.goBack()}){Text("Keep cart")}})
+    if(model.replaceCartPending) AlertDialog(onDismissRequest={model.replaceCartPending=false;model.goBack()},containerColor=Surface,title={Text("Replace your basket?")},text={Text("This pick comes from another restaurant. Replace the existing basket to continue.")},confirmButton={TextButton(onClick={model.replaceCartPending=false;model.review(true)}){Text("Replace cart")}},dismissButton={TextButton(onClick={model.replaceCartPending=false;model.goBack()}){Text("Keep cart")}})
     if(model.accountOpen) AccountDialog(model) { model.accountOpen=false }
     model.pendingSave?.let { meal ->
         AlertDialog(onDismissRequest={model.pendingSave=null},containerColor=Surface,title={Text("Remember this meal?",color=White)},text={Text("Allow Hungii to keep ${meal.name}, its name, restaurant and menu identifiers encrypted on this device for up to 30 days. Prices and photos are not saved. Delete saved meals and withdraw permission from Saved. Notice ${model.privacyVersion}.",color=Muted)},confirmButton={TextButton(onClick={model.acceptSaving()}){Text("Allow & save",color=Accent)}},dismissButton={TextButton(onClick={model.pendingSave=null}){Text("Cancel",color=Muted)}})
     }
     model.privacyAction?.let {action ->
         val title=when(action){"state_save"->"Sync profile & preferences?";"disconnect"->"Disconnect Swiggy?";"delete_account"->"Delete your Hungii account?";"delete_cloud_tracker"->"Erase your cloud tracker?";else->"Erase data on this device?"}
-        val explanation=when(action){"state_save"->"Allow automatic sync of your entered profile, goals, food allowance, daily totals and meal filters to your encrypted Hungii account in Mumbai. Restore them on another device after sign-in. Cloud data expires after 90 days without updates. You can stop syncing or erase the cloud copy from Accounts. Notice ${model.privacyVersion}.";"disconnect"->"Erase Hungii's Swiggy connection and saved meals. Hungii also asks Swiggy to revoke access; remote success is reported separately.";"delete_account"->"Erase your cloud tracker, Swiggy connection and this account's device data, then delete your WorkOS login. If provider deletion fails, you can retry. An account hash is kept for 24 hours to prevent requests from restoring erased data. This cannot be undone.";"delete_cloud_tracker"->"Erase your cloud profile, preferences and tracker, and stop syncing this device. Your device copy stays available.";else->"Erase your entered totals and saved meals on this device. Your cloud data is managed separately."}
+        val explanation=when(action){"state_save"->"Allow automatic sync of your entered profile, goals, food allowance, daily totals and meal filters to your encrypted Hungii account in Mumbai. Restore them on another device after sign-in. Cloud data expires after 90 days without updates. You can stop syncing or erase the cloud copy from Accounts. Notice ${model.privacyVersion}.";"disconnect"->"Erase Hungii's Swiggy connection and saved meals. Checkout recovery stays in your account. This does not cancel orders. Remote revocation is reported separately.";"delete_account"->"Erase your cloud tracker, checkout recovery, Swiggy connection and this account's device data, then delete your WorkOS login. This does not cancel or refund Swiggy orders. Check unresolved orders in Swiggy first. If provider deletion fails, you can retry. An account hash is kept for 24 hours to prevent requests from restoring erased data. This cannot be undone.";"delete_cloud_tracker"->"Erase your cloud profile, preferences and tracker, and stop syncing this device. Your device copy stays available.";else->"Erase your entered totals and saved meals on this device. Your cloud data is managed separately."}
         AlertDialog(onDismissRequest={model.privacyAction=null},containerColor=Surface,title={Text(title,color=White)},text={Text(explanation,color=Muted)},confirmButton={TextButton(onClick={when(action){"state_save"->{model.privacyAction=null;model.syncTracker()};"disconnect"->{model.privacyAction=null;model.disconnect()};else->model.performPrivacyAction()}}){Text(if(action=="state_save")"Allow & sync" else "Confirm",color=if(action=="state_save")Accent else SoftCrimson)}},dismissButton={TextButton(onClick={model.privacyAction=null}){Text("Cancel",color=Muted)}})
     }
     if(goalsOpen) GoalsDialog(model) { goalsOpen=false }
@@ -248,7 +248,7 @@ internal fun AccountEntry(model:HungiiModel) {
         },enabled=BuildConfig.WORKOS_AUTH_READY&&!model.loading,modifier=Modifier.fillMaxWidth().heightIn(min=56.dp),border=BorderStroke(1.dp,Line)) {
             Text("Sign in to sync",color=if(BuildConfig.WORKOS_AUTH_READY)White else Muted,fontSize=16.sp)
         }
-        Text("Local planning needs no account. Meal discovery requires a separate Swiggy connection; live access remains approval-gated.",color=Muted,fontSize=14.sp,lineHeight=20.sp)
+        Text("Track your day without an account. Swiggy ordering will become available after developer access is approved.",color=Muted,fontSize=14.sp,lineHeight=20.sp)
         if(model.connectionMessage.isNotBlank())Text(model.connectionMessage,color=SoftCrimson,fontSize=14.sp,lineHeight=20.sp)
     }
 }
@@ -321,7 +321,9 @@ internal fun DrawScreen(model: HungiiModel,reduceMotion: Boolean) {
             if (!reduceMotion) {
                 delay(450)
                 progress.animateTo(1f, tween(1800, easing = LinearEasing))
-            } else progress.snapTo(1f)
+            } else {
+                progress.snapTo(1f)
+            }
             model.shuffling = false
             model.canPick = true
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -396,7 +398,7 @@ internal fun WinnerScreen(model: HungiiModel,onDetails: (Meal)->Unit) {
         Text("The draw never changes a cart or places an order.",color=Muted,fontSize=12.sp,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth().padding(bottom=20.dp))
     }
     Box(Modifier.fillMaxWidth().background(Charcoal).padding(horizontal=22.dp,vertical=12.dp)) {
-        PrimaryButton(if(BuildConfig.LOCAL_DEMO) "Add to mock cart" else "Review & open Swiggy",Icons.AutoMirrored.Outlined.ArrowForward) {model.review()}
+        PrimaryButton(if(BuildConfig.LOCAL_DEMO) "Add to mock cart" else "Review basket",Icons.AutoMirrored.Outlined.ArrowForward) {model.review()}
     }
     }
 }
@@ -675,68 +677,87 @@ internal fun MealImage(meal: Meal,modifier: Modifier=Modifier) {
 
 @Composable
 internal fun ConnectionStrip(model: HungiiModel) {
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(Surface).clickable {model.accountOpen=true}.padding(12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
-        Text(if(BuildConfig.LOCAL_DEMO) "SYNTHETIC LOCAL MCP" else if(model.connected) "Powered by Swiggy · ${model.environment}" else "CONNECT SWIGGY",color=if(model.connected)Accent else Muted,fontSize=12.sp,fontWeight=FontWeight.Bold)
-        Text(if(model.connected&&model.addressId!=null) "Change address →" else "Accounts →",color=Accent,fontSize=12.sp)
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Surface).clickable {model.accountOpen=true}.padding(14.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)) {
+        Icon(Icons.Outlined.LocationOn,null,tint=Accent,modifier=Modifier.size(20.dp))
+        Column(Modifier.weight(1f)){
+            Text(if(BuildConfig.LOCAL_DEMO)"Test delivery" else "Swiggy delivery",color=White,fontSize=13.sp,fontWeight=FontWeight.SemiBold)
+            Text(if(model.connected&&model.addressId!=null)"Delivery address selected" else if(!BuildConfig.LOCAL_DEMO&&!model.connectionAvailable)"Developer access pending" else "Connect and choose an address",color=Muted,fontSize=12.sp)
+        }
+        Icon(Icons.AutoMirrored.Outlined.ArrowForward,"Delivery settings",tint=Accent,modifier=Modifier.size(18.dp))
     }
+    if(model.checkoutRequestId!=null)TextButton(onClick=model::resumeCheckout,enabled=!model.loading){Text(if(model.paymentStage=="confirmed")"View latest order" else "Resume checkout · check status",color=Accent)}
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun AccountDialog(model: HungiiModel,onClose: ()->Unit) {
     val context=LocalContext.current
     var consent by remember {mutableStateOf(false)}
+    var section by remember {mutableStateOf("Delivery")}
+    var showAddresses by remember {mutableStateOf(model.connected&&model.addressId==null)}
     fun browse(url: String) {try {CustomTabsIntent.Builder().build().launchUrl(context,Uri.parse(url))} catch(_: Exception) {model.connectionMessage="No browser is available. Install a browser to connect."}}
-    AlertDialog(onDismissRequest=onClose,containerColor=Surface,title={DisplayText("Accounts",28)},text={
-        Column(Modifier.heightIn(max=460.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)) {
-            Text(if(BuildConfig.LOCAL_DEMO) "This simulator uses fictional meals and addresses. Its cart, payment and order states are synthetic; no real money or Swiggy account is used." else "Your device tracker is encrypted. Cloud sync is optional. Swiggy supplies meals for the address you choose after separate authorization.",color=Muted,fontSize=13.sp,lineHeight=20.sp)
-            Text(if(BuildConfig.LOCAL_DEMO) "PRIVACY · ${model.privacyVersion}\nYour tracker stays encrypted on this device. Synthetic carts and orders live in the local server’s memory until restart. Saved shortcuts expire after 30 days. The optional cloud Assistant sends your submitted text and selected tracker values to Groq outside India, after opt-in. No real Swiggy login, address or payment credential is sent. Voice transcription is on-device where available; typing works everywhere." else "PRIVACY · ${model.privacyVersion}\nWorkOS handles email sign-in; Supabase hosts synced account data in Mumbai. On-device voice uses typed fallback. Cloud totals expire after 90 days without updates; saved shortcuts after 30 days. Connection credentials expire within five days. The selected address is used for meal searches. Live ordering remains disabled.",color=Muted,fontSize=12.sp,lineHeight=18.sp)
-            if(!model.configured) Text("The live connection is not available in this build yet. You can keep using your offline tracker while account setup is completed.",color=SoftCrimson,fontSize=13.sp,lineHeight=20.sp)
-            if(!model.signedIn) PrimaryButton(if(BuildConfig.WORKOS_AUTH_READY) "Continue with email" else "Email sign-in · setup pending",Icons.AutoMirrored.Outlined.Login,enabled=model.configured&&BuildConfig.WORKOS_AUTH_READY&&!model.loading) {
-                try {browse(model.signInUrl())} catch(e: ApiFailure) {model.connectionMessage=e.message}
-            } else {
-                Text(if(BuildConfig.LOCAL_DEMO) "Local demo session" else "Signed in to Hungii",color=Accent,fontSize=13.sp)
-                if(!BuildConfig.LOCAL_DEMO) {
-                Text("Hungii profile · "+if(model.cloudSyncEnabled) "Cloud sync enabled" else "Device only",color=Accent,fontSize=12.sp)
-                if(model.cloudSyncMessage.isNotBlank())Text(model.cloudSyncMessage,color=Muted,fontSize=12.sp)
-                if(model.cloudConflict) {
-                    TextButton(onClick={model.useCloudCopy()}) {Text("Use cloud profile",color=Accent)}
-                    TextButton(onClick={model.keepLocalCopy()}) {Text("Keep this device's profile",color=SoftCrimson)}
-                }
-                if(model.cloudSyncEnabled) TextButton(onClick={model.pauseCloudSync()}) {Text("Stop cloud sync on this device",color=Muted)}
-                TextButton(onClick={model.restoreProfile()}) {Text("Restore cloud profile",color=Accent)}
-                TextButton(onClick={model.privacyAction="state_save"}) {Text(if(model.cloudSyncEnabled) "Sync profile now" else "Enable profile & preference sync",color=Accent)}
-                TextButton(onClick={model.privacyAction="delete_cloud_tracker"}) {Text("Erase cloud profile & tracker",color=SoftCrimson)}
-                }
-                if(!model.connected) {
-                    if(BuildConfig.LOCAL_DEMO) {
-                        Text("Connect Tailscale on your phone and keep the simulator running on your computer, then reconnect here.",color=Muted,fontSize=12.sp,lineHeight=18.sp)
-                    } else Row(verticalAlignment=Alignment.Top) {
-                        Checkbox(consent,onCheckedChange={consent=it},colors=CheckboxDefaults.colors(checkedColor=Accent,checkmarkColor=Charcoal))
-                        Text("Allow Hungii to encrypt and retain my Swiggy token, chosen address identifier and Food session for up to five days, to perform my requested meal searches. Disconnect to erase them. Notice ${model.privacyVersion}.",color=Muted,fontSize=12.sp,lineHeight=18.sp,modifier=Modifier.padding(top=10.dp))
-                    }
-                    PrimaryButton(if(BuildConfig.LOCAL_DEMO) "Reconnect simulator" else "Connect Swiggy",Icons.Outlined.Link,enabled=(BuildConfig.LOCAL_DEMO||consent)&&!model.loading) {model.connect(::browse)}
-                    if(!BuildConfig.LOCAL_DEMO) TextButton(onClick={model.privacyAction="disconnect"}) {Text("Erase previous connection before reconnecting",color=Muted,fontSize=12.sp)}
-                } else {
-                    Text(if(BuildConfig.LOCAL_DEMO) "Local demo connected" else "Swiggy connected · ${model.environment}",color=Accent,fontSize=12.sp)
-                    TextButton(onClick={model.addressList()}) {Text("Choose delivery address",color=Accent)}
-                    model.addresses.forEach {address ->
-                        OutlinedButton(onClick={model.selectAddress(address)},modifier=Modifier.fillMaxWidth()) {
-                            Column {Text(address.label,color=White,fontWeight=FontWeight.Bold);Text(address.addressLine,color=Muted,fontSize=12.sp,lineHeight=18.sp,maxLines=3)}
+    ModalBottomSheet(onDismissRequest=onClose,sheetState=rememberModalBottomSheetState(skipPartiallyExpanded=true),containerColor=Surface){
+        Column(Modifier.fillMaxWidth().heightIn(max=650.dp).verticalScroll(rememberScrollState()).padding(horizontal=24.dp).padding(bottom=24.dp).navigationBarsPadding(),verticalArrangement=Arrangement.spacedBy(16.dp)){
+            DisplayText("Your account",28)
+            Row(Modifier.horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf("Delivery","Profile","Privacy").forEach {name->SmallChip(name,section==name){section=name}}}
+            if(model.loading)LinearProgressIndicator(modifier=Modifier.fillMaxWidth(),color=Accent)
+            if(model.connectionMessage.isNotBlank())Text(model.connectionMessage,color=SoftCrimson,fontSize=13.sp,lineHeight=20.sp)
+            when(section){
+                "Delivery"->{
+                    Text(if(BuildConfig.LOCAL_DEMO)"Test delivery connection" else "Connect Swiggy",color=White,fontSize=20.sp,fontWeight=FontWeight.SemiBold)
+                    Text(if(BuildConfig.LOCAL_DEMO)"Fictional meals and payments. No real money or delivery." else "Sign in with Swiggy, choose your address, then review your basket before ordering.",color=Muted,fontSize=14.sp,lineHeight=21.sp)
+                    if(!model.signedIn){
+                        Text("First, sign in to Hungii to keep your connection private.",color=Muted,fontSize=13.sp)
+                        PrimaryButton("Sign in to Hungii",Icons.AutoMirrored.Outlined.Login,enabled=model.configured&&BuildConfig.WORKOS_AUTH_READY&&!model.loading){try{browse(model.signInUrl())}catch(e:ApiFailure){model.connectionMessage=e.message}}
+                    }else if(!model.connected){
+                        if(!model.connectionAvailable&&!BuildConfig.LOCAL_DEMO)Text("Developer access is pending. Swiggy connection and ordering will open after approval and testing.",color=Accent,fontSize=14.sp,lineHeight=21.sp)
+                        else{
+                            if(!BuildConfig.LOCAL_DEMO)Row(verticalAlignment=Alignment.Top){
+                                Checkbox(consent,onCheckedChange={consent=it},colors=CheckboxDefaults.colors(checkedColor=Accent,checkmarkColor=Charcoal))
+                                Text("Keep my Swiggy connection encrypted for up to five days for my searches, basket and orders. I can disconnect anytime. Checkout recovery stays until I delete my account. Details in Privacy.",color=Muted,fontSize=13.sp,lineHeight=20.sp,modifier=Modifier.padding(top=10.dp))
+                            }
+                            PrimaryButton(if(BuildConfig.LOCAL_DEMO)"Reconnect test service" else "Continue to Swiggy",Icons.Outlined.Link,enabled=(BuildConfig.LOCAL_DEMO||consent)&&!model.loading){model.connect(::browse)}
                         }
+                        TextButton(onClick=model::refresh,enabled=!model.loading){Text("Check connection",color=Accent)}
+                    }else{
+                        Text(if(BuildConfig.LOCAL_DEMO)"Test service connected" else if(model.environment=="staging")"Swiggy staging connected · no real orders" else "Swiggy connected",color=Accent,fontSize=14.sp)
+                        if(!model.orderingEnabled&&!BuildConfig.LOCAL_DEMO)Text("Checkout is awaiting staging verification.",color=Muted,fontSize=13.sp)
+                        OutlineButton(if(model.addressId==null)"Choose delivery address" else "Change delivery address"){if(!model.loading){showAddresses=true;model.addressList()}}
+                        if(showAddresses){
+                            model.addresses.forEach {address->OutlinedButton(onClick={model.selectAddress(address)},enabled=!model.loading,modifier=Modifier.fillMaxWidth()){
+                                Column(Modifier.fillMaxWidth()){Text(address.label,color=White,fontWeight=FontWeight.SemiBold);Text(address.addressLine,color=Muted,fontSize=13.sp,lineHeight=20.sp)}
+                            }}
+                            Row{if(model.addressPage>1)TextButton(onClick={model.addressList(model.addressPage-1)},enabled=!model.loading){Text("Previous")};if(model.moreAddresses)TextButton(onClick={model.addressList(model.addressPage+1)},enabled=!model.loading){Text("More addresses")}}
+                        }
+                        if(model.checkoutRequestId!=null)OutlineButton("Resume latest checkout"){onClose();model.resumeCheckout()}
+                        TextButton(onClick={model.privacyAction="disconnect"},enabled=!model.loading){Text("Disconnect Swiggy",color=SoftCrimson)}
                     }
-                    Row {
-                        if(model.addressPage>1) TextButton(onClick={model.addressList(model.addressPage-1)}) {Text("Previous",color=Accent)}
-                        if(model.moreAddresses) TextButton(onClick={model.addressList(model.addressPage+1)}) {Text("More addresses",color=Accent)}
-                    }
-                    TextButton(onClick={model.privacyAction="disconnect"}) {Text(if(BuildConfig.LOCAL_DEMO) "Disconnect demo" else "Disconnect Swiggy",color=SoftCrimson)}
                 }
-                TextButton(onClick={model.refresh()}) {Text("Refresh connection",color=Accent)}
-                if(!BuildConfig.LOCAL_DEMO) TextButton(onClick={model.privacyAction="delete_account"}) {Text("Delete Hungii account",color=SoftCrimson)}
-                if(!BuildConfig.LOCAL_DEMO) TextButton(onClick={model.signOut(::browse)}) {Text("Sign out of Hungii",color=Muted)}
+                "Profile"->{
+                    Text("Your Hungii profile",color=White,fontSize=20.sp,fontWeight=FontWeight.SemiBold)
+                    Text("Your tracker works on this device. Sign in to optionally sync your profile and totals.",color=Muted,fontSize=14.sp,lineHeight=21.sp)
+                    if(BuildConfig.LOCAL_DEMO)Text("Cloud profile sync is unavailable in this test build.",color=Muted,fontSize=13.sp)
+                    else if(!model.signedIn)PrimaryButton("Sign in with email",Icons.AutoMirrored.Outlined.Login,enabled=model.configured&&BuildConfig.WORKOS_AUTH_READY&&!model.loading){try{browse(model.signInUrl())}catch(e:ApiFailure){model.connectionMessage=e.message}}
+                    else{
+                        Text(if(model.cloudSyncEnabled)"Cloud sync on" else "Saved on this device",color=Accent,fontSize=14.sp)
+                        if(model.cloudSyncMessage.isNotBlank())Text(model.cloudSyncMessage,color=Muted,fontSize=13.sp)
+                        if(model.cloudConflict){OutlineButton("Use cloud profile"){model.useCloudCopy()};OutlineButton("Keep this device’s profile"){model.keepLocalCopy()}}
+                        else if(!model.cloudSyncEnabled)PrimaryButton("Enable cloud sync",Icons.Outlined.CloudUpload,enabled=!model.loading){model.privacyAction="state_save"}
+                        else OutlineButton("Pause cloud sync"){model.pauseCloudSync()}
+                        TextButton(onClick=model::restoreProfile,enabled=!model.loading){Text("Restore cloud profile",color=Accent)}
+                        TextButton(onClick={model.signOut(::browse)},enabled=!model.loading){Text("Sign out of Hungii",color=Muted)}
+                    }
+                }
+                "Privacy"->{
+                    Text("Your data",color=White,fontSize=20.sp,fontWeight=FontWeight.SemiBold)
+                    Text("Tracker and saved meals are encrypted on your device. Optional cloud sync uses Hungii’s Mumbai database and expires after 90 days without updates. Saved meals expire after 30 days.",color=Muted,fontSize=13.sp,lineHeight=20.sp)
+                    Text(if(BuildConfig.LOCAL_DEMO)"Test carts and orders use fictional data in the local server until restart. The optional assistant sends submitted messages and selected totals to Groq outside India only after you opt in." else "WorkOS handles email sign-in. Swiggy handles its own phone verification and payment. Connection credentials expire within five days. Encrypted checkout records contain your basket, address and payment status to recover interrupted orders. They stay until you delete your Hungii account; unresolved orders block another checkout. Disconnecting does not cancel orders or erase checkout recovery.",color=Muted,fontSize=13.sp,lineHeight=20.sp)
+                    Text("Voice recognition uses your device where available. Typing always works. Notice ${model.privacyVersion}.",color=Muted,fontSize=12.sp)
+                    if(model.signedIn&&!BuildConfig.LOCAL_DEMO){TextButton(onClick={model.privacyAction="delete_cloud_tracker"},enabled=!model.loading){Text("Erase cloud profile & tracker",color=SoftCrimson)};TextButton(onClick={model.privacyAction="delete_account"},enabled=!model.loading){Text("Delete Hungii account & recovery data",color=SoftCrimson)}}
+                    TextButton(onClick={model.privacyAction="erase_local"},enabled=!model.loading){Text("Erase data on this device",color=SoftCrimson)}
+                }
             }
-            TextButton(onClick={model.privacyAction="erase_local"}) {Text("Erase device tracker & saved meals",color=SoftCrimson)}
-            if(model.loading) LinearProgressIndicator(modifier=Modifier.fillMaxWidth(),color=Accent)
-            if(model.connectionMessage.isNotBlank()) Text(model.connectionMessage,color=SoftCrimson,fontSize=12.sp,lineHeight=18.sp)
+            OutlineButton("Done",onClose)
         }
-    },confirmButton={TextButton(onClick=onClose) {Text("Done",color=Accent)}})
+    }
 }

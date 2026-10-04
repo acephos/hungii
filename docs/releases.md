@@ -2,8 +2,7 @@
 
 GitHub Actions checks `main` and pull requests: backend/protocol tests, repository hygiene/local documentation links, no-inference Assistant regressions, and both Android variants' unit tests/build/lint. The release workflow runs for `vX.Y.Z` tags or an explicit existing-tag dispatch. It validates tag version and ancestry on main, repeats the relevant checks and publishes a GitHub prerelease with:
 
-- `hungii-preview.apk`: the phone build with WorkOS staging login and optional cloud sync/local-only use.
-- `hungii-simulator.apk`: separate synthetic MCP checkout + cloud Assistant; connect through Tailscale to the running local services.
+- `hungii.apk`: the single phone build, with optional sync/local-only use and prepared, approval-gated Swiggy checkout. The Simulator remains developer-only.
 - `SHA256SUMS.txt`: file checksums.
 
 These are development-signed previews, with the same certificate as the Tailscale APK. They are not Play Store production releases. Production signing, verified Android App Links and provider approvals remain separate release gates. No Play Store fee, paid runner or paid service is activated.
@@ -19,8 +18,8 @@ Supabase service-role, database password/encryption key and WorkOS/Swiggy API se
 ## Publish a checkpoint
 
 1. Merge a green change into main.
-2. Increment `versionCode` and the default app version in `android-prototype/app/build.gradle.kts`. The design checkpoint is `0.7.6`, code 14; always use the version in the final merged source.
-3. Create and push a new matching annotated tag, for example `git tag -a v0.7.6 -m 'Hungii crimson design improvements'` then `git push origin v0.7.6`.
+2. Increment `versionCode` and the default app version in `android-prototype/app/build.gradle.kts`. The ordering preparation checkpoint is `0.8.0`, code 15; always use the version in the final merged source.
+3. Create and push a new matching annotated tag, for example `git tag -a v0.8.0 -m 'Hungii ordering preparation'` then `git push origin v0.8.0`.
 4. Check the Publish Android preview workflow. Only a successful build with the expected signing certificate may publish assets. Download the phone APK from the prerelease.
 
 Standard hosted Linux runners for this public repository are free. No artifact archive is uploaded by the check workflow; release APKs attach directly to GitHub Releases. Workflows have timeouts, pinned action commits and limited token permissions. [GitHub billing](https://docs.github.com/en/billing/concepts/product-billing/github-actions), [secrets](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets).

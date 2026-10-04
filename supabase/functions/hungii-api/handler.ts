@@ -1,3 +1,5 @@
+import { FoodOrdering, orderingConfig, attemptView } from "../_shared/ordering.ts";
+import { CheckoutStore } from "../_shared/checkout-store.ts";
 import { createClient } from "@supabase/supabase-js";
 import { cartView, discover, discovery, menuView, HungiiError, withFood, type Json, type ToolCall } from "../_shared/food.ts";
 import { digest, randomSecret, seal, unseal } from "../_shared/secrets.ts";
@@ -54,7 +56,7 @@ export async function handler(request: Request): Promise<Response> {
     const check = (error: unknown) => { if (error) throw new HungiiError("HUNGII_STORAGE", "Hungii could not save this update. Try again.", 503); };
 
     if(request.method==='GET' && url.pathname.endsWith('/welcome')) {
-      return new Response('<!doctype html><meta name="viewport" content="width=device-width"><title>Hungii</title><style>body{background:#101211;color:#f5f7ee;font:20px system-ui;padding:40px;max-width:600px}h1{color:#caff48}</style><h1>Hungii</h1><p>Budget-aware meal planning for your day.</p><p>You can close this browser tab and return to the Hungii Android app.</p>',{headers:{'Content-Type':'text/html','Cache-Control':'no-store','Referrer-Policy':'no-referrer','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"}});
+      return new Response('<!doctype html><meta name="viewport" content="width=device-width"><title>Hungii</title><style>body{background:#09090c;color:#fff2f5;font:20px system-ui;padding:40px;max-width:600px}h1{color:#ff526f}</style><h1>Hungii</h1><p>Budget-aware meal planning for your day.</p><p>You can close this browser tab and return to the Hungii Android app.</p>',{headers:{'Content-Type':'text/html','Cache-Control':'no-store','Referrer-Policy':'no-referrer','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"}});
     }
     if (request.method === "GET" && url.pathname.endsWith("/callback")) {
       const state = text(url.searchParams.get("state"), 200);
@@ -73,7 +75,7 @@ export async function handler(request: Request): Promise<Response> {
         await upstreamJson(`${authBase()}/auth/logout`, {}, token.access_token).catch(()=>{});
         throw new HungiiError("HUNGII_CONSENT_WITHDRAWN", "This connection request was withdrawn. Connect again if needed.",409);
       }
-      return new Response('<!doctype html><meta name="viewport" content="width=device-width"><title>Hungii connected</title><style>body{background:#101211;color:#f5f7ee;font:20px system-ui;padding:40px}a{color:#caff48}</style><h1>Swiggy connected.</h1><p>Return to Hungii to choose your delivery address.</p><a href="hungii://swiggy-return">Open Hungii</a>', { headers: { "Content-Type": "text/html", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'" } });
+      return new Response('<!doctype html><meta name="viewport" content="width=device-width"><title>Hungii connected</title><style>body{background:#09090c;color:#fff2f5;font:20px system-ui;padding:40px}a{color:#ff526f}</style><h1>Swiggy connected.</h1><p>Return to Hungii to choose your delivery address.</p><a href="hungii://swiggy-return">Open Hungii</a>', { headers: { "Content-Type": "text/html", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'" } });
     }
 
     if (request.method !== "POST") return json({ error: { code: "HUNGII_METHOD", message: "Use the Hungii app to connect." } }, 405);
@@ -122,7 +124,9 @@ export async function handler(request: Request): Promise<Response> {
     const { data: connection, error } = await db.from("swiggy_connections").select("*").eq("user_id", user).maybeSingle(); check(error);
     const connected = connection && connection.consent_version===PRIVACY_VERSION && Date.parse(connection.expires_at) > Date.now() + 60_000;
     const addressId = connected && connection.encrypted_address_id ? await unseal(connection.encrypted_address_id,`${user}:address`,secret) : null;
-    if (action === "status") return json({ accountId:user, connected: Boolean(connected), addressId, expiresAt: connected ? connection.expires_at : null, environment: Deno.env.get("SWIGGY_FOOD_URL")?.includes("mcp-staging") ? "staging" : Deno.env.get("SWIGGY_FOOD_URL") ? "production" : "not-configured", cartWritesEnabled: false, priceUnitVerified: ["rupees", "paise"].includes(Deno.env.get("SWIGGY_PRICE_UNIT") ?? "") });
+    const checkoutStore = new CheckoutStore(db,user,secret);
+    if (action === "checkout_resume") { const a=await checkoutStore.latest(); return json(a ? attemptView(a) : {payment:null}); }
+    if (action === "status") return json({ accountId:user, privacyVersion:PRIVACY_VERSION, connected: Boolean(connected), addressId, expiresAt: connected ? connection.expires_at : null, environment: Deno.env.get("SWIGGY_FOOD_URL")?.includes("mcp-staging") ? "staging" : Deno.env.get("SWIGGY_FOOD_URL") ? "production" : "not-configured", cartWritesEnabled: orderingConfig().enabled, orderingEnabled: orderingConfig().enabled, connectionAvailable: Boolean(Deno.env.get("SWIGGY_CLIENT_ID") && Deno.env.get("SWIGGY_AUTH_BASE_URL") && Deno.env.get("SWIGGY_FOOD_URL")), priceUnitVerified: ["rupees", "paise"].includes(Deno.env.get("SWIGGY_PRICE_UNIT") ?? "") });
     if (["disconnect","delete_account","delete_cloud_tracker"].includes(action)) {
       if(body.confirm!==true) throw new HungiiError("HUNGII_CONFIRM_REQUIRED", "Confirm deletion first.");
       if(action==="delete_cloud_tracker") { const removed=await db.from("hungii_state").delete().eq("user_id",user);check(removed.error);return json({deleted:true}); }
@@ -184,13 +188,14 @@ export async function handler(request: Request): Promise<Response> {
       }
       if (action === "menu") return json(menuView(await call("search_menu", { addressId, query: text(body.query), restaurantIdOfAddedItem: text(body.restaurantId), ...(body.vegOnly === true ? { vegFilter: 1 } : {}) }), unit));
       if (action === "restaurant_menu") return json(await call("get_restaurant_menu", { addressId, restaurantId: text(body.restaurantId) }));
+      if (["cart_create","cart_quantity","cart_coupon","payment_options","checkout","payment_status","order"].includes(action) || action === "cart" && orderingConfig().enabled) return json(await new FoodOrdering(call,checkoutStore,orderingConfig(),user,addressId,secret).run(action,body));
       if (action === "cart") return json(cartView(await call("get_food_cart", { addressId }), unit));
       if (action === "coupons") {
         const data = await call("fetch_food_coupons", { addressId, restaurantId: text(body.restaurantId) });
         return json({ sections: data.coupon_sections ?? [], summary: data.summary ?? null });
       }
       throw new HungiiError("HUNGII_ACTION", "This action is not enabled in this integration.", 409);
-    }, user, false, new DurableFoodSessions(db,secret,connection.generation));
+    }, user, false, new DurableFoodSessions(db,secret,connection.generation), orderingConfig().enabled);
   } catch (error) {
     const safe = error instanceof HungiiError ? error : new HungiiError("HUNGII_UNAVAILABLE", "Hungii could not complete this request. Please retry.", 503);
     // No upstream messages, tokens, addresses or request bodies in logs.

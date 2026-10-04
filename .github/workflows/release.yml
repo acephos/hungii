@@ -96,11 +96,9 @@ jobs:
           EXPECTED_PREVIEW_CERT: ${{ vars.HUNGII_PREVIEW_CERT_SHA256 }}
         run: |
           mkdir -p release-artifacts
-          cp android-prototype/app/build/outputs/apk/real/debug/app-real-debug.apk release-artifacts/hungii-preview.apk
-          cp android-prototype/app/build/outputs/apk/demo/debug/app-demo-debug.apk release-artifacts/hungii-simulator.apk
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose release-artifacts/hungii-preview.apk
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose release-artifacts/hungii-simulator.apk
-          python3 scripts/ci/verify-preview-certificate.py release-artifacts/hungii-preview.apk release-artifacts/hungii-simulator.apk
+          cp android-prototype/app/build/outputs/apk/real/debug/app-real-debug.apk release-artifacts/hungii.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose release-artifacts/hungii.apk
+          python3 scripts/ci/verify-preview-certificate.py release-artifacts/hungii.apk
           cd release-artifacts
           sha256sum *.apk > SHA256SUMS.txt
       - name: Publish GitHub prerelease
@@ -108,13 +106,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cat > "$RUNNER_TEMP/hungii-release-notes.md" <<'NOTES'
-          Native Android preview with optional cloud profile sync and local-only use.
+          Install hungii.apk — the single user-facing Hungii app. Android 8+ is required. The stable development signing key supports updates to the existing Hungii preview.
 
-          Install hungii-preview.apk on your phone. Its stable development signing key supports updates from the existing Tailscale preview. Android 8+ is required.
+          Crimson dark theme, encrypted local tracker, optional profile sync, simplified delivery settings, and a prepared Swiggy basket/payment/tracking flow with checkout recovery.
 
-          Install hungii-simulator.apk for synthetic meals, MCP cart and coupon calls, mock UPI/QR/COD checkout, and the Groq Free cloud assistant. Connect your phone through Tailscale; the local gateway and agent must be running. No local model is used.
-
-          This is a development-signed preview, not a Play Store production release. WorkOS uses staging; Swiggy live access remains approval-gated. Live cart mutation, orders and payments remain disabled. Simulator checkout never spends money or contacts Swiggy. Cloud sync is optional; inference is opt-in and its key stays on the server.
+          Swiggy connection and real ordering remain gated until developer access and staging verification are complete. This release does not enable live payments. UPI authorization happens in the user's UPI app. WorkOS remains staging. The Simulator is a developer testing build and is no longer published as a second user APK.
           NOTES
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$RELEASE_TAG" release-artifacts/* --repo "$GITHUB_REPOSITORY"

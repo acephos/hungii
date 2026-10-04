@@ -127,6 +127,7 @@ import kotlin.math.sin
         }
         Panel {
             Text("Food allowance", color = Muted, fontSize = 14.sp)
+            if(model.reservedSpend>0)Text("₹${model.reservedSpend} reserved for unresolved checkout",color=Muted,fontSize=12.sp)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     DisplayText("₹${model.moneyLeft}", 44)
@@ -135,6 +136,7 @@ import kotlin.math.sin
                 TextButton(onClick = onEdit) { Text("Edit day", color = Accent, fontSize = 14.sp) }
             }
         }
+        ConnectionStrip(model)
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             DisplayText("What sounds good?", 28)
             FilledInput(
@@ -201,7 +203,18 @@ import kotlin.math.sin
 }
 @Composable internal fun AssistantScreen(model:HungiiModel,voice:VoiceState,onVoice:()->Unit,reduceMotion:Boolean) {
     if(!BuildConfig.LOCAL_DEMO){
-        Column(Modifier.fillMaxSize().padding(24.dp),verticalArrangement=Arrangement.spacedBy(20.dp),horizontalAlignment=Alignment.CenterHorizontally){DisplayText("Your Hungii companion.",28);GlassOrb(Modifier.size(220.dp),VoiceState(),false,reduceMotion);Panel{Text("Try the cloud Assistant in Simulator",color=White,fontSize=18.sp,fontWeight=FontWeight.Bold);Text("The Simulator preview connects Google ADK and Groq Free to synthetic MCP data. This account build keeps your local tracker and optional cloud sync available.",color=Muted,fontSize=14.sp,lineHeight=22.sp);PrimaryButton("View my day",Icons.Outlined.BarChart){model.screen=Screen.Day};OutlineButton("Find a meal"){model.screen=Screen.Home}}}
+        var checkIn by remember {mutableStateOf("")}
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),verticalArrangement=Arrangement.spacedBy(20.dp),horizontalAlignment=Alignment.CenterHorizontally){
+            DisplayText("A quick check-in.",28)
+            GlassOrb(Modifier.size(180.dp),VoiceState(),false,reduceMotion)
+            Text("Update your meal plans in your own words.",color=Muted,fontSize=14.sp)
+            FilledInput(checkIn,{checkIn=it.take(150)},"e.g. ₹300 left, 2 meals, spicy",Modifier.fillMaxWidth())
+            PrimaryButton("Update my plan",Icons.Outlined.Check,enabled=checkIn.isNotBlank()){model.update(checkIn);checkIn=""}
+            if(model.receipt.isNotBlank())Text(model.receipt,color=White,fontSize=14.sp,lineHeight=21.sp)
+            if(model.canUndoInput)OutlineButton("Undo update"){model.undoInput()}
+            OutlineButton("Find my next meal"){model.search()}
+            Text("This check-in updates your plan on this device. It does not place orders or guess nutrition.",color=Muted,fontSize=12.sp,lineHeight=18.sp)
+        }
         return
     }
     var input by remember{mutableStateOf("")};val list=androidx.compose.foundation.lazy.rememberLazyListState()
@@ -222,6 +235,7 @@ import kotlin.math.sin
     }
 }
 @Composable private fun McpActivity(model:HungiiModel) {
+    if(!BuildConfig.LOCAL_DEMO)return
     var expanded by remember{mutableStateOf(false)}
     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Surface).padding(16.dp)){
         Row(Modifier.fillMaxWidth().clickable{expanded=!expanded},verticalAlignment=Alignment.CenterVertically){Icon(Icons.Outlined.Terminal,null,tint=Muted,modifier=Modifier.size(18.dp));Text("MCP activity",color=Muted,fontSize=13.sp,modifier=Modifier.weight(1f).padding(start=10.dp));Icon(if(expanded)Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,"Toggle MCP activity",tint=Muted)}
@@ -232,35 +246,45 @@ private fun openSwiggy(context:android.content.Context) {
     val launch=context.packageManager.getLaunchIntentForPackage("in.swiggy.android")
     try{context.startActivity(launch?:Intent(Intent.ACTION_VIEW,Uri.parse("https://www.swiggy.com/")))}catch(_:Exception){android.widget.Toast.makeText(context,"Install Swiggy or a browser to continue manually.",android.widget.Toast.LENGTH_LONG).show()}
 }
+private fun moneyLabel(data:JSONObject,key:String)=data.optDouble(key,Double.NaN).takeIf {it.isFinite()&&it>=0}?.let(::rupees)?:"Unavailable"
 @Composable internal fun CheckoutScreen(model:HungiiModel) {
     val context=LocalContext.current;val cart=model.cart
+    var coupon by remember {mutableStateOf("")}
     Column(Modifier.fillMaxSize()){
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal=24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
             FocusHeader("Your basket"){model.goBack()};DisplayText("Good food.\nBetter value.",32)
             if(model.loading)ThinkingDots()
             if(model.connectionMessage.isNotBlank())Text(model.connectionMessage,color=SoftCrimson,fontSize=13.sp)
+            if(!model.orderingEnabled)Panel{
+                Text("Swiggy ordering · setup pending",color=Accent,fontWeight=FontWeight.SemiBold)
+                Text("Ordering will open after Swiggy grants access and we verify checkout. Your meal choice has not changed a cart or placed an order.",color=Muted,fontSize=14.sp,lineHeight=21.sp)
+                model.winner?.let {Text(it.name,color=White,fontSize=18.sp)}
+                OutlineButton("Back to my day"){model.screen=Screen.Day}
+            }
             if(cart!=null){
                 Panel{Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){Icon(Icons.Outlined.LocationOn,null,tint=Accent);Column{Text("Deliver to",color=Muted,fontSize=12.sp);Text(cart.optString("address"),color=White,fontSize=14.sp,lineHeight=20.sp)}}}
                 val items=cart.optJSONArray("items")?:JSONArray()
                 for(i in 0 until items.length())CartItem(model,items.getJSONObject(i),cart.optString("restaurant"))
                 cart.optJSONObject("nudge")?.let{n->Panel{Row(horizontalArrangement=Arrangement.spacedBy(10.dp),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Outlined.LocalOffer,null,tint=Accent);Text("Add a little. Pay less.",color=Accent,fontSize=16.sp,fontWeight=FontWeight.Bold)};Text("${n.getString("name")} costs ${rupees(n.getDouble("price"))} and unlocks ${n.getString("coupon")}. Your final bill drops by ${rupees(n.getDouble("saving"))}.",color=White,fontSize=14.sp,lineHeight=21.sp);val cal=n.getJSONObject("nutrition").getJSONArray("calories");Text("Trade-off: ${cal.getInt(0)}–${cal.getInt(1)} extra kcal, estimated.",color=SoftCrimson,fontSize=12.sp);OutlineButton("Add side · new total ${rupees(n.getDouble("newPayable"))}"){if(!model.loading)model.addSide(n.getString("dishId"))}}}
                 if(items.length()>0)Panel{
-                    Text("Bill details",color=White,fontSize=17.sp,fontWeight=FontWeight.SemiBold);BillLine("Food",rupees(cart.optDouble("itemTotal")));BillLine("Delivery",rupees(cart.optDouble("deliveryCharge")))
-                    val fees=cart.optJSONObject("fees")?:JSONObject();BillLine("Packaging",rupees(fees.optDouble("packaging")));BillLine("Platform",rupees(fees.optDouble("platform")));BillLine("Tax",rupees(fees.optDouble("tax")))
+                    Text("Bill details",color=White,fontSize=17.sp,fontWeight=FontWeight.SemiBold);BillLine("Food",moneyLabel(cart,"itemTotal"));BillLine("Delivery",moneyLabel(cart,"deliveryCharge"))
+                    val fees=cart.optJSONObject("fees")?:JSONObject();if(BuildConfig.LOCAL_DEMO){BillLine("Packaging",rupees(fees.optDouble("packaging")));BillLine("Platform",rupees(fees.optDouble("platform")))};BillLine(if(BuildConfig.LOCAL_DEMO)"Tax" else "Taxes & other charges",moneyLabel(fees,"tax"))
                     if(cart.optDouble("couponDiscount")>0)BillLine(cart.optString("appliedCoupon"),"−"+rupees(cart.optDouble("couponDiscount")),Accent)
-                    HorizontalDivider(color=Line);BillLine("To pay",rupees(cart.optDouble("payable")),Accent);Text("All amounts are synthetic INR. No real charge.",color=Muted,fontSize=12.sp)
+                    HorizontalDivider(color=Line);BillLine("To pay",rupees(cart.optDouble("payable")),Accent);Text(if(BuildConfig.LOCAL_DEMO) "All amounts are synthetic INR. No real charge." else "Live Swiggy total in INR. We’ll check it again before ordering.",color=Muted,fontSize=12.sp)
                 }
                 if(items.length()==0)Text("Your basket is empty. Pick a meal to start again.",color=Muted)
             }
-            McpActivity(model);OutlineButton("Open Swiggy · build cart manually"){openSwiggy(context)}
-            Text("These restaurants are invented for the simulator. In Swiggy, search for a similar meal and create your basket yourself.",color=Muted,fontSize=12.sp,lineHeight=17.sp);Spacer(Modifier.height(8.dp))
+            if(cart!=null&&!BuildConfig.LOCAL_DEMO){FilledInput(coupon,{coupon=it.take(80)},"Coupon code",Modifier.fillMaxWidth());OutlineButton("Apply coupon"){if(!model.loading&&coupon.isNotBlank())model.applyCoupon(coupon)}}
+            McpActivity(model)
+            if(BuildConfig.LOCAL_DEMO){OutlineButton("Open Swiggy · build cart manually"){openSwiggy(context)};Text("These restaurants are invented for the simulator. No real order will be placed.",color=Muted,fontSize=12.sp,lineHeight=17.sp)}
+            Spacer(Modifier.height(8.dp))
         }
         Column(Modifier.fillMaxWidth().background(Charcoal).padding(horizontal=24.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
             val total=cart?.optDouble("payable",Double.NaN)?.takeIf {it.isFinite() && it>=0}
             val count=cart?.optJSONArray("items")?.let {items->(0 until items.length()).sumOf {items.getJSONObject(it).optInt("quantity")}} ?: 0
             if(total!=null && !model.loading && !model.cartRefreshRequired) Text("$count item${if(count==1) "" else "s"} · ${if(total<=model.moneyLeft) "${rupees(model.moneyLeft-total)} allowance left" else "${rupees(total-model.moneyLeft)} over allowance"}",color=Muted,fontSize=14.sp)
             if(model.cartRefreshRequired) Text("Refresh to confirm your current basket and total.",color=Muted,fontSize=14.sp)
-            PrimaryButton(if(model.loading) "Updating your basket…" else if(model.cartRefreshRequired) "Refresh basket" else total?.let {"Choose payment · ${rupees(it)}"} ?: "Choose payment",Icons.AutoMirrored.Outlined.ArrowForward,enabled=!model.loading&&(model.cartRefreshRequired || (count>0&&total!=null))){if(model.cartRefreshRequired)model.refreshCart() else model.choosePayment()}
+            PrimaryButton(if(model.loading) "Updating your basket…" else if(model.cartRefreshRequired) "Refresh basket" else total?.let {"Choose payment · ${rupees(it)}"} ?: "Choose payment",Icons.AutoMirrored.Outlined.ArrowForward,enabled=model.orderingEnabled&&!model.loading&&(model.cartRefreshRequired || (count>0&&total!=null))){if(model.cartRefreshRequired)model.refreshCart() else model.choosePayment()}
         }
     }
 }
@@ -288,32 +312,93 @@ private fun openSwiggy(context:android.content.Context) {
     }
 }
 @Composable internal fun PaymentScreen(model:HungiiModel) {
-    var confirm by remember{mutableStateOf(false)};val c=model.cart;val pending=model.paymentStage in listOf("pending","unresolved")
+    var confirm by remember{mutableStateOf(false)}
+    val c=model.checkoutCart.takeIf {model.paymentStage!="choose"}?:model.cart
+    val pending=model.paymentStage in listOf("pending","unresolved","placing")
+    val context=LocalContext.current
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
-        FocusHeader("Mock payment"){if(!pending)model.goBack()};Text("${c?.optString("restaurant")?:"Your basket"}",color=Muted,fontSize=14.sp);DisplayText(rupees(c?.optDouble("payable")?:0.0),48);Text("Simulator only. No money leaves your account.",color=Accent,fontSize=12.sp)
+        FocusHeader(if(BuildConfig.LOCAL_DEMO)"Mock payment" else "Payment"){model.goBack()}
+        Text(c?.optString("restaurant")?:"Your basket",color=Muted,fontSize=14.sp)
+        DisplayText(rupees(c?.optDouble("payable")?:0.0),48)
+        Text(if(BuildConfig.LOCAL_DEMO)"Simulator only. No money leaves your account." else if(model.environment=="staging")"Swiggy staging · no real order or charge" else "Powered by Swiggy",color=Accent,fontSize=12.sp)
         if(model.loading)ThinkingDots()
         if(model.connectionMessage.isNotBlank())Text(model.connectionMessage,color=SoftCrimson,fontSize=13.sp)
         if(model.paymentStage=="choose"){
             Panel{
-                Text("Pay using",color=White,fontSize=17.sp,fontWeight=FontWeight.SemiBold);val methods=model.paymentOptions?.optJSONArray("allMethods")?:JSONArray()
-                for(i in 0 until methods.length()){val m=methods.getJSONObject(i);Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Raised).clickable{model.selectedMethodId=m.getString("id")}.padding(12.dp),verticalAlignment=Alignment.CenterVertically){Icon(if(m.optString("groupName")=="UPI")Icons.Outlined.QrCode2 else Icons.Outlined.Payments,null,tint=White,modifier=Modifier.size(24.dp));Text(m.getString("displayName"),color=White,fontSize=14.sp,modifier=Modifier.weight(1f).padding(horizontal=12.dp));RadioButton(model.selectedMethodId==m.getString("id"),onClick={model.selectedMethodId=m.getString("id")})}}
+                Text("Pay using",color=White,fontSize=17.sp,fontWeight=FontWeight.SemiBold)
+                val methods=model.paymentOptions?.optJSONArray("allMethods")?:JSONArray()
+                for(i in 0 until methods.length()){
+                    val m=methods.getJSONObject(i);val enabled=m.optBoolean("enabled",true)&&!model.loading
+                    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(Raised).clickable(enabled=enabled){model.selectedMethodId=m.getString("id")}.padding(12.dp),verticalAlignment=Alignment.CenterVertically){
+                        Icon(Icons.Outlined.Payments,null,tint=White,modifier=Modifier.size(24.dp))
+                        Text(m.optString("displayName",m.getString("id")),color=White,fontSize=14.sp,modifier=Modifier.weight(1f).padding(horizontal=12.dp))
+                        RadioButton(model.selectedMethodId==m.getString("id"),onClick={model.selectedMethodId=m.getString("id")},enabled=enabled)
+                    }
+                }
+                if(methods.length()==0)Text("Payment options will appear after the basket is verified.",color=Muted,fontSize=14.sp)
             }
-            FilledInput(model.checkoutNote,{model.checkoutNote=it.take(200)},"Note to kitchen (optional)",Modifier.fillMaxWidth());PrimaryButton("Review mock order · "+rupees(c?.optDouble("payable")?:0.0),Icons.Outlined.Lock,enabled=!model.loading&&!model.cartRefreshRequired&&model.paymentOptions!=null){confirm=true}
+            FilledInput(model.checkoutNote,{model.checkoutNote=it.take(200)},"Note to kitchen (optional)",Modifier.fillMaxWidth())
+            if(model.cartRefreshRequired)OutlineButton("Refresh basket & payment options"){model.choosePayment()}
+            PrimaryButton("Review order · "+rupees(c?.optDouble("payable")?:0.0),Icons.Outlined.Lock,enabled=!model.loading&&!model.cartRefreshRequired&&model.paymentOptions!=null&&model.selectedMethodId.isNotBlank()){confirm=true}
         }else if(pending){
             Panel{
-                Icon(Icons.Outlined.HourglassTop,null,tint=Accent,modifier=Modifier.size(32.dp));DisplayText("Payment pending",26);Text("Your order has not been placed. Choose a mock outcome below; Hungii checks status through MCP and confirms only after success.",color=Muted,fontSize=14.sp,lineHeight=21.sp)
-                if(model.selectedMethodId=="mock-qr")Box(Modifier.fillMaxWidth().height(120.dp).background(Raised,RoundedCornerShape(20.dp)),contentAlignment=Alignment.Center){Column(horizontalAlignment=Alignment.CenterHorizontally){Icon(Icons.Outlined.QrCode2,"Decorative mock QR, not scannable",tint=White,modifier=Modifier.size(64.dp));Text("Mock QR · do not scan",color=Muted,fontSize=12.sp)}}
-                PrimaryButton("Simulate success",Icons.Outlined.Check,enabled=!model.loading){model.simulatePayment("SUCCESS")};OutlineButton("Simulate failure"){if(!model.loading)model.simulatePayment("FAILED")};TextButton(onClick={if(!model.loading)model.simulatePayment("CANCELLED")}){Text("Cancel mock payment",color=SoftCrimson)};TextButton(onClick=model::refreshPayment){Text("Refresh payment status",color=Accent)}
+                Icon(Icons.Outlined.HourglassTop,null,tint=Accent,modifier=Modifier.size(32.dp))
+                DisplayText(if(model.paymentStage=="unresolved")"Checking your order" else "Payment pending",26)
+                Text(if(BuildConfig.LOCAL_DEMO)"Choose a mock outcome. Hungii checks payment before confirming the order." else "We haven’t confirmed this order yet. Check its status before trying another payment or placing another order.",color=Muted,fontSize=14.sp,lineHeight=21.sp)
+                if(BuildConfig.LOCAL_DEMO){
+                    PrimaryButton("Simulate success",Icons.Outlined.Check,enabled=!model.loading){model.simulatePayment("SUCCESS")}
+                    OutlineButton("Simulate failure"){if(!model.loading)model.simulatePayment("FAILED")}
+                    TextButton(onClick={if(!model.loading)model.simulatePayment("CANCELLED")}){Text("Cancel mock payment",color=SoftCrimson)}
+                }else{
+                    model.payment?.optString("bridgeUrl")?.takeIf {it.startsWith("https://")&&it!="null"}?.let {url->
+                        PrimaryButton("Continue to UPI payment",Icons.Outlined.Payments,enabled=!model.loading){try{androidx.browser.customtabs.CustomTabsIntent.Builder().build().launchUrl(context,Uri.parse(url))}catch(_:Exception){model.connectionMessage="Open Swiggy to check payment. No browser is available."}}
+                    }
+                    OutlineButton("Check in Swiggy"){openSwiggy(context)}
+                }
+                PrimaryButton("Check payment status",Icons.Outlined.Refresh,enabled=!model.loading){model.refreshPayment()}
             }
-        }else if(model.paymentStage=="failed")Panel{DisplayText("Let’s try again.",27);Text("Your cart is saved. No order was placed.",color=Muted,fontSize=14.sp);PrimaryButton("Choose payment again",Icons.Outlined.Refresh,enabled=!model.loading){model.retryPayment()}}
+        }else if(model.paymentStage=="failed")Panel{
+            DisplayText("Payment didn’t complete",27)
+            Text("Review your basket and current payment options before another attempt.",color=Muted,fontSize=14.sp)
+            PrimaryButton("Choose payment again",Icons.Outlined.Refresh,enabled=!model.loading){model.retryPayment()}
+        }else if(model.paymentStage=="confirmed")PrimaryButton("View confirmed order",Icons.Outlined.Check){model.screen=Screen.Order;model.refreshOrder()}
         McpActivity(model);Spacer(Modifier.height(20.dp))
     }
-    if(confirm)AlertDialog(onDismissRequest={confirm=false},containerColor=Surface,title={Text("Confirm the mock order")},text={Column(verticalArrangement=Arrangement.spacedBy(12.dp)){Text("${c?.optString("restaurant")}\n${c?.optString("address")}");val items=c?.optJSONArray("items")?:JSONArray();for(i in 0 until items.length()){val item=items.getJSONObject(i);Text("${item.optInt("quantity")} × ${item.optString("name")}")};Text("${rupees(c?.optDouble("payable")?:0.0)} · ${model.selectedMethodId}",color=Accent);Text("This creates a synthetic payment or COD order. No real money or order.",color=Muted,fontSize=12.sp)}},confirmButton={TextButton(onClick={confirm=false;model.beginPayment()}){Text("Confirm")}},dismissButton={TextButton(onClick={confirm=false}){Text("Back to review")}})
+    if(confirm)AlertDialog(onDismissRequest={confirm=false},containerColor=Surface,title={Text(if(BuildConfig.LOCAL_DEMO)"Confirm mock order" else if(model.environment=="staging")"Confirm staging order" else "Place your Swiggy order?")},text={
+        Column(Modifier.heightIn(max=400.dp).verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)){
+            Text(c?.optString("restaurant")?:"")
+            Text("Deliver to: "+(c?.optString("address")?:""))
+            val items=c?.optJSONArray("items")?:JSONArray()
+            for(i in 0 until items.length()){val item=items.getJSONObject(i);Text("${item.optInt("quantity")} × ${item.optString("name")}")}
+            val methods=model.paymentOptions?.optJSONArray("allMethods")?:JSONArray()
+            val method=(0 until methods.length()).map {methods.getJSONObject(it)}.firstOrNull{it.optString("id")==model.selectedMethodId}
+            Text("${rupees(c?.optDouble("payable")?:0.0)} · ${method?.optString("displayName")?:model.selectedMethodId}",color=Accent)
+            Text(if(BuildConfig.LOCAL_DEMO||model.environment=="staging")"Test order only. No real money or delivery." else "Confirming starts a real Swiggy order. UPI payment is authorized in your UPI app.",color=Muted,fontSize=12.sp)
+        }
+    },confirmButton={TextButton(onClick={confirm=false;model.beginPayment()}){Text(if(BuildConfig.LOCAL_DEMO||model.environment=="staging")"Confirm test order" else "Place order")}},dismissButton={TextButton(onClick={confirm=false}){Text("Keep reviewing")}})
 }
 @Composable internal fun OrderScreen(model:HungiiModel) {
+    val context=LocalContext.current
+    val tracking=model.order?.optJSONObject("tracking")
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(20.dp)){
-        Box(Modifier.size(90.dp).background(Accent,CircleShape),contentAlignment=Alignment.Center){Icon(Icons.Outlined.Check,"Mock order confirmed",tint=Charcoal,modifier=Modifier.size(42.dp))};DisplayText("Food is on its way.*",30);Text("*In our little simulator world.",color=Muted,fontSize=13.sp)
-        Panel{Text("Mock order confirmed",color=Accent,fontSize=17.sp,fontWeight=FontWeight.Bold);val details=model.order?.optJSONObject("details")?.optJSONObject("order");Text("Order #${details?.optString("order_id")?:model.payment?.optString("orderId")}",color=Muted,fontSize=12.sp);Text(model.checkoutCart?.optString("restaurant")?:"",color=White,fontSize=19.sp,fontWeight=FontWeight.Bold);BillLine("Total",rupees(model.checkoutCart?.optDouble("payable")?:0.0));HorizontalDivider(color=Line);listOf("✓ Order received","● Kitchen is preparing","○ Rider pickup","○ Delivered").forEach{Text(it,color=if(it.startsWith("●"))Accent else Muted,fontSize=14.sp)};Text("Synthetic delivery estimate: 20–25 min",color=Muted,fontSize=12.sp)}
-        Text("Ordering isn’t eating. Log the meal when you eat it to update your remaining macros.",color=Muted,fontSize=14.sp,lineHeight=21.sp);PrimaryButton("Log as eaten · estimated macros",Icons.Outlined.Restaurant){model.logOrderAsEaten()};OutlineButton("Back to my day"){model.screen=Screen.Home};McpActivity(model)
+        Box(Modifier.size(90.dp).background(Accent,CircleShape),contentAlignment=Alignment.Center){Icon(Icons.Outlined.Check,"Order confirmed",tint=Charcoal,modifier=Modifier.size(42.dp))}
+        DisplayText(if(BuildConfig.LOCAL_DEMO)"Test order confirmed" else if(model.environment=="staging")"Staging order confirmed" else "Swiggy order confirmed",30)
+        Panel{
+            Text(if(BuildConfig.LOCAL_DEMO||model.environment=="staging")"Test environment · no delivery" else "Powered by Swiggy",color=Accent,fontSize=14.sp)
+            Text("Order #${model.payment?.optString("orderId")?:model.order?.optString("orderId")?:""}",color=Muted,fontSize=12.sp)
+            Text(model.checkoutCart?.optString("restaurant")?:"",color=White,fontSize=19.sp,fontWeight=FontWeight.Bold)
+            BillLine("Total",rupees(model.checkoutCart?.optDouble("payable")?:0.0));HorizontalDivider(color=Line)
+            if(BuildConfig.LOCAL_DEMO)Text("Synthetic delivery estimate: 20–25 min",color=Muted,fontSize=12.sp)
+            else {
+                Text(tracking?.optString("statusMessage")?.takeIf {it.isNotBlank()}?:tracking?.optString("orderStatus")?.takeIf{it.isNotBlank()}?:"Tracking not available yet",color=White,fontSize=16.sp)
+                tracking?.optString("etaText")?.takeIf{it.isNotBlank()}?.let{Text(it,color=Muted,fontSize=14.sp)}
+            }
+        }
+        if(model.connectionMessage.isNotBlank())Text(model.connectionMessage,color=SoftCrimson,fontSize=13.sp)
+        OutlineButton("Refresh tracking"){model.refreshOrder()}
+        if(!BuildConfig.LOCAL_DEMO)OutlineButton("Support or cancellation · Swiggy"){openSwiggy(context)}
+        Text("Log food when you eat it. Ordering alone does not count toward your nutrition totals.",color=Muted,fontSize=14.sp,lineHeight=21.sp)
+        PrimaryButton(if(BuildConfig.LOCAL_DEMO)"Log as eaten · estimated macros" else "Log what I ate",Icons.Outlined.Restaurant){model.logOrderAsEaten()}
+        OutlineButton("Back to my day"){model.screen=Screen.Day};McpActivity(model)
     }
 }
