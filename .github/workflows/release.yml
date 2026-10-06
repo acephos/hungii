@@ -76,6 +76,7 @@ jobs:
       - name: Check and test backend
         run: |
           python3 scripts/check-repo.py
+          python3 scripts/generate-brand.py --check
           python3 -m py_compile demo/agent.py scripts/demo-services.py
           npx --yes deno@2.9.6 check --config supabase/functions/deno.json supabase/functions/hungii-api/index.ts demo/gateway.ts
           npx --yes deno@2.9.6 test --config supabase/functions/deno.json --allow-env supabase/functions/_shared/ demo/simulator_test.ts
@@ -108,7 +109,7 @@ jobs:
           cat > "$RUNNER_TEMP/hungii-release-notes.md" <<'NOTES'
           Install hungii.apk — the single user-facing Hungii app. Android 8+ is required. The stable development signing key supports updates to the existing Hungii preview.
 
-          Crimson dark theme, encrypted local tracker, optional profile sync, simplified delivery settings, and a prepared Swiggy basket/payment/tracking flow with checkout recovery.
+          Continuous fork-h logo and wordmark, Android adaptive and wallpaper-themed icons, crimson dark theme, encrypted local tracker, optional profile sync, simplified delivery settings, and a prepared Swiggy basket/payment/tracking flow with checkout recovery.
 
           Swiggy connection and real ordering remain gated until developer access and staging verification are complete. This release does not enable live payments. UPI authorization happens in the user's UPI app. WorkOS remains staging. The Simulator is a developer testing build and is no longer published as a second user APK.
           NOTES

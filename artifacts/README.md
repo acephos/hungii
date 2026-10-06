@@ -4,6 +4,7 @@ These are dated implementation checks and prototype screenshots. They do not est
 
 | Record | Scope |
 | --- | --- |
+| [Fork-h brand verification](fork-h-brand-verification.md) | v0.8.1 continuous logo, wordmark, adaptive launcher and monochrome layer |
 | [Checkout preparation](swiggy-ordering-verification.md) | v0.8.0 gated basket, payment recovery, simpler delivery settings and Mumbai deployment |
 | [Crimson design verification](crimson-design-verification.md) | v0.7.6 field labels, calorie ring, finite shuffle and crimson dark theme |
 | [Mobile design verification](mobile-ui-verification.md) | v0.7.5 transcript-guided navigation, meal selection, sheets and basket checks |

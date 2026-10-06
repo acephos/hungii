@@ -233,7 +233,7 @@ internal fun AccountEntry(model:HungiiModel) {
     val context=LocalContext.current
     Column(Modifier.fillMaxSize().background(Charcoal).safeDrawingPadding().verticalScroll(rememberScrollState()).padding(24.dp),verticalArrangement=Arrangement.spacedBy(24.dp)) {
         Spacer(Modifier.height(16.dp))
-        Text("hungii",color=Accent,fontSize=32.sp,fontWeight=FontWeight.ExtraBold)
+        HungiiWordmark(height=72.dp)
         DisplayText("Your day.\nYour next meal.",36)
         Text("Start with your food allowance, goals and cravings. Keep your plan on this device, and sign in whenever you want to sync.",color=Muted,fontSize=16.sp,lineHeight=24.sp)
         Column(Modifier.fillMaxWidth().background(Surface,RoundedCornerShape(24.dp)).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
@@ -257,7 +257,7 @@ internal fun AccountEntry(model:HungiiModel) {
 internal fun CloudEntry(model:HungiiModel) {
     Column(Modifier.fillMaxSize().background(Charcoal).safeDrawingPadding().verticalScroll(rememberScrollState()).padding(28.dp),verticalArrangement=Arrangement.spacedBy(22.dp)) {
         Spacer(Modifier.height(36.dp))
-        Text("hungii.",color=Accent,fontSize=42.sp,fontWeight=FontWeight.Black)
+        HungiiWordmark(height=72.dp)
         Eyebrow("HUNGII ACCOUNT CONNECTED",Accent)
         DisplayText("Your profile.\nYour rules.",34)
         Text("Allow encrypted cloud sync for your name, nutrition goals, food allowance, entered daily totals and meal filters. Changes save automatically and restore when you sign in on another device.",color=Muted,fontSize=16.sp,lineHeight=25.sp)
@@ -277,9 +277,7 @@ internal fun CloudEntry(model:HungiiModel) {
 internal fun BrandHeader(onDay: ()->Unit) {
     Row(Modifier.fillMaxWidth().height(56.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
         Row(verticalAlignment=Alignment.CenterVertically) {
-            Text("hungii",fontSize=29.sp,fontWeight=FontWeight.Black,letterSpacing=(-1.5).sp,color=White)
-            Text(".",fontSize=36.sp,fontWeight=FontWeight.Black,color=Accent)
-            Spacer(Modifier.width(10.dp)); Badge("HUNGII",Muted,Surface)
+            HungiiWordmark(height=48.dp)
         }
         IconButton(onClick=onDay) { Icon(Icons.Outlined.Tune,"Edit your day",tint=White,modifier=Modifier.size(23.dp)) }
     }

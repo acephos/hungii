@@ -1,4 +1,4 @@
-<img src="assets/icon.svg" width="64" height="64" alt="Hungii icon">
+<img src="assets/brand/wordmark.svg" width="185" height="82" alt="Hungii">
 
 # Hungii
 
@@ -38,3 +38,5 @@ python3 prototype/serve.py
 Open [the local prototype](http://localhost:5173/prototype/?variant=a). The Android implementation supersedes it.
 
 Built in [T3 Code](https://t3.codes).
+
+The [fork-h identity](assets/brand/README.md) is shared across the app, adaptive/themed launcher icons and repository.

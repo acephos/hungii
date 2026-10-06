@@ -1,3 +1,4 @@
+import { BRAND_WORDMARK } from "../_shared/brand.ts";
 import { FoodOrdering, orderingConfig, attemptView } from "../_shared/ordering.ts";
 import { CheckoutStore } from "../_shared/checkout-store.ts";
 import { createClient } from "@supabase/supabase-js";
@@ -16,6 +17,11 @@ const required = (name: string): string => {
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
 });
+// Shared Supabase hosts rewrite HTML as plain text; never expose SVG markup there.
+const brokerMessage = (message: string) => new Response(message, {headers: {
+  "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store",
+  "Referrer-Policy": "no-referrer", "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
+}});
 const text = (value: unknown, limit = 150): string => {
   if (typeof value !== "string" || !value.trim() || value.length > limit) throw new HungiiError("HUNGII_BAD_INPUT", "Please check this input.");
   return value.trim();
@@ -56,7 +62,8 @@ export async function handler(request: Request): Promise<Response> {
     const check = (error: unknown) => { if (error) throw new HungiiError("HUNGII_STORAGE", "Hungii could not save this update. Try again.", 503); };
 
     if(request.method==='GET' && url.pathname.endsWith('/welcome')) {
-      return new Response('<!doctype html><meta name="viewport" content="width=device-width"><title>Hungii</title><style>body{background:#09090c;color:#fff2f5;font:20px system-ui;padding:40px;max-width:600px}h1{color:#ff526f}</style><h1>Hungii</h1><p>Budget-aware meal planning for your day.</p><p>You can close this browser tab and return to the Hungii Android app.</p>',{headers:{'Content-Type':'text/html','Cache-Control':'no-store','Referrer-Policy':'no-referrer','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"}});
+      if (url.hostname.endsWith('.supabase.co')) return brokerMessage('Hungii\n\nYour next meal, made easy.\nYou can close this tab and return to the Hungii app.');
+      return new Response('<!doctype html><meta name="viewport" content="width=device-width"><title>Hungii</title><style>body{background:#09090c;color:#fff2f5;font:20px system-ui;padding:40px;max-width:600px}h1{color:#ff526f}</style><h1>'+BRAND_WORDMARK+'</h1><p>Budget-aware meal planning for your day.</p><p>You can close this browser tab and return to the Hungii Android app.</p>',{headers:{'Content-Type':'text/html','Cache-Control':'no-store','Referrer-Policy':'no-referrer','Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'"}});
     }
     if (request.method === "GET" && url.pathname.endsWith("/callback")) {
       const state = text(url.searchParams.get("state"), 200);
@@ -75,7 +82,8 @@ export async function handler(request: Request): Promise<Response> {
         await upstreamJson(`${authBase()}/auth/logout`, {}, token.access_token).catch(()=>{});
         throw new HungiiError("HUNGII_CONSENT_WITHDRAWN", "This connection request was withdrawn. Connect again if needed.",409);
       }
-      return new Response('<!doctype html><meta name="viewport" content="width=device-width"><title>Hungii connected</title><style>body{background:#09090c;color:#fff2f5;font:20px system-ui;padding:40px}a{color:#ff526f}</style><h1>Swiggy connected.</h1><p>Return to Hungii to choose your delivery address.</p><a href="hungii://swiggy-return">Open Hungii</a>', { headers: { "Content-Type": "text/html", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'" } });
+      if (url.hostname.endsWith('.supabase.co')) return brokerMessage('Hungii\n\nSwiggy connected.\nReturn to the app to choose your delivery address.');
+      return new Response('<!doctype html><meta name="viewport" content="width=device-width"><title>Hungii connected</title><style>body{background:#09090c;color:#fff2f5;font:20px system-ui;padding:40px}a{color:#ff526f}</style>'+BRAND_WORDMARK+'<h1>Swiggy connected.</h1><p>Return to Hungii to choose your delivery address.</p><a href="hungii://swiggy-return">Open Hungii</a>', { headers: { "Content-Type": "text/html", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'" } });
     }
 
     if (request.method !== "POST") return json({ error: { code: "HUNGII_METHOD", message: "Use the Hungii app to connect." } }, 405);
