@@ -120,7 +120,7 @@ import kotlin.math.sin
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("hungii", color = Accent, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-1).sp)
+                HungiiWordmark(height = 56.dp)
                 Text(if(model.displayName.isBlank()) "Your next meal, made easy." else "Hey, ${model.displayName}. What sounds good?", color = Muted, fontSize = 14.sp, lineHeight = 20.sp)
             }
             RoundAction(Icons.Outlined.Person, "Accounts", Raised, White, { model.accountOpen = true }, 48)

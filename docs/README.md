@@ -36,3 +36,5 @@ Research is dated, informs decisions and does not certify current vendor behavio
 - [Verification records and screenshots](../artifacts/README.md). Each record applies to its named checkpoint; screenshots are not proof of live provider access.
 
 Current setup instructions stay here or in component READMEs. Preserve original sent correspondence and historical results; add a new dated record when behavior changes. Never turn an old proposed capability into a present-tense claim.
+
+- [Fork-h brand assets and Android themed icons](../assets/brand/README.md)

@@ -1,4 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#e11d48"/>
-  <text x="32" y="32" dy="0.35em" text-anchor="middle" font-family="ui-sans-serif, system-ui, -apple-system, sans-serif" font-size="32" font-weight="600" fill="#ffffff">H</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" role="img" aria-label="Hungii"><rect width="108" height="108" rx="24" fill="#09090C"/><path fill="#FF526F" transform="translate(27.81 19.71) scale(.27)" d="M24 26 C24 18 36 18 36 26 V66 C36 74 45 74 45 66 V26 C45 18 57 18 57 26 V66 C57 74 66 74 66 66 V26 C66 18 78 18 78 26 V71 C78 87 65 92 65 106 V133 C75 120 89 114 107 114 C145 114 170 139 170 174 V231 Q170 234 167 234 H140 Q137 234 137 231 V177 C137 151 126 141 109 141 C81 141 65 159 65 177 V231 Q65 234 62 234 H38 Q35 234 35 231 V106 C35 92 24 87 24 71 Z"/></svg>

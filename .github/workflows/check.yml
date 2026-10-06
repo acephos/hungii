@@ -33,6 +33,7 @@ jobs:
       - name: Check and test backend (no live services)
         run: |
           python3 scripts/check-repo.py
+          python3 scripts/generate-brand.py --check
           python3 -m py_compile demo/agent.py scripts/demo-services.py
           npx --yes deno@2.9.6 check --config supabase/functions/deno.json supabase/functions/hungii-api/index.ts demo/gateway.ts
           npx --yes deno@2.9.6 test --config supabase/functions/deno.json --allow-env supabase/functions/_shared/ demo/simulator_test.ts
