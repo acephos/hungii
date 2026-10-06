@@ -34,4 +34,4 @@ python3 scripts/generate-brand.py --check
 rsvg-convert assets/brand/preview.svg -o assets/brand/preview.png
 ```
 
-Edit `geometry.json`, then regenerate. SVGs, Android drawables and broker HTML branding share those paths. CI checks that generated assets match their source. Historical screenshots and published APKs retain their original appearance.
+Edit `geometry.json`, then regenerate. SVGs, Android drawables and broker HTML branding share those paths. The current shared Supabase domain serves a readable text return message because it does not render HTML; a custom-domain HTML page can use the vector branding. CI checks that generated assets match their source. Historical screenshots and published APKs retain their original appearance.
