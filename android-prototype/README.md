@@ -8,13 +8,13 @@ The current preview has a `real` build with WorkOS staging email sign-in and app
 
 ## Build
 
-Open this directory in Android Studio, or use JDK 17, Gradle 8.11.1 and SDK 35:
+Open this directory in Android Studio, or use JDK 17, compile SDK 37 and the checked-in Gradle 9.8 wrapper (Android Gradle plugin 9.4, Kotlin 2.4, Room on KSP):
 
 ```sh
-./gradlew :app:assembleRealDebug :app:assembleDemoDebug :app:lintRealDebug :app:lintDemoDebug
+./gradlew spotlessCheck :app:testRealDebugUnitTest :app:testDemoDebugUnitTest :app:assembleRealRelease :app:assembleDemoDebug :app:lintRealRelease :app:lintDemoDebug
 ```
 
-Minimum Android is 8.0/API 26. APK: `app/build/outputs/apk/real/debug/app-real-debug.apk`. Review copy: `../artifacts/hungii-android-prototype.apk`, excluded from git. Follow [service setup](../docs/swiggy-setup.md) before rebuilding a connected APK. Only the Supabase URL/publishable key, public WorkOS client ID and readiness flag go into Android's gitignored `local.properties`.
+`spotlessApply` formats Kotlin with ktlint (settings in `.editorconfig`). Minimum Android is 8.0/API 26; the target stays API 35. The published phone APK is the shrunk, non-debuggable release build: `app/build/outputs/apk/real/release/app-real-release.apk`, signed with the stable preview key (locally, the debug keystore). `versionCode` is derived from the version name (0.9.0 → 900). Review copy: `../artifacts/hungii-android-prototype.apk`, excluded from git. The Room schema is exported to `app/schemas/` so later versions can ship tested migrations. Follow [service setup](../docs/swiggy-setup.md) before rebuilding a connected APK. Only the Supabase URL/publishable key, public WorkOS client ID and readiness flag go into Android's gitignored `local.properties`.
 
 ## Behaviour and boundaries
 
@@ -36,7 +36,11 @@ The real build offers useful local planning before optional sign-in. Starting ta
 
 ## Assets
 
-Barlow Condensed Bold is from [Google Fonts](https://github.com/google/fonts/tree/main/ofl/barlowcondensed), under the included [SIL Open Font License](BARLOW-OFL.txt). Food photos load from returned HTTPS URLs with disk/memory caching disabled; missing photos show a neutral icon. Material icons come from AndroidX Compose.
+Text uses the system sans-serif face; the earlier bundled Barlow font was unused and has been removed. Food photos load from returned HTTPS URLs and are cached in memory only, never on disk; missing photos show a neutral icon. Material icons come from AndroidX Compose. All interface text is in `res/values/strings.xml`.
+
+## Code structure
+
+`HungiiModel` wires focused state holders together and owns account, privacy and persistence flows: `DayPlan` (tracker, preferences, check-in, midnight rollover), `SavedMeals`, `SwiggyConnection` and `Discovery` (search, shortlist, lucky draw), `Checkout` (basket, payment, polling, order recovery), `CloudSync` and `Assistant`. Their rules are plain functions with unit tests: `rankMeals`, `parseCheckIn`, `assistantEffect`, typed checkout models and `PaymentStage`, `reservedSpend` and `restoreAction`. `ActionRunner` serializes backend requests, because the backend admits one provider request per user: later requests wait instead of being dropped, and repeated taps of a running action are ignored. The privacy notice version is read at build time from `supabase/functions/_shared/tracker.ts`.
 
 ## Local MCP simulator
 

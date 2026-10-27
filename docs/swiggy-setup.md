@@ -8,7 +8,7 @@ Real-service setup, separate from the [synthetic Simulator](../demo/README.md). 
 - `hungii-api` verifies signed WorkOS JWTs and live sessions for account actions. Android/callbacks force Mumbai; the handler rejects other regions. Swiggy callback and WorkOS refresh are separately scoped public endpoints.
 - WorkOS staging application **Hungii Android**, client `client_01M3XWXNG4XE1J3C7NP76HBJKC`; Magic Auth email codes enabled. Android redirect `com.hungii.prototype://auth-return` registered. The free hosted AuthKit domain is used. Email/password also remains available in staging.
 - WorkOS API key, client ID and exact JWT issuer installed as server secrets. The issuer references the environment's default application, `client_01M3XWQW4SPGCDAVZ551TTSY5S`, as documented by WorkOS. No secret enters Android.
-- `HUNGII_TOKEN_KEY` installed. Provisioning files are gitignored and private; do not paste them into chat, APKs or review drafts.
+- `HUNGII_TOKEN_KEY` installed (rotation adds `HUNGII_TOKEN_KEY_ID` and `HUNGII_TOKEN_KEYS_PREVIOUS`; see the [operating runbook](incident-runbook.md#rotate-the-application-encryption-key)). Provisioning files are gitignored and private; do not paste them into chat, APKs or review drafts.
 - `SWIGGY_SESSION_RESUME_VERIFIED=false`, price unit unverified, no approved Swiggy client/endpoints installed.
 - Cron purge every ten minutes plus access cleanup. Free inactivity pausing constrains cleanup/availability.
 
@@ -49,9 +49,9 @@ Cart writes, coupon application, order placement and payment are disabled. The e
 
 ```sh
 npx --yes deno@2.9.6 check --config supabase/functions/deno.json supabase/functions/hungii-api/index.ts demo/gateway.ts
-npx --yes deno@2.9.6 test --config supabase/functions/deno.json --allow-env supabase/functions/_shared/ demo/simulator_test.ts
+npx --yes deno@2.9.6 test --config supabase/functions/deno.json --allow-env supabase/functions/ demo/simulator_test.ts scripts/
 ```
 
-The SQL tests in `supabase/tests/` include privacy/leases, WorkOS ownership and cloud-profile sync. Their recorded deployed checks used rolled-back synthetic accounts. Configure the intended database explicitly before running them; CI does not mutate a deployed database. The `demo` Android flavor reaches the authored synthetic MCP server with mock cart/payment writes; the `real` flavor never substitutes fixtures. [Android build/demo guide](../android-prototype/README.md).
+The SQL tests in `supabase/tests/` include privacy/leases, WorkOS ownership and cloud-profile sync. Their recorded deployed checks used rolled-back synthetic accounts. CI runs them against a disposable local Supabase database after applying the migrations. Configure the intended database explicitly before running them anywhere else; CI does not mutate a deployed database. The `demo` Android flavor reaches the authored synthetic MCP server with mock cart/payment writes; the `real` flavor never substitutes fixtures. [Android build/demo guide](../android-prototype/README.md).
 
 Before production: complete [external gates](approval-readiness.md#external-gates-before-production), including approved agreements/privacy contact, at least 48 hours green staging, explicit production access, support/alerts/recovery and staged rollout. A staging request can describe prepared controls; it cannot assert production approval.

@@ -36,7 +36,7 @@ The latest published preview and checks are linked from [releases](https://githu
 | Nutrition honesty | Missing nutrition remains unknown; only entered food totals count as consumed | No invented restaurant macros. Sourced/calibrated estimates, portion provenance and macro-aware matching remain product work before claims of validated health recommendations. |
 | Attribution | Real cards label “Powered by Swiggy”; synthetic build labels itself throughout | Source/build inspection and demo screenshots. No claim of endorsement. Swiggy branded assets and layout approval remain subject to provider review. |
 | Voice/AI | On-device recognition when supported; otherwise typing. Real build uses local interpretation. Simulator has separately consented Google ADK + Groq Free cloud inference | Key remains server-side; no local model. Only selected entered context and synthetic fixtures are provided automatically. Free-text user content is not guaranteed free of sensitive data. No live Swiggy-data inference, cloud speech, advertising or training pipeline is connected. |
-| Diagnostics | Hashed user/session IDs, tool, duration and status; deprecation warning logs; no provider arguments/results in application logs | Source inspection and local protocol tests. Actual alert routing, on-call coverage and staging incidents remain unproven. |
+| Diagnostics | Hashed user/session IDs, tool, duration and status; deprecation warning logs; a request ID on every response, with failed and unexpected requests logged by ID, error code or class and code location; no provider arguments/results or error messages in application logs | Source inspection, handler and protocol tests. Actual alert routing, on-call coverage and staging incidents remain unproven. |
 
 ## Account-first and optional profile sync
 
@@ -46,7 +46,7 @@ Consented cloud sync includes optional name, daily goals/allowance/totals and ex
 
 ## Validation completed
 
-- Both Android `real` and `demo` debug APKs assemble; both lint variants pass.
+- Both Android `real` and `demo` debug APKs and the shrunk, non-debuggable `real` release APK assemble; lint passes for each. Kotlin formatting, Deno formatting/lint and the SQL tests against a disposable local Supabase database run in CI.
 - Deno backend and simulator entrypoints type-check. Run the current suite from [contributing instructions](../CONTRIBUTING.md); counts in dated evidence describe those checkpoints.
 - Actual Mumbai Postgres transaction tests cover OAuth single use, two-user isolation, concurrent lease rejection, request budget, durable cooldown, stale completion fencing, withdrawal/callback race, uncertain initialization crash, 90-day expiry and Hungii-account cascades. WorkOS ownership tests cover private grants, deletion/write races, account resolution and tombstone expiry. Synthetic SQL users are rolled back.
 - Recorded WorkOS/Supabase staging checks passed for two synthetic identities, signed JWT issuer/client binding, live sessions, owner-only tracker save/read, server refresh, actual provider account deletion and sign-out rejection. No emails were sent to these temporary accounts. The earlier 14 Supabase-auth assertions remain historical evidence.

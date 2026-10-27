@@ -1,0 +1,27 @@
+# Weekly update PRs. Each must pass the required checks; release signing is unaffected.
+# Deno imports (supabase/functions/deno.json) are pinned and updated by hand after
+# re-reading provider contracts, as described in CONTRIBUTING.md.
+version: 2
+updates:
+  - package-ecosystem: gradle
+    directory: /android-prototype
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      android-minor:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: pip
+    directory: /demo
+    schedule:
+      interval: weekly
+    groups:
+      assistant:
+        patterns: ["*"]
