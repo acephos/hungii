@@ -38,8 +38,14 @@ Scope: v0.9.0 Android source, backend handler and shared modules, Simulator gate
   - The day editor saved a goal.
   - No crashes were logged.
 
+## Deployment and release
+
+- In GitHub Actions, all seven migrations applied to the Supabase local database and the four SQL tests passed before the merge ([PR #8](https://github.com/acephos/hungii/pull/8)).
+- `hungii-api` version 14 was deployed to hungii-mumbai on 27 October 2026 with server-side bundling and JWT verification still off; version 13 was the previous one. Live checks: `/welcome` returned 200; an unauthenticated request and a forged bearer token returned `HUNGII_LOGIN_REQUIRED` with a request ID in the header and body; an unknown Swiggy callback state returned `HUNGII_CALLBACK_EXPIRED`, which exercises the key configuration and database. No migration or new secret was needed.
+- The [v0.9.0 prerelease](https://github.com/acephos/hungii/releases/tag/v0.9.0) was published by the release workflow. The downloaded `hungii.apk` (2.0 MB) matched `SHA256SUMS.txt`, reports version 0.9.0 (code 900), is not debuggable and carries the stable preview certificate, so it installs over 0.8.1.
+
 ## Remaining limits
 
 - The sign-in link fix, notice-version handling and the delete/erase account paths were checked by review and unit tests of their parts, not with live WorkOS on a device.
 - Key rotation, re-encryption and checkout resolution were tested against fakes, not the deployed database; follow the [runbook](../docs/incident-runbook.md) and dry-run first.
-- The deployed function needs redeploying for the backend changes. Address selections saved by the new backend are not readable by the previous one, so a rollback asks those users to choose their address again.
+- Address selections saved by version 14 are not readable by earlier backends, so a rollback asks those users to choose their address again.

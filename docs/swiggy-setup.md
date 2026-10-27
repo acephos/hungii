@@ -1,6 +1,6 @@
 # Hungii service setup
 
-Real-service setup, separate from the [synthetic Simulator](../demo/README.md). Provisioned project: **hungii-mumbai**, reference `qvqnzsqrxejdlvnbqwcs`, Supabase **Free**, Mumbai `ap-south-1`. Deployment checks were recorded on 2 October 2026. [Dashboard](https://supabase.com/dashboard/project/qvqnzsqrxejdlvnbqwcs), [current status and evidence](approval-readiness.md).
+Real-service setup, separate from the [synthetic Simulator](../demo/README.md). Provisioned project: **hungii-mumbai**, reference `qvqnzsqrxejdlvnbqwcs`, Supabase **Free**, Mumbai `ap-south-1`. Deployment checks were recorded on 2 October 2026; `hungii-api` version 14 was deployed and smoke-tested on 27 October 2026 ([record](../artifacts/repository-review-verification.md#deployment-and-release)). [Dashboard](https://supabase.com/dashboard/project/qvqnzsqrxejdlvnbqwcs), [current status and evidence](approval-readiness.md).
 
 ## Already provisioned
 
