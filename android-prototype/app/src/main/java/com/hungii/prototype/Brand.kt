@@ -12,7 +12,10 @@ import androidx.compose.ui.unit.dp
 
 /** Shared path artwork, rather than platform-dependent text or a separate icon. */
 @Composable
-internal fun HungiiWordmark(modifier: Modifier = Modifier, height: Dp = 56.dp) {
+internal fun HungiiWordmark(
+    modifier: Modifier = Modifier,
+    height: Dp = 56.dp,
+) {
     Image(
         painter = painterResource(R.drawable.ic_hungii_wordmark),
         contentDescription = "Hungii",
