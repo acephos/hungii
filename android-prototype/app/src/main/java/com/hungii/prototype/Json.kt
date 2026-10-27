@@ -6,7 +6,10 @@ import org.json.JSONObject
 // Android's optString turns JSON null into "null"; these helpers keep missing values absent.
 // Earlier versions also stored that text, so a literal "null" is treated as absent too.
 
-internal fun JSONObject.stringOrNull(name: String): String? = if (isNull(name)) null else optString(name).takeIf { it.isNotBlank() && it != "null" }
+internal fun JSONObject.stringOrNull(name: String): String? {
+    if (isNull(name)) return null
+    return optString(name).takeIf { it.isNotBlank() && it != "null" }
+}
 
 internal fun JSONObject.doubleOrNull(name: String): Double? {
     if (isNull(name)) return null
