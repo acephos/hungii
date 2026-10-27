@@ -5,7 +5,7 @@ import {
   money,
   type ToolCall,
 } from "./food.ts";
-import { digest, seal, unseal } from "./secrets.ts";
+import { digest, seal, type Secret, unseal } from "./secrets.ts";
 
 export type OrderingConfig = {
   enabled: boolean;
@@ -13,25 +13,27 @@ export type OrderingConfig = {
   itemIdField: string;
   quantityField: string;
 };
-export function orderingConfig(): OrderingConfig {
-  const unit = Deno.env.get("SWIGGY_PRICE_UNIT") ?? "unverified";
-  const itemIdField = Deno.env.get("SWIGGY_CART_ITEM_ID_FIELD") ?? "";
-  const quantityField = Deno.env.get("SWIGGY_CART_QUANTITY_FIELD") ?? "";
+export function orderingConfig(
+  env: (name: string) => string | undefined = (name) => Deno.env.get(name),
+): OrderingConfig {
+  const unit = env("SWIGGY_PRICE_UNIT") ?? "unverified";
+  const itemIdField = env("SWIGGY_CART_ITEM_ID_FIELD") ?? "";
+  const quantityField = env("SWIGGY_CART_QUANTITY_FIELD") ?? "";
   const fieldsValid =
     [itemIdField, quantityField].every((f) =>
       /^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(f) &&
       !["__proto__", "constructor", "prototype"].includes(f)
     ) && itemIdField !== quantityField;
-  const endpoint = Deno.env.get("SWIGGY_FOOD_URL") ?? "";
+  const endpoint = env("SWIGGY_FOOD_URL") ?? "";
   const approvedEnvironment =
     endpoint === "https://mcp-staging.swiggy.com/food" ||
     endpoint === "https://mcp.swiggy.com/food" &&
-      Deno.env.get("SWIGGY_PRODUCTION_APPROVED") === "true";
+      env("SWIGGY_PRODUCTION_APPROVED") === "true";
   return {
     enabled: approvedEnvironment &&
-      Deno.env.get("SWIGGY_ORDERING_ENABLED") === "true" &&
-      Deno.env.get("SWIGGY_CART_CONTRACT_VERIFIED") === "true" &&
-      Deno.env.get("SWIGGY_SESSION_RESUME_VERIFIED") === "true" &&
+      env("SWIGGY_ORDERING_ENABLED") === "true" &&
+      env("SWIGGY_CART_CONTRACT_VERIFIED") === "true" &&
+      env("SWIGGY_SESSION_RESUME_VERIFIED") === "true" &&
       ["rupees", "paise"].includes(unit) && fieldsValid,
     unit,
     itemIdField,
@@ -145,8 +147,10 @@ export class FoodOrdering {
     private config: OrderingConfig,
     private owner: string,
     private addressId: string,
-    private secret: string,
+    private secret: Secret,
     private now: () => number = Date.now,
+    /** The address-list page the user chose from, to find its label quickly. */
+    private addressPage?: number,
   ) {}
   private requireEnabled() {
     if (!this.config.enabled) {
@@ -204,19 +208,28 @@ export class FoodOrdering {
   }
   private async labelledCart(): Promise<Json> {
     const cart = await this.cart();
-    const addresses = await this.call("get_addresses", {});
-    // Search at most 10 pages, under the request budget; no invented address label.
-    let found = (addresses.addresses ?? []).find((a: Json) =>
-      a.id === this.addressId
-    );
-    for (
-      let page = 2;
-      !found && page <= Math.min(addresses.pagination?.totalPages ?? 1, 10);
-      page++
-    ) {
-      found = (await this.call("get_addresses", { page })).addresses?.find((
-        a: Json,
-      ) => a.id === this.addressId);
+    const matching = (result: Json) =>
+      (result.addresses ?? []).find((a: Json) => a.id === this.addressId);
+    // The page the address was chosen from usually still holds it: one request.
+    let found = this.addressPage
+      ? matching(
+        await this.call("get_addresses", {
+          page: this.addressPage,
+          pageSize: 10,
+        }),
+      )
+      : undefined;
+    if (!found) {
+      const addresses = await this.call("get_addresses", {});
+      found = matching(addresses);
+      // Search at most 10 pages, under the request budget; no invented address label.
+      for (
+        let page = 2;
+        !found && page <= Math.min(addresses.pagination?.totalPages ?? 1, 10);
+        page++
+      ) {
+        found = matching(await this.call("get_addresses", { page }));
+      }
     }
     if (!found?.addressLine) {
       throw new HungiiError(

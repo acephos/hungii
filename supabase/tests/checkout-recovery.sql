@@ -1,5 +1,6 @@
 -- Run only in a disposable database or reviewed transaction. No provider calls.
--- Apply checkout_attempts migration in the SAME outer transaction, then rollback.
+-- Synthetic accounts and checkouts roll back.
+begin;
 do $$
 declare owner uuid; other uuid; first uuid:=gen_random_uuid(); second uuid:=gen_random_uuid();
 begin
@@ -21,3 +22,5 @@ begin
   delete from public.hungii_accounts where id=owner;
   if exists(select 1 from public.hungii_checkouts where user_id=owner) then raise exception 'Recovery survived account deletion'; end if;
 end $$;
+rollback;
+select 'Checkout claims, replay and overlap blocking, and deletion erasure passed' as verification;

@@ -18,10 +18,10 @@ import {
   MockFailure,
   MockFood,
   promotions,
-  restaurants,
   rounded,
 } from "./catalogue.ts";
 import { readJsonObject } from "../supabase/functions/_shared/http.ts";
+import { PRIVACY_VERSION } from "../supabase/functions/_shared/tracker.ts";
 const MOCK_URL = "http://127.0.0.1:8890/food";
 class LocalSessions {
   constructor(private network: typeof fetch = fetch) {}
@@ -170,6 +170,7 @@ export function createGateway(
         return response({
           connected: state.connected,
           addressId: state.addressId,
+          privacyVersion: PRIVACY_VERSION,
           environment: "Synthetic Swiggy MCP",
           cartWritesEnabled: true,
           priceUnitVerified: true,

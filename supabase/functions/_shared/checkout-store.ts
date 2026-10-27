@@ -1,12 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { AttemptStore } from "./ordering.ts";
 import { HungiiError, type Json } from "./errors.ts";
-import { seal, unseal } from "./secrets.ts";
+import { seal, type Secret, unseal } from "./secrets.ts";
 export class CheckoutStore implements AttemptStore {
   constructor(
     private db: SupabaseClient,
     private user: string,
-    private secret: string,
+    private secret: Secret,
   ) {}
   private decode(row: Json | null): Promise<Json | null> {
     return row

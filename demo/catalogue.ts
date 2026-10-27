@@ -4,7 +4,8 @@ import toolSchemas from "./tool-schemas.json" with { type: "json" };
 export const restaurants = data.restaurants;
 export const dishes = data.dishes;
 export const schemas = toolSchemas;
-export type Json = Record<string, any>;
+export type { Json } from "../supabase/functions/_shared/errors.ts";
+import type { Json } from "../supabase/functions/_shared/errors.ts";
 export const rounded = (n: number) => Math.round(n * 100) / 100;
 export class MockFailure extends Error {
   constructor(public code: string, message: string) {
@@ -261,6 +262,8 @@ export class MockFood {
     this.cartId = "mock-cart-" + crypto.randomUUID();
     this.revision++;
   }
+  // Async so validation failures reject like a remote server instead of throwing.
+  // deno-lint-ignore require-await
   async call(name: string, a: Json): Promise<Json> {
     this.events.push({ tool: name, time: Date.now() });
     this.events = this.events.slice(-100);
@@ -330,13 +333,14 @@ export class MockFood {
           ),
           dishes: items.map((
             {
-              nutrition,
-              nutritionSource,
-              tags,
-              photo,
-              side,
-              variantsV2,
-              addons,
+              // Hungii-only fields are not part of the provider's dish shape.
+              nutrition: _nutrition,
+              nutritionSource: _nutritionSource,
+              tags: _tags,
+              photo: _photo,
+              side: _side,
+              variantsV2: _variantsV2,
+              addons: _addons,
               ...d
             },
           ) => ({
