@@ -1,6 +1,9 @@
 package com.hungii.prototype
 
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.abs
 
@@ -17,6 +20,7 @@ class ShuffleMotionTest {
             assertEquals(0f, end.blur, 0f)
         }
     }
+
     @Test fun outerCardsStayInsideTheStageAndActuallyCross() {
         for (index in 0..2) {
             val poses = (0..1000).map { shufflePose(it / 1000f, index, 110f) }
@@ -26,9 +30,11 @@ class ShuffleMotionTest {
             assertTrue(poses.any { abs(it.x) > 20f })
         }
         // Neighbouring cards exchange screen order during the mix.
-        assertTrue((0..1000).any {
-            val t = it / 1000f
-            shufflePose(t, 0, 110f).x > 110f + shufflePose(t, 1, 110f).x
-        })
+        assertTrue(
+            (0..1000).any {
+                val t = it / 1000f
+                shufflePose(t, 0, 110f).x > 110f + shufflePose(t, 1, 110f).x
+            },
+        )
     }
 }

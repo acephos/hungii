@@ -78,8 +78,10 @@ jobs:
           python3 scripts/check-repo.py
           python3 scripts/generate-brand.py --check
           python3 -m py_compile demo/agent.py scripts/demo-services.py
-          npx --yes deno@2.9.6 check --config supabase/functions/deno.json supabase/functions/hungii-api/index.ts demo/gateway.ts
-          npx --yes deno@2.9.6 test --config supabase/functions/deno.json --allow-env supabase/functions/_shared/ demo/simulator_test.ts
+          npx --yes deno@2.9.6 fmt --check supabase/functions demo scripts
+          npx --yes deno@2.9.6 lint --config supabase/functions/deno.json supabase/functions demo scripts
+          npx --yes deno@2.9.6 check --config supabase/functions/deno.json supabase/functions/hungii-api/index.ts demo/gateway.ts scripts/operator.ts
+          npx --yes deno@2.9.6 test --config supabase/functions/deno.json --allow-env supabase/functions/ demo/simulator_test.ts scripts/
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
@@ -89,16 +91,21 @@ jobs:
         run: |
           python -m pip install -r demo/requirements-agent.txt
           python -m unittest demo.agent_test -v
-      - name: Build and lint signed previews
+      - name: Build and lint the signed release
         working-directory: android-prototype
-        run: ./gradlew --no-daemon -PhungiiVersionName="${RELEASE_TAG#v}" :app:testRealDebugUnitTest :app:testDemoDebugUnitTest :app:assembleRealDebug :app:assembleDemoDebug :app:lintRealDebug :app:lintDemoDebug
+        # The published APK is a shrunk, non-debuggable release build on the stable preview key.
+        run: ./gradlew --no-daemon -PhungiiVersionName="${RELEASE_TAG#v}" spotlessCheck :app:testRealDebugUnitTest :app:testDemoDebugUnitTest :app:assembleRealRelease :app:lintRealRelease
       - name: Package and verify APKs
         env:
           EXPECTED_PREVIEW_CERT: ${{ vars.HUNGII_PREVIEW_CERT_SHA256 }}
         run: |
           mkdir -p release-artifacts
-          cp android-prototype/app/build/outputs/apk/real/debug/app-real-debug.apk release-artifacts/hungii.apk
+          cp android-prototype/app/build/outputs/apk/real/release/app-real-release.apk release-artifacts/hungii.apk
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose release-artifacts/hungii.apk
+          # Refuse to publish an APK that a debugger could attach to.
+          if "$ANDROID_HOME/build-tools/35.0.0/aapt2" dump xmltree --file AndroidManifest.xml release-artifacts/hungii.apk | grep -q 'android:debuggable.*=true'; then
+            echo "The release APK is debuggable." >&2; exit 1
+          fi
           python3 scripts/ci/verify-preview-certificate.py release-artifacts/hungii.apk
           cd release-artifacts
           sha256sum *.apk > SHA256SUMS.txt
@@ -109,7 +116,7 @@ jobs:
           cat > "$RUNNER_TEMP/hungii-release-notes.md" <<'NOTES'
           Install hungii.apk — the single user-facing Hungii app. Android 8+ is required. The stable development signing key supports updates to the existing Hungii preview.
 
-          Continuous fork-h logo and wordmark, Android adaptive and wallpaper-themed icons, crimson dark theme, encrypted local tracker, optional profile sync, simplified delivery settings, and a prepared Swiggy basket/payment/tracking flow with checkout recovery.
+          A shrunk, non-debuggable release build with the fork-h brand, crimson dark theme, encrypted local tracker that starts each day afresh, optional profile sync, simplified delivery settings, and a prepared Swiggy basket/payment/tracking flow with checkout recovery.
 
           Swiggy connection and real ordering remain gated until developer access and staging verification are complete. This release does not enable live payments. UPI authorization happens in the user's UPI app. WorkOS remains staging. The Simulator is a developer testing build and is no longer published as a second user APK.
           NOTES

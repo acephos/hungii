@@ -16,7 +16,7 @@ Reboots previously stopped manually started processes. Enabled user services now
 
 1. Stop Food calls when a connection is blocked or rejected. Keep the live gate false during investigation. Do not repeatedly initialize, reuse a rejected token or rotate accounts to bypass limits.
 2. Respect durable Retry-After. Display retry-later; do not sleep a user action beyond its deadline. Disconnect/deletion still removes Hungii's local credentials even when remote revocation cannot run.
-3. Inspect only minimal hashed user/session identifiers, tool name, duration/status and deprecation warnings in Supabase function logs. Do not copy token values, addresses, phone numbers, whole menus, requests/results or tracker plaintext into a support ticket or AI tool.
+3. Inspect only minimal hashed user/session identifiers, tool name, duration/status and deprecation warnings in Supabase function logs. Every API response carries an `X-Request-Id` (also in error bodies as `requestId`); `request_failed` and `unhandled_error` log lines carry the same ID, an error code or class and a code location, never messages or request data. Do not copy token values, addresses, phone numbers, whole menus, requests/results or tracker plaintext into a support ticket or AI tool.
 4. If provider help is needed, prepare a minimal report for `builders@swiggy.in`. Sending any email remains a separate founder-authorized action; current instruction is draft only. Use Swiggy diagnostic/report tools only within verified docs and user consent.
 5. Failed/uncertain initialization stops automatic recovery. Check staging/service health, remove the old connection through explicit disconnect, then allow one new user-authorized connection. Investigate auth-event accounting before reopening the gate.
 
@@ -24,7 +24,24 @@ Reboots previously stopped manually started processes. Enabled user services now
 
 Use the authenticated self-service cloud deletion/account deletion/device erasure controls. The backend atomically erases provider connections, OAuth states, session metadata, consent epochs and tracker rows before deleting the WorkOS user. A WorkOS deletion failure leaves a retryable deleting account; do not restore erased data or report success. Successful deletion retains a hashed identity fence for 24 hours, then purge removes it. Native saved-meal withdrawal/device erasure removes rows and rotates the per-owner data key. A remote logout failure is reported separately; never represent it as confirmed revocation. Direct requests affecting the user's Swiggy account records to Swiggy and coordinate deletion of Hungii's copies.
 
-For suspected exposure, disable live calls, preserve minimal necessary evidence under restricted access, revoke affected connections and rotate only the affected secrets under a reviewed recovery plan. The single application encryption key cannot be replaced blindly while retained ciphertext exists. Assess required notifications with the responsible owner/provider; no legal deadlines are fabricated in this runbook.
+For suspected exposure, disable live calls, preserve minimal necessary evidence under restricted access, revoke affected connections and rotate only the affected secrets under a reviewed recovery plan. Assess required notifications with the responsible owner/provider; no legal deadlines are fabricated in this runbook.
+
+## Rotate the application encryption key
+
+`HUNGII_TOKEN_KEY` encrypts connection tokens, selected addresses, OAuth verifiers, session metadata, cloud trackers and checkout records. Ciphertext records which key sealed it, so rotation needs no downtime:
+
+1. Generate a new 32-byte key (`openssl rand -base64 32`) and store it only in the function secrets.
+2. Set `HUNGII_TOKEN_KEY` to the new key, `HUNGII_TOKEN_KEY_ID` to a new identifier (`k2`, then `k3` and so on) and `HUNGII_TOKEN_KEYS_PREVIOUS` to `k1:<old key>` (comma-separate older pairs). The original key's identifier is `k1`. New writes use the new key; older rows still decrypt.
+3. Re-encrypt retained rows with the operator tool, first as a dry run: `deno run --config supabase/functions/deno.json --allow-env --allow-net scripts/operator.ts reseal --dry-run`, then without `--dry-run`. Updates are compare-and-swap, so concurrent writes are skipped and reported; run it again until it reports nothing to re-encrypt.
+4. Wait at least ten minutes for pending OAuth states, then remove the old pair from `HUNGII_TOKEN_KEYS_PREVIOUS`. A row still sealed with a removed key becomes unreadable, which is the intended result for a compromised key.
+
+## Blocked checkout reconciliation
+
+An interrupted or ambiguous placement stays `unresolved` and blocks further ordering; Hungii never retries it automatically. After support confirms what happened with Swiggy:
+
+1. `scripts/operator.ts list-checkouts` prints blocked attempts with restaurant, total, item count, creation time and any provider order ID, without addresses.
+2. `scripts/operator.ts resolve-checkout <user> <request> confirmed --order-id=<Swiggy order ID>` records a placed order; the app then shows and tracks it, and today's spending counts it only if it was started today. Use `failed` instead when Swiggy confirms that no order or charge exists; the user can then order again.
+3. The update only applies if the attempt is unchanged since it was read, and the resolution is stored with the attempt (`by: operator`, time and previous phase).
 
 ## Monitoring and release
 

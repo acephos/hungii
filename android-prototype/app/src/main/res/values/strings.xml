@@ -1,0 +1,517 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Shared actions and values -->
+    <string name="action_back">Back</string>
+    <string name="action_back_to_day">Back to my day</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_confirm">Confirm</string>
+    <string name="action_done">Done</string>
+    <string name="action_try_again">Try again</string>
+    <string name="value_unknown">—</string>
+    <string name="value_unavailable">Unavailable</string>
+    <string name="unit_grams">%1$dg</string>
+    <string name="thinking">Thinking…</string>
+    <string name="error_request_failed">Could not complete this request. Try again.</string>
+    <string name="restoring_account">Restoring your Hungii account…</string>
+    <string name="simulator_banner">Simulator · no real orders or money</string>
+    <string name="browser_missing">No browser is available. Install a browser to connect.</string>
+    <string name="browser_missing_sign_in">A browser is needed to sign in.</string>
+    <string name="swiggy_missing">Install Swiggy or a browser to continue manually.</string>
+    <string name="load_decrypt_failed">Saved data could not be decrypted. You can erase it from Accounts.</string>
+    <string name="load_failed">The saved tracker could not be loaded. Please check your day.</string>
+
+    <!-- Voice -->
+    <string name="voice_permission_denied">You can type your check-in instead.</string>
+    <string name="voice_unavailable">On-device voice unavailable. Type your check-in; audio stays on your phone.</string>
+    <string name="voice_failed">Voice did not connect. You can still type.</string>
+
+    <!-- Tabs -->
+    <string name="tab_home">Home</string>
+    <string name="tab_meals">Meals</string>
+    <string name="tab_assistant">Assistant</string>
+    <string name="tab_day">My day</string>
+
+    <!-- Account entry -->
+    <string name="entry_title">Your day.\nYour next meal.</string>
+    <string name="entry_body">Start with your food allowance, goals and cravings. Keep your plan on this device, and sign in whenever you want to sync.</string>
+    <string name="entry_plan_title">Your starting plan</string>
+    <plurals name="entry_plan_summary">
+        <item quantity="one">%1$d meal · %2$d kcal target</item>
+        <item quantity="other">%1$d meals · %2$d kcal target</item>
+    </plurals>
+    <string name="entry_plan_hint">Adjust these starting values to suit your day.</string>
+    <string name="entry_start">Start planning</string>
+    <string name="entry_sign_in">Sign in to sync</string>
+    <string name="entry_footer">Track your day without an account. Swiggy ordering will become available after developer access is approved.</string>
+
+    <!-- Cloud setup -->
+    <string name="cloud_entry_eyebrow">HUNGII ACCOUNT CONNECTED</string>
+    <string name="cloud_entry_title">Your profile.\nYour rules.</string>
+    <string name="cloud_entry_body">Allow encrypted cloud sync for your name, nutrition goals, food allowance, entered daily totals and meal filters. Changes save automatically and restore when you sign in on another device.</string>
+    <string name="cloud_entry_details">Stored in Hungii\'s Mumbai database. Cloud data expires after 90 days without updates. Erase the cloud copy or stop syncing in Accounts. Saved Swiggy meal shortcuts stay on this device. Privacy notice %1$s.</string>
+    <string name="cloud_entry_allow">Allow profile &amp; preference sync</string>
+    <string name="cloud_entry_skip">Continue without cloud sync</string>
+    <string name="cloud_use_cloud_copy">Use my cloud profile</string>
+    <string name="cloud_use_device_copy">Sync this device\'s profile instead</string>
+    <string name="cloud_use_cloud_copy_short">Use cloud profile</string>
+    <string name="cloud_use_device_copy_short">Keep this device’s profile</string>
+
+    <!-- Sync status -->
+    <string name="sync_changed_elsewhere">This profile changed on another device. Choose a copy in Accounts.</string>
+    <string name="sync_restored">Profile restored from your Hungii account.</string>
+    <string name="sync_cloud_missing">Cloud copy is absent. Allow sync again to create a new copy.</string>
+    <string name="sync_choose_copy">Choose whether to use the cloud profile or keep this device\'s profile.</string>
+    <string name="sync_done">Profile and preferences synced.</string>
+    <string name="sync_paused">Cloud sync is off. Your profile stays on this device.</string>
+    <string name="sync_notice_updated">Read the updated privacy notice to enable sync again.</string>
+    <string name="signout_remote_unconfirmed">Signed out on this device. The remote sign-out could not be confirmed.</string>
+
+    <!-- Accounts sheet -->
+    <string name="account_title">Your account</string>
+    <string name="account_section_delivery">Delivery</string>
+    <string name="account_section_profile">Profile</string>
+    <string name="account_section_privacy">Privacy</string>
+    <string name="delivery_title">Connect Swiggy</string>
+    <string name="delivery_title_demo">Test delivery connection</string>
+    <string name="delivery_body">Sign in with Swiggy, choose your address, then review your basket before ordering.</string>
+    <string name="delivery_body_demo">Fictional meals and payments. No real money or delivery.</string>
+    <string name="delivery_sign_in_first">First, sign in to Hungii to keep your connection private.</string>
+    <string name="delivery_sign_in">Sign in to Hungii</string>
+    <string name="delivery_access_pending">Developer access is pending. Swiggy connection and ordering will open after approval and testing.</string>
+    <string name="delivery_consent">Keep my Swiggy connection encrypted for up to five days for my searches, basket and orders. I can disconnect anytime. Checkout recovery stays until I delete my account. Details in Privacy.</string>
+    <string name="delivery_connect">Continue to Swiggy</string>
+    <string name="delivery_reconnect_demo">Reconnect test service</string>
+    <string name="delivery_check_connection">Check connection</string>
+    <string name="delivery_connected">Swiggy connected</string>
+    <string name="delivery_connected_demo">Test service connected</string>
+    <string name="delivery_connected_staging">Swiggy staging connected · no real orders</string>
+    <string name="delivery_checkout_pending">Checkout is awaiting staging verification.</string>
+    <string name="delivery_choose_address">Choose delivery address</string>
+    <string name="delivery_change_address">Change delivery address</string>
+    <string name="delivery_previous_addresses">Previous</string>
+    <string name="delivery_more_addresses">More addresses</string>
+    <string name="delivery_resume_checkout">Resume latest checkout</string>
+    <string name="delivery_disconnect">Disconnect Swiggy</string>
+    <string name="profile_title">Your Hungii profile</string>
+    <string name="profile_body">Your tracker works on this device. Sign in to optionally sync your profile and totals.</string>
+    <string name="profile_unavailable_demo">Cloud profile sync is unavailable in this test build.</string>
+    <string name="profile_sign_in">Sign in with email</string>
+    <string name="profile_sync_on">Cloud sync on</string>
+    <string name="profile_sync_off">Saved on this device</string>
+    <string name="profile_enable_sync">Enable cloud sync</string>
+    <string name="profile_pause_sync">Pause cloud sync</string>
+    <string name="profile_restore">Restore cloud profile</string>
+    <string name="profile_sign_out">Sign out of Hungii</string>
+    <string name="privacy_title">Your data</string>
+    <string name="privacy_storage">Tracker and saved meals are encrypted on your device. Optional cloud sync uses Hungii’s Mumbai database and expires after 90 days without updates. Saved meals expire after 30 days.</string>
+    <string name="privacy_details_demo">Test carts and orders use fictional data in the local server until restart. The optional assistant sends submitted messages and selected totals to Groq outside India only after you opt in.</string>
+    <string name="privacy_details">WorkOS handles email sign-in. Swiggy handles its own phone verification and payment. Connection credentials expire within five days. Encrypted checkout records contain your basket, address and payment status to recover interrupted orders. They stay until you delete your Hungii account; unresolved orders block another checkout. Disconnecting does not cancel orders or erase checkout recovery.</string>
+    <string name="privacy_voice">Voice recognition uses your device where available. Typing always works. Notice %1$s.</string>
+    <string name="privacy_erase_cloud">Erase cloud profile &amp; tracker</string>
+    <string name="privacy_delete_account">Delete Hungii account &amp; recovery data</string>
+    <string name="privacy_erase_device">Erase data on this device</string>
+    <string name="privacy_disconnected">Disconnected and erased saved Swiggy data.</string>
+    <string name="privacy_disconnected_unconfirmed">Disconnected and erased Hungii\'s copy. Remote revocation could not be confirmed; check Swiggy account access.</string>
+    <string name="privacy_cloud_erased">Cloud profile, preferences and tracker erased. Device copy remains.</string>
+    <string name="privacy_deletion_pending">Hungii\'s cloud data was erased. Account-provider deletion is pending; retry Delete Hungii account.</string>
+    <string name="privacy_erased">Selected data erased.</string>
+
+    <!-- Confirmations -->
+    <string name="confirm_sync_title">Sync profile &amp; preferences?</string>
+    <string name="confirm_sync_body">Allow automatic sync of your entered profile, goals, food allowance, daily totals and meal filters to your encrypted Hungii account in Mumbai. Restore them on another device after sign-in. Cloud data expires after 90 days without updates. You can stop syncing or erase the cloud copy from Accounts. Notice %1$s.</string>
+    <string name="confirm_sync_accept">Allow &amp; sync</string>
+    <string name="confirm_disconnect_title">Disconnect Swiggy?</string>
+    <string name="confirm_disconnect_body">Erase Hungii\'s Swiggy connection and saved meals. Checkout recovery stays in your account. This does not cancel orders. Remote revocation is reported separately.</string>
+    <string name="confirm_delete_account_title">Delete your Hungii account?</string>
+    <string name="confirm_delete_account_body">Erase your cloud tracker, checkout recovery, Swiggy connection and this account\'s device data, then delete your WorkOS login. This does not cancel or refund Swiggy orders. Check unresolved orders in Swiggy first. If provider deletion fails, you can retry. An account hash is kept for 24 hours to prevent requests from restoring erased data. This cannot be undone.</string>
+    <string name="confirm_erase_cloud_title">Erase your cloud tracker?</string>
+    <string name="confirm_erase_cloud_body">Erase your cloud profile, preferences and tracker, and stop syncing this device. Your device copy stays available.</string>
+    <string name="confirm_erase_device_title">Erase data on this device?</string>
+    <string name="confirm_erase_device_body">Erase your entered totals and saved meals on this device. Your cloud data is managed separately, and cloud sync pauses on this device.</string>
+
+    <!-- Saving meals -->
+    <string name="save_consent_title">Remember this meal?</string>
+    <string name="save_consent_body">Allow Hungii to keep %1$s, its name, restaurant and menu identifiers encrypted on this device for up to 30 days. Prices and photos are not saved. Delete saved meals and withdraw permission from Saved. Notice %2$s.</string>
+    <string name="save_consent_accept">Allow &amp; save</string>
+
+    <!-- Home -->
+    <string name="home_greeting">Your next meal, made easy.</string>
+    <string name="home_greeting_named">Hey, %1$s. What sounds good?</string>
+    <string name="home_accounts">Accounts</string>
+    <string name="home_allowance">Food allowance</string>
+    <string name="home_reserved">%1$s reserved for unresolved checkout</string>
+    <plurals name="home_left_today">
+        <item quantity="one">left today · %1$d meal left</item>
+        <item quantity="other">left today · %1$d meals left</item>
+    </plurals>
+    <string name="home_edit_day">Edit day</string>
+    <string name="home_question">What sounds good?</string>
+    <string name="home_craving_placeholder">Bowls, wraps, something spicy…</string>
+    <string name="home_craving_label">Your craving</string>
+    <string name="home_search">Find my next meal</string>
+    <string name="home_searching">Finding your meals…</string>
+    <string name="home_no_meals_left">No meals left today. Edit your day to plan another.</string>
+    <string name="home_calories_left">Calories left</string>
+    <string name="home_calorie_goal" tools:ignore="PluralsCandidate">of %1$d kcal</string>
+    <string name="home_protein_left">Protein left</string>
+    <string name="home_protein_goal">of %1$dg</string>
+    <string name="home_help_title">Need a little help?</string>
+    <string name="home_help_body">Talk it through with Hungii.</string>
+    <string name="strip_title">Swiggy delivery</string>
+    <string name="strip_title_demo">Test delivery</string>
+    <string name="strip_address_selected">Delivery address selected</string>
+    <string name="strip_access_pending">Developer access pending</string>
+    <string name="strip_connect">Connect and choose an address</string>
+    <string name="strip_settings">Delivery settings</string>
+    <string name="strip_view_order">View latest order</string>
+    <string name="strip_resume_checkout">Resume checkout · check status</string>
+
+    <!-- Check-in (real build) -->
+    <string name="checkin_title">A quick check-in.</string>
+    <string name="checkin_body">Update your meal plans in your own words.</string>
+    <string name="checkin_placeholder">e.g. ₹300 left, 2 meals, spicy</string>
+    <string name="checkin_update">Update my plan</string>
+    <string name="checkin_undo">Undo update</string>
+    <string name="checkin_footer">This check-in updates your plan on this device. It does not place orders or guess nutrition.</string>
+    <string name="checkin_amount_left" tools:ignore="PluralsCandidate">₹%1$d left today.</string>
+    <string name="checkin_allowance_updated">Allowance updated.</string>
+    <string name="checkin_amount_needs_context">Add ‘left’ or ‘daily budget’ to that amount.</string>
+    <plurals name="checkin_meals_left">
+        <item quantity="one">%1$d opportunity left.</item>
+        <item quantity="other">%1$d opportunities left.</item>
+    </plurals>
+    <string name="checkin_searching_taste">Searching for %1$s food next.</string>
+    <string name="checkin_next_search">Next search: %1$s. Log food quantities in My day; this check-in does not guess nutrition.</string>
+    <string name="checkin_undone">Last update undone.</string>
+
+    <!-- Assistant (Simulator) -->
+    <string name="chat_title">A little less thinking.</string>
+    <string name="chat_subtitle">Your whole day, in one conversation.</string>
+    <string name="chat_listening">Listening to you</string>
+    <string name="chat_connecting">Connecting the dots</string>
+    <string name="chat_ready">Hey. What do you need?</string>
+    <plurals name="chat_summary">
+        <item quantity="one">%1$s · %2$s kcal · %3$d meal left</item>
+        <item quantity="other">%1$s · %2$s kcal · %3$d meals left</item>
+    </plurals>
+    <string name="chat_prompt_meal">Find a spicy, protein-rich meal</string>
+    <string name="chat_prompt_allowance">Set my food allowance to ₹350</string>
+    <string name="chat_prompt_tracker">Show my daily tracker</string>
+    <string name="chat_placeholder">Ask Hungii anything…</string>
+    <string name="chat_speak">Speak to Hungii</string>
+    <string name="chat_send">Send message</string>
+    <string name="chat_enabled">Cloud assistant enabled</string>
+    <string name="chat_optional">Cloud assistant · optional</string>
+    <string name="chat_review_proposal">Review: %1$s</string>
+    <string name="orb_listening">Listening orb</string>
+    <string name="orb_thinking">Thinking orb</string>
+    <string name="orb_idle">Hungii assistant orb</string>
+    <string name="assistant_unreachable">I couldn’t connect to free inference. Your manual filters and cart still work.</string>
+    <string name="assistant_consent_title">Enable the cloud assistant?</string>
+    <string name="assistant_consent_body">Your typed or transcribed messages and selected tracker values are sent through this demo server to Groq\'s free cloud inference, processed outside India. No Swiggy login, real orders or payment credentials are shared. You can keep using manual filters without it.</string>
+    <string name="assistant_consent_accept">Enable assistant</string>
+    <string name="assistant_consent_decline">Use manual filters</string>
+    <string name="assistant_apply_title">Apply this change?</string>
+    <string name="assistant_apply">Apply</string>
+    <string name="assistant_change_confirmed">Assistant change confirmed.</string>
+    <string name="assistant_change_rejected">That change is outside the allowed range, so nothing was changed.</string>
+
+    <!-- Discovery -->
+    <string name="discover_title">Find your three</string>
+    <string name="discover_saved">Saved meals</string>
+    <string name="discover_money_left">%1$s left today</string>
+    <string name="discover_shortlisted">%1$d of 3 shortlisted</string>
+    <string name="discover_filters">Filters</string>
+    <string name="discover_filters_count">Filters · %1$d</string>
+    <string name="discover_loading_body">Checking a fresh batch for your day.</string>
+    <string name="discover_error_title">Couldn\'t load your meals</string>
+    <string name="discover_day_done_title">Your day is complete</string>
+    <string name="discover_day_done_body">No meals left in your plan. Review your day before choosing another.</string>
+    <string name="discover_review_day">Review my day</string>
+    <string name="discover_undo">Undo last choice</string>
+    <string name="discover_pass">Pass</string>
+    <string name="discover_keep">Keep</string>
+    <string name="discover_swipe_hint">Swipe left to pass · right to keep</string>
+    <string name="discover_review_shortlist_count">Review shortlist (%1$d/3)</string>
+    <string name="discovery_expanded">Added nearby alternatives for your shortlist. Craving and macro trade-offs stay visible.</string>
+    <string name="empty_connect_title">Connect to find meals</string>
+    <string name="empty_connect_demo_title">Connect your Simulator</string>
+    <string name="empty_connect_body">Connect Swiggy and choose a delivery address to browse available meals.</string>
+    <string name="empty_connect_demo_body">Turn on Tailscale and keep the Simulator running on your computer. Then reconnect to browse fictional meals.</string>
+    <string name="empty_connect_action">Connect Swiggy</string>
+    <string name="empty_first_title">Your next meal starts here</string>
+    <string name="empty_first_body">Keep three meals you like. We\'ll make the final choice easy.</string>
+    <string name="empty_filtered_title">No meals match these filters</string>
+    <string name="empty_filtered_body">Try broadening your filters. Your shortlisted meals are still here.</string>
+    <string name="empty_exhausted_title">You\'ve seen this batch</string>
+    <string name="empty_exhausted_shortlist_body">Your shortlist is ready to review. Revisit passed meals if you\'d like another choice.</string>
+    <string name="empty_exhausted_body">Nothing caught your eye? Revisit passed meals or try another craving.</string>
+    <string name="empty_none_title">No meals found</string>
+    <string name="empty_none_body">Try a different craving or an available restaurant below.</string>
+    <string name="empty_adjust_filters">Adjust filters</string>
+    <string name="empty_review_shortlist">Review my shortlist</string>
+    <string name="empty_revisit_passed">Revisit passed meals</string>
+    <string name="empty_find_meals">Find meals</string>
+    <string name="empty_change_craving">Change craving</string>
+
+    <!-- Filters -->
+    <string name="filters_title">Make it your meal</string>
+    <string name="filters_taste">Taste</string>
+    <string name="filters_veg">Vegetarian only</string>
+    <string name="filters_veg_note">Exclude non-vegetarian and unknown items</string>
+    <string name="filters_budget">Menu price under %1$s</string>
+    <string name="filters_budget_note">Delivery and other fees may be extra</string>
+    <string name="filters_protein">Prefer protein</string>
+    <string name="filters_protein_note">Prioritize meals with known nutrition</string>
+    <string name="filters_fast">Prefer faster delivery</string>
+    <string name="filters_fast_note">Use available delivery estimates</string>
+    <string name="filters_new_shortlist">Finding a new batch starts a new shortlist.</string>
+    <string name="filters_apply">Find matching meals</string>
+    <string name="filters_reset">Reset filters</string>
+    <string name="taste_any">Anything</string>
+    <string name="taste_spicy">Spicy</string>
+    <string name="taste_light">Light</string>
+    <string name="taste_cheesy">Cheesy</string>
+    <string name="taste_sweet">Sweet</string>
+    <string name="taste_bland">Bland</string>
+    <string name="taste_filling">Filling</string>
+
+    <!-- Meal cards -->
+    <string name="meal_badge_demo">SYNTHETIC DEMO</string>
+    <string name="meal_badge_swiggy">Powered by Swiggy</string>
+    <string name="meal_price_unavailable">Price unavailable</string>
+    <string name="meal_eta">%1$d min est.</string>
+    <string name="meal_eta_unavailable">ETA unavailable</string>
+    <string name="meal_benefit_fallback">%1$s. %2$s.</string>
+    <string name="meal_compromise_estimated">Estimated nutrition, not a lab measurement. Final savings depend on the basket.</string>
+    <string name="meal_compromise_unknown">Nutrition is not published here. Fees and coupon eligibility are checked in the cart.</string>
+    <string name="meal_diet_veg">Vegetarian</string>
+    <string name="meal_diet_nonveg">Non-vegetarian</string>
+    <string name="meal_diet_unknown">Diet unknown</string>
+    <string name="meal_diet_eta">%1$s · %2$s</string>
+    <string name="meal_menu_price_suffix">"  menu price"</string>
+    <string name="meal_nutrition_estimated">Estimated nutrition</string>
+    <string name="meal_nutrition_unavailable">Nutrition unavailable</string>
+    <string name="meal_details">Details &amp; trade-offs</string>
+    <string name="meal_save">Save %1$s</string>
+    <string name="macro_calories">Calories · kcal</string>
+    <string name="macro_protein">Protein · g</string>
+    <string name="macro_carbs">Carbs · g</string>
+    <string name="macro_fat">Fat · g</string>
+    <string name="allowance_estimated_basket">~%1$s estimated basket</string>
+    <string name="allowance_before_fees">%1$s before fees</string>
+    <string name="allowance_share">" · %1$d%% of today\'s remaining allowance"</string>
+    <string name="allowance_leaves">Leaves %1$s of today\'s allowance</string>
+    <string name="allowance_leaves_about">Leaves about %1$s of today\'s allowance</string>
+    <string name="allowance_over">%1$s over today\'s remaining allowance</string>
+    <string name="allowance_checked_at_checkout">. Final total checked at checkout.</string>
+    <string name="allowance_before_delivery">, before delivery and fees.</string>
+    <string name="details_eyebrow">THE WHOLE PICTURE</string>
+    <string name="details_menu_price">%1$s is the menu price. Delivery, taxes and offers can change the final cart bill.</string>
+    <string name="details_nutrition_estimated">Nutrition ranges are Hungii-owned synthetic estimates; photos are representative.</string>
+    <string name="details_nutrition_unpublished">Nutrition is not published for this item in the connected menu.</string>
+    <string name="details_done">Got it</string>
+
+    <!-- Saved meals -->
+    <string name="saved_header">Saved meals</string>
+    <string name="saved_empty_title">Keep your favourites close</string>
+    <string name="saved_empty_body">Tap the bookmark on a meal to save it here. We\'ll ask before keeping it on this device.</string>
+    <string name="saved_empty_action">Explore meals</string>
+    <string name="saved_title">Your go-to meals</string>
+    <string name="saved_body">Search again to check today\'s availability and price.</string>
+    <string name="saved_find_again">Find again</string>
+    <string name="saved_unsave">Unsave %1$s</string>
+    <string name="saved_forget">Delete saved meals &amp; withdraw saving permission</string>
+
+    <!-- Finalists and lucky draw -->
+    <string name="finalists_header">Your finalists</string>
+    <string name="finalists_title_full">Three good choices.</string>
+    <string name="finalists_title">Your shortlist.</string>
+    <string name="finalists_body">All of these got a yes. The last choice can be the easy one.</string>
+    <string name="finalists_item">FINALIST 0%1$d</string>
+    <string name="finalists_price_eta">%1$s · %2$s</string>
+    <string name="finalists_remove">Remove %1$s</string>
+    <string name="finalists_shuffle">Turn over &amp; shuffle</string>
+    <plurals name="finalists_keep_more">
+        <item quantity="one">Keep %1$d more meal</item>
+        <item quantity="other">Keep %1$d more meals</item>
+    </plurals>
+    <string name="finalists_footer">Same meals. Equal chances. Nothing ordered.</string>
+    <string name="draw_header">The lucky draw</string>
+    <string name="draw_eyebrow">ROUND TWO</string>
+    <string name="draw_title_shuffling">Let luck do its thing.</string>
+    <string name="draw_title_picked">That’s your pick.</string>
+    <string name="draw_title_pick">Go with your gut.</string>
+    <string name="draw_body_shuffling">Turning your three maybes into one next meal.</string>
+    <string name="draw_body_pick">Tap a card. Every meal already earned its place.</string>
+    <string name="draw_mixing">Mixing…</string>
+    <string name="draw_hint">Pick any card. You’re in control.</string>
+    <string name="draw_view_finalists">View my finalists</string>
+    <string name="draw_revealed">Revealed %1$s</string>
+    <string name="draw_card">Pick card %1$d</string>
+    <string name="draw_card_back">FUEL YOUR DAY</string>
+    <string name="winner_header">Your lucky pick</string>
+    <string name="winner_title">Your lucky pick.</string>
+    <string name="winner_price">%1$s menu price · fees extra</string>
+    <string name="winner_nutrition_estimated">Estimated nutrition · synthetic demo</string>
+    <string name="winner_nutrition_unknown">Nutrition not published · calories and macros unknown</string>
+    <string name="winner_details">See what this leaves for later</string>
+    <string name="winner_footer">The draw never changes a cart or places an order.</string>
+    <string name="winner_add_demo">Add to mock cart</string>
+    <string name="winner_review">Review basket</string>
+
+    <!-- Basket -->
+    <string name="basket_header">Your basket</string>
+    <string name="basket_title">Good food.\nBetter value.</string>
+    <string name="basket_pending_title">Swiggy ordering · setup pending</string>
+    <string name="basket_pending_body">Ordering will open after Swiggy grants access and we verify checkout. Your meal choice has not changed a cart or placed an order.</string>
+    <string name="basket_deliver_to">Deliver to</string>
+    <string name="basket_empty">Your basket is empty. Pick a meal to start again.</string>
+    <string name="basket_coupon">Coupon code</string>
+    <string name="basket_apply_coupon">Apply coupon</string>
+    <string name="basket_open_swiggy">Open Swiggy · build cart manually</string>
+    <string name="basket_demo_note">These restaurants are invented for the simulator. No real order will be placed.</string>
+    <plurals name="basket_summary">
+        <item quantity="one">%1$d item · %2$s</item>
+        <item quantity="other">%1$d items · %2$s</item>
+    </plurals>
+    <string name="basket_allowance_left">%1$s allowance left</string>
+    <string name="basket_allowance_over">%1$s over allowance</string>
+    <string name="basket_refresh_hint">Refresh to confirm your current basket and total.</string>
+    <string name="basket_updating">Updating your basket…</string>
+    <string name="basket_refresh">Refresh basket</string>
+    <string name="basket_choose_payment">Choose payment</string>
+    <string name="basket_choose_payment_total">Choose payment · %1$s</string>
+    <string name="nudge_title">Add a little. Pay less.</string>
+    <string name="nudge_body">%1$s costs %2$s and unlocks %3$s. Your final bill drops by %4$s.</string>
+    <string name="nudge_tradeoff">Trade-off: %1$s extra kcal, estimated.</string>
+    <string name="nudge_add">Add side · new total %1$s</string>
+    <string name="bill_title">Bill details</string>
+    <string name="bill_food">Food</string>
+    <string name="bill_delivery">Delivery</string>
+    <string name="bill_packaging">Packaging</string>
+    <string name="bill_platform">Platform</string>
+    <string name="bill_tax">Tax</string>
+    <string name="bill_taxes">Taxes &amp; other charges</string>
+    <string name="bill_to_pay">To pay</string>
+    <string name="bill_note_demo">All amounts are synthetic INR. No real charge.</string>
+    <string name="bill_note">Live Swiggy total in INR. We’ll check it again before ordering.</string>
+    <string name="cart_quantity">Quantity</string>
+    <string name="cart_remove_one">Remove one</string>
+    <string name="cart_add_one">Add one</string>
+    <string name="cart_quantity_chip">%1$d×</string>
+    <string name="cart_portion">Portion</string>
+    <string name="cart_addon">%1$s · %2$s</string>
+    <plurals name="cart_item_total">
+        <item quantity="one">%1$s · %2$d item</item>
+        <item quantity="other">%1$s · %2$d items</item>
+    </plurals>
+    <string name="cart_nutrition_note">Estimated ranges · includes quantity and extras</string>
+    <string name="cart_replace_title">Replace your basket?</string>
+    <string name="cart_replace_body">This pick comes from another restaurant. Replace the existing basket to continue.</string>
+    <string name="cart_replace_confirm">Replace cart</string>
+    <string name="cart_replace_keep">Keep cart</string>
+    <string name="mcp_activity">MCP activity</string>
+    <string name="mcp_toggle">Toggle MCP activity</string>
+
+    <!-- Payment -->
+    <string name="payment_header">Payment</string>
+    <string name="payment_header_demo">Mock payment</string>
+    <string name="payment_your_basket">Your basket</string>
+    <string name="payment_environment">Powered by Swiggy</string>
+    <string name="payment_environment_demo">Simulator only. No money leaves your account.</string>
+    <string name="payment_environment_staging">Swiggy staging · no real order or charge</string>
+    <string name="payment_pay_using">Pay using</string>
+    <string name="payment_methods_pending">Payment options will appear after the basket is verified.</string>
+    <string name="payment_note">Note to kitchen (optional)</string>
+    <string name="payment_refresh_options">Refresh basket &amp; payment options</string>
+    <string name="payment_review">Review order · %1$s</string>
+    <string name="payment_checking">Checking your order</string>
+    <string name="payment_pending">Payment pending</string>
+    <string name="payment_pending_body_demo">Choose a mock outcome. Hungii checks payment before confirming the order.</string>
+    <string name="payment_pending_body">We haven’t confirmed this order yet. Check its status before trying another payment or placing another order.</string>
+    <string name="payment_simulate_success">Simulate success</string>
+    <string name="payment_simulate_failure">Simulate failure</string>
+    <string name="payment_simulate_cancel">Cancel mock payment</string>
+    <string name="payment_continue_upi">Continue to UPI payment</string>
+    <string name="payment_browser_missing">Open Swiggy to check payment. No browser is available.</string>
+    <string name="payment_check_swiggy">Check in Swiggy</string>
+    <string name="payment_check_status">Check payment status</string>
+    <string name="payment_failed_title">Payment didn’t complete</string>
+    <string name="payment_failed_body">Review your basket and current payment options before another attempt.</string>
+    <string name="payment_retry">Choose payment again</string>
+    <string name="payment_view_order">View confirmed order</string>
+    <string name="payment_status_unresolved">Payment status is unresolved. Check status before ordering again.</string>
+    <string name="payment_taking_longer">Payment is taking longer than expected. Check status before ordering again.</string>
+    <string name="payment_failed">Payment did not complete. Review the latest basket before another attempt.</string>
+    <string name="checkout_not_recovered">Checkout could not be recovered. Check recent Swiggy orders before trying again.</string>
+    <string name="confirm_order_title_demo">Confirm mock order</string>
+    <string name="confirm_order_title_staging">Confirm staging order</string>
+    <string name="confirm_order_title">Place your Swiggy order?</string>
+    <string name="confirm_order_deliver_to">Deliver to: %1$s</string>
+    <string name="confirm_order_item">%1$d × %2$s</string>
+    <string name="confirm_order_total">%1$s · %2$s</string>
+    <string name="confirm_order_test_note">Test order only. No real money or delivery.</string>
+    <string name="confirm_order_real_note">Confirming starts a real Swiggy order. UPI payment is authorized in your UPI app.</string>
+    <string name="confirm_order_test">Confirm test order</string>
+    <string name="confirm_order_place">Place order</string>
+    <string name="confirm_order_keep_reviewing">Keep reviewing</string>
+
+    <!-- Order -->
+    <string name="order_confirmed">Order confirmed</string>
+    <string name="order_title_demo">Test order confirmed</string>
+    <string name="order_title_staging">Staging order confirmed</string>
+    <string name="order_title">Swiggy order confirmed</string>
+    <string name="order_test_environment">Test environment · no delivery</string>
+    <string name="order_number">Order #%1$s</string>
+    <string name="order_total">Total</string>
+    <string name="order_demo_eta">Synthetic delivery estimate: 20–25 min</string>
+    <string name="order_tracking_pending">Tracking not available yet</string>
+    <string name="order_tracking_unavailable">Order confirmed. Tracking is temporarily unavailable; refresh or check Swiggy.</string>
+    <string name="order_refresh">Refresh tracking</string>
+    <string name="order_support">Support or cancellation · Swiggy</string>
+    <string name="order_log_hint">Log food when you eat it. Ordering alone does not count toward your nutrition totals.</string>
+    <string name="order_log_demo">Log as eaten · estimated macros</string>
+    <string name="order_log">Log what I ate</string>
+    <string name="log_real_order_hint">Add the portion you ate. Restaurant nutrition is unavailable; Hungii has not guessed it.</string>
+    <string name="log_already_logged">This meal is already in your food log.</string>
+    <string name="log_estimate_logged">Synthetic meal estimate logged. Your next meal budgets are updated.</string>
+
+    <!-- My day -->
+    <string name="day_edit">Edit your day</string>
+    <string name="day_title">No fixed schedule.\nStill on track.</string>
+    <string name="day_kcal_left">kcal left</string>
+    <string name="day_kcal_consumed">%1$s kcal consumed</string>
+    <plurals name="day_target_summary">
+        <item quantity="one">%1$d daily target · %2$d meal left</item>
+        <item quantity="other">%1$d daily target · %2$d meals left</item>
+    </plurals>
+    <string name="day_protein">PROTEIN</string>
+    <string name="day_carbs">CARBS</string>
+    <string name="day_fat">FAT</string>
+    <string name="day_macro_eaten">%1$s / %2$dg eaten</string>
+    <string name="day_allowance_left">ALLOWANCE LEFT</string>
+    <string name="day_allowance_note">%1$s spent / %2$s</string>
+    <string name="day_edit_button">Edit my targets &amp; allowance</string>
+    <string name="day_footer">Your food log. Orders are not automatically counted as eaten. Nutrition totals contain only what you entered.</string>
+    <string name="goals_title">Your day, your rules</string>
+    <string name="goals_subtitle">Goals &amp; allowance</string>
+    <string name="goals_name">Your name (optional)</string>
+    <string name="goals_add_name">Add your name (optional)</string>
+    <string name="goals_calories">Daily calories</string>
+    <string name="goals_protein">Protein goal (g)</string>
+    <string name="goals_carbs">Carbs goal (g)</string>
+    <string name="goals_fat">Fat goal (g)</string>
+    <string name="goals_allowance">Food allowance (₹)</string>
+    <string name="goals_meals">Meals left</string>
+    <string name="goals_eaten_calories">Calories eaten today</string>
+    <string name="goals_eaten_protein">Protein eaten (g)</string>
+    <string name="goals_eaten_carbs">Carbs eaten (g)</string>
+    <string name="goals_eaten_fat">Fat eaten (g)</string>
+    <string name="goals_spent">Money spent today (₹)</string>
+    <string name="goals_edit_totals">Edit today\'s food &amp; spending</string>
+    <string name="goals_hide_totals">Hide today\'s food &amp; spending</string>
+    <string name="goals_totals_hint">Enter only what you\'ve eaten or spent. Orders aren\'t logged automatically.</string>
+    <string name="goals_invalid">Use positive goals, 0–8 meals left, and non-negative food and spending totals.</string>
+    <string name="goals_save">Save my day</string>
+</resources>

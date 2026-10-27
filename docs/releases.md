@@ -1,8 +1,8 @@
 # Android preview releases
 
-GitHub Actions checks `main` and pull requests: backend/protocol tests, repository hygiene/local documentation links, no-inference Assistant regressions, and both Android variants' unit tests/build/lint. The release workflow runs for `vX.Y.Z` tags or an explicit existing-tag dispatch. It validates tag version and ancestry on main, repeats the relevant checks and publishes a GitHub prerelease with:
+GitHub Actions checks `main` and pull requests: backend formatting, lint and protocol/handler tests, SQL tests against a disposable local Supabase database, repository hygiene/local documentation links, no-inference Assistant regressions, Kotlin formatting, and both Android variants' unit tests/build/lint including the shrunk release build. The release workflow runs for `vX.Y.Z` tags or an explicit existing-tag dispatch. It validates tag version and ancestry on main, repeats the relevant checks and publishes a GitHub prerelease with:
 
-- `hungii.apk`: the single phone build, with optional sync/local-only use and prepared, approval-gated Swiggy checkout. The Simulator remains developer-only.
+- `hungii.apk`: the single phone build, with optional sync/local-only use and prepared, approval-gated Swiggy checkout. From 0.9.0 it is the R8-shrunk, non-debuggable `release` build type; the workflow refuses to publish a debuggable APK. The Simulator remains developer-only.
 - `SHA256SUMS.txt`: file checksums.
 
 These are development-signed previews, with the same certificate as the Tailscale APK. They are not Play Store production releases. Production signing, verified Android App Links and provider approvals remain separate release gates. No Play Store fee, paid runner or paid service is activated.
@@ -18,7 +18,7 @@ Supabase service-role, database password/encryption key and WorkOS/Swiggy API se
 ## Publish a checkpoint
 
 1. Merge a green change into main.
-2. Increment `versionCode` and the default app version in `android-prototype/app/build.gradle.kts`. The fork-h branding checkpoint is `0.8.1`, code 16; always use the version in the final merged source.
+2. Increment the default app version in `android-prototype/app/build.gradle.kts`. `versionCode` is derived from it (major × 10000 + minor × 100 + patch, so 0.9.0 is 900), which keeps every published version installable over the last; minor and patch stay below 100. The fork-h branding checkpoint was `0.8.1`, code 16; always use the version in the final merged source.
 3. Create and push a new matching annotated tag, for example `git tag -a v0.8.1 -m 'Hungii fork-h brand'` then `git push origin v0.8.1`.
 4. Check the Publish Android preview workflow. Only a successful build with the expected signing certificate may publish assets. Download the phone APK from the prerelease.
 
@@ -26,4 +26,4 @@ Standard hosted Linux runners for this public repository are free. No artifact a
 
 Published tags and APK/checksum assets are historical checkpoints. Uploads do not use `--clobber`; rerunning publication cannot silently replace an existing APK. Use a new version for a fix. An existing-tag dispatch is for an unpublished or incomplete release, and duplicate asset names fail rather than overwrite. Preserve published previews when cleaning obsolete merged branches. See [the initial release history](archive/push-review.md) for failed early tags.
 
-The CI signing configuration uses an explicit debug `SigningConfig.storeFile`, following the [Android command-line signing documentation](https://developer.android.com/build/building-cmdline).
+The CI signing configuration sets the stable preview key as the debug `SigningConfig.storeFile`, and the `release` build type reuses that signing config, following the [Android command-line signing documentation](https://developer.android.com/build/building-cmdline). Release and earlier debug previews share one certificate, so existing installs update in place.

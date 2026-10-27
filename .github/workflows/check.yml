@@ -13,7 +13,7 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -30,16 +30,30 @@ jobs:
           HUNGII_SUPABASE_PUBLISHABLE_KEY: ${{ vars.HUNGII_SUPABASE_PUBLISHABLE_KEY }}
           HUNGII_WORKOS_CLIENT_ID: ${{ vars.HUNGII_WORKOS_CLIENT_ID }}
           HUNGII_DEMO_API_URL: ${{ vars.HUNGII_DEMO_API_URL }}
-      - name: Check and test backend (no live services)
+      - name: Check, lint and test backend (no live services)
         run: |
           python3 scripts/check-repo.py
           python3 scripts/generate-brand.py --check
           python3 -m py_compile demo/agent.py scripts/demo-services.py
-          npx --yes deno@2.9.6 check --config supabase/functions/deno.json supabase/functions/hungii-api/index.ts demo/gateway.ts
-          npx --yes deno@2.9.6 test --config supabase/functions/deno.json --allow-env supabase/functions/_shared/ demo/simulator_test.ts
-      - name: Build and lint Android
+          npx --yes deno@2.9.6 fmt --check supabase/functions demo scripts
+          npx --yes deno@2.9.6 lint --config supabase/functions/deno.json supabase/functions demo scripts
+          npx --yes deno@2.9.6 check --config supabase/functions/deno.json supabase/functions/hungii-api/index.ts demo/gateway.ts scripts/operator.ts
+          npx --yes deno@2.9.6 test --config supabase/functions/deno.json --allow-env supabase/functions/ demo/simulator_test.ts scripts/
+      - uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+        with:
+          version: 2.122.0
+      - name: Apply migrations and run SQL tests (disposable local database)
+        run: |
+          supabase db start
+          for test in supabase/tests/*.sql; do
+            echo "::group::$test"
+            psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -q -f "$test"
+            echo "::endgroup::"
+          done
+          supabase stop --no-backup
+      - name: Format, test, build and lint Android
         working-directory: android-prototype
-        run: ./gradlew --no-daemon :app:testRealDebugUnitTest :app:testDemoDebugUnitTest :app:assembleRealDebug :app:assembleDemoDebug :app:lintRealDebug :app:lintDemoDebug
+        run: ./gradlew --no-daemon spotlessCheck :app:testRealDebugUnitTest :app:testDemoDebugUnitTest :app:assembleRealDebug :app:assembleDemoDebug :app:assembleRealRelease :app:lintRealDebug :app:lintDemoDebug :app:lintRealRelease
   assistant:
     runs-on: ubuntu-24.04
     timeout-minutes: 15

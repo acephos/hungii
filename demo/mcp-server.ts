@@ -1,11 +1,12 @@
-import { Server } from "npm:@modelcontextprotocol/sdk@1.31.0/server/index.js";
-import { WebStandardStreamableHTTPServerTransport } from "npm:@modelcontextprotocol/sdk@1.31.0/server/webStandardStreamableHttp.js";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import {
+  type CallToolRequest,
   CallToolRequestSchema,
   ErrorCode,
   ListToolsRequestSchema,
   McpError,
-} from "npm:@modelcontextprotocol/sdk@1.31.0/types.js";
+} from "@modelcontextprotocol/sdk/types.js";
 import { Ajv } from "ajv";
 import { MockFailure, MockFood, schemas } from "./catalogue.ts";
 import { readJsonObject } from "../supabase/functions/_shared/http.ts";
@@ -95,42 +96,45 @@ export function mockProvider(jsonResponses = true) {
         ListToolsRequestSchema,
         () => ({ tools: schemas }),
       );
-      server.setRequestHandler(CallToolRequestSchema, async (request: any) => {
-        const tool = schemas.find((t) => t.name === request.params.name);
-        const args = request.params.arguments ?? {};
-        if (!tool || !ajv.compile(tool.inputSchema)(args)) {
-          throw new McpError(
-            ErrorCode.InvalidParams,
-            "Arguments differ from the documented Food input schema.",
-          );
-        }
-        stats.calls.push(tool.name);
-        stats.calls = stats.calls.slice(-300);
-        try {
-          const envelope = {
-            success: true,
-            data: await state.call(tool.name, args),
-          };
-          return {
-            content: [{ type: "text", text: JSON.stringify(envelope) }],
-            structuredContent: envelope,
-          };
-        } catch (error) {
-          const known = error instanceof MockFailure;
-          const envelope = {
-            success: false,
-            error: {
-              code: known ? error.code : "HUNGII_MOCK_FAILURE",
-              message: known ? error.message : "Synthetic tool call failed.",
-            },
-          };
-          return {
-            isError: true,
-            content: [{ type: "text", text: JSON.stringify(envelope) }],
-            structuredContent: envelope,
-          };
-        }
-      });
+      server.setRequestHandler(
+        CallToolRequestSchema,
+        async (request: CallToolRequest) => {
+          const tool = schemas.find((t) => t.name === request.params.name);
+          const args = request.params.arguments ?? {};
+          if (!tool || !ajv.compile(tool.inputSchema)(args)) {
+            throw new McpError(
+              ErrorCode.InvalidParams,
+              "Arguments differ from the documented Food input schema.",
+            );
+          }
+          stats.calls.push(tool.name);
+          stats.calls = stats.calls.slice(-300);
+          try {
+            const envelope = {
+              success: true,
+              data: await state.call(tool.name, args),
+            };
+            return {
+              content: [{ type: "text", text: JSON.stringify(envelope) }],
+              structuredContent: envelope,
+            };
+          } catch (error) {
+            const known = error instanceof MockFailure;
+            const envelope = {
+              success: false,
+              error: {
+                code: known ? error.code : "HUNGII_MOCK_FAILURE",
+                message: known ? error.message : "Synthetic tool call failed.",
+              },
+            };
+            return {
+              isError: true,
+              content: [{ type: "text", text: JSON.stringify(envelope) }],
+              structuredContent: envelope,
+            };
+          }
+        },
+      );
       await server.connect(transport);
     }
     try {

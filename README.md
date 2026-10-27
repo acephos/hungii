@@ -12,7 +12,7 @@ The Simulator (`demo` flavor) is a developer-only testing build with fictional m
 
 ## Run and build
 
-- [Android instructions](android-prototype/README.md): build both variants with JDK 17, SDK 35 and the Gradle wrapper.
+- [Android instructions](android-prototype/README.md): build both variants with JDK 17, compile SDK 37 and the Gradle wrapper.
 - [Simulator setup](demo/README.md): start the gateway, configure your phone endpoint, enable optional cloud inference and install services that restart after reboot.
 - [Real service setup](docs/swiggy-setup.md): public mobile settings, WorkOS/Supabase and remaining Swiggy access gates.
 - [Contributor checks](CONTRIBUTING.md): backend, Assistant, Android and repository hygiene commands. Tests use authored fixtures and no live inference.

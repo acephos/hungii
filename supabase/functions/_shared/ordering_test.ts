@@ -1,3 +1,5 @@
+// Fakes stand in for asynchronous providers, so they stay async without awaiting.
+// deno-lint-ignore-file require-await
 import {
   type AttemptStore,
   FoodOrdering,
@@ -270,4 +272,53 @@ Deno.test("payment choices use returned surface membership and reject untrusted 
   assert(safeBridge("https://swiggy.com.evil.test/pay") === null);
   assert(safeBridge("javascript:alert(1)") === null);
   assert(safeBridge("https://mcp.swiggy.com/pay") !== null);
+});
+
+Deno.test("the saved address page finds the delivery label in one request", async () => {
+  const pages: Json[] = [];
+  const addresses = (page: number) =>
+    page === 3
+      ? [{ id: "addr", addressLine: "Hinted page" }]
+      : [{ id: "other", addressLine: "Elsewhere" }];
+  const call = async (name: string, args: Json) => {
+    if (name === "get_addresses") {
+      pages.push(args);
+      return {
+        addresses: addresses(args.page ?? 1),
+        pagination: { totalPages: 4 },
+      };
+    }
+    if (name === "get_food_cart") return { data: { items: [] } };
+    throw new Error(name);
+  };
+  const hinted = new FoodOrdering(
+    call,
+    new Memory(),
+    cfg,
+    "u",
+    "addr",
+    key,
+    () => 1,
+    3,
+  );
+  const cart = await hinted.run("cart", {});
+  assert(cart.cart.address === "Hinted page");
+  assert(JSON.stringify(pages) === JSON.stringify([{ page: 3, pageSize: 10 }]));
+  // A stale hint falls back to the bounded scan.
+  pages.length = 0;
+  const stale = new FoodOrdering(
+    call,
+    new Memory(),
+    cfg,
+    "u",
+    "addr",
+    key,
+    () => 1,
+    2,
+  );
+  assert((await stale.run("cart", {})).cart.address === "Hinted page");
+  assert(
+    JSON.stringify(pages.map((p) => p.page ?? 1)) === "[2,1,2,3]",
+    JSON.stringify(pages),
+  );
 });

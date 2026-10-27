@@ -1,8 +1,16 @@
+// Fakes stand in for asynchronous providers, so they stay async without awaiting.
+// deno-lint-ignore-file require-await
 import { MockFailure, MockFood, schemas } from "./catalogue.ts";
 import { createGateway } from "./gateway.ts";
 import { payload } from "../supabase/functions/_shared/food.ts";
-import { sdkFactory } from "../supabase/functions/_shared/sessions.ts";
-import { HungiiError } from "../supabase/functions/_shared/errors.ts";
+import {
+  type Connection,
+  sdkFactory,
+} from "../supabase/functions/_shared/sessions.ts";
+import {
+  HungiiError,
+  type Json,
+} from "../supabase/functions/_shared/errors.ts";
 import { mockProvider } from "./mcp-server.ts";
 const assert = (value: unknown, message = "Assertion failed") => {
   if (!value) throw new Error(message);
@@ -279,7 +287,7 @@ Deno.test("live Swiggy writes stay disabled even with the local-demo flag", asyn
       _u: string,
       _t: string,
       _url: string,
-      task: (c: any) => Promise<T>,
+      task: (c: Connection) => Promise<T>,
     ) =>
       task({
         tools: schemas,
@@ -287,6 +295,7 @@ Deno.test("live Swiggy writes stay disabled even with the local-demo flag", asyn
           calls++;
           throw new Error("Network must not be used");
         },
+        close: () => Promise.resolve(),
       }),
   };
   for (const host of ["mcp.swiggy.com", "mcp-staging.swiggy.com"]) {
@@ -335,7 +344,7 @@ Deno.test("narrow cravings broaden once and single-meal estimates include eligib
     await post("select_address", { addressId: "demo-address" });
     const r = await post("discover", { query: "dragonfruit lasagna" });
     assert(r.expandedQuery && r.meals.length >= 3);
-    const m = r.meals.find((m: any) => m.dishId === "protein-chicken");
+    const m = r.meals.find((m: Json) => m.dishId === "protein-chicken");
     assert(m && m.estimatedPayable === 212.45);
     assert(
       r.mcpTrace.filter((t: string) => t === "search_restaurants").length === 2,
