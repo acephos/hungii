@@ -1,6 +1,6 @@
-google-adk[mcp]==2.11.0
-litellm==1.103.2
-mcp==2.2.0
-fastapi==0.141.1
+google-adk[mcp]==2.14.0
+litellm==1.109.0
+mcp==2.3.0
+fastapi==0.162.4
 uvicorn==0.54.0
 python-dotenv==1.2.4
